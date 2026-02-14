@@ -16,7 +16,8 @@ export class GeminiComposer {
     genre: MusicGenre, 
     tempo: number, 
     existingEvents: CompositionEvent[], 
-    nextStartBeat: number
+    nextStartBeat: number,
+    creativeDirection?: string
   ): AsyncGenerator<string> {
     
     // 1. Serialize History
@@ -39,6 +40,9 @@ export class GeminiComposer {
     
     CONTEXT:
     The user is composing a ${genre} track at ${tempo} BPM.
+
+    CREATIVE DIRECTION (USER OVERRIDE):
+    ${creativeDirection ? `The user has provided specific instructions. You MUST prioritize these over the default genre style: "${creativeDirection}"` : "None provided. Follow the standard conventions for the selected genre."}
     
     HISTORY:
     Here is the complete musical history so far (T is absolute beat time):

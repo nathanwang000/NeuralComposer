@@ -25,12 +25,25 @@ import {
   History,
   Trash2,
   Undo,
-  Redo
+  Redo,
+  Sparkles,
+  Gauge,
+  Minus,
+  Plus,
+  Download
 } from 'lucide-react';
 
 interface ValidationError {
   message: string;
   index: number;
+}
+
+interface AppEvent {
+  event: MidiEvent;
+  beatOffset: number;
+  id: string;
+  isUser?: boolean;
+  comment?: string;
 }
 
 const App: React.FC = () => {
@@ -43,15 +56,19 @@ const App: React.FC = () => {
 
   const [playbackBeat, setPlaybackBeat] = useState(0);
   const [isPaused, setIsPaused] = useState(true); // Start conceptually paused
-  const [events, setEvents] = useState<{ event: MidiEvent; beatOffset: number; id: string; isUser?: boolean }[]>([]);
+  const [events, setEvents] = useState<AppEvent[]>([]);
   const [rawStream, setRawStream] = useState("");
   const [isWarmingUp, setIsWarmingUp] = useState(false);
   const [userInput, setUserInput] = useState("");
+  const [creativeDirection, setCreativeDirection] = useState("");
   
+  // BPM Input Buffer State
+  const [tempBpm, setTempBpm] = useState("124");
+
   // Selection State
   const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
   const [selectionMarquee, setSelectionMarquee] = useState<SelectionBounds | null>(null);
-  const [clipboard, setClipboard] = useState<{ event: MidiEvent; relativeBeat: number }[]>([]);
+  const [clipboard, setClipboard] = useState<{ event: MidiEvent; relativeBeat: number; comment?: string }[]>([]);
   
   // Undo/Redo History
   const [history, setHistory] = useState<{ past: typeof events[], future: typeof events[] }>({ past: [], future: [] });
@@ -69,25 +86,82 @@ const App: React.FC = () => {
 
   const validation = useMemo(() => {
     const errors: ValidationError[] = [];
-    const validEvents: MidiEvent[] = [];
+    const validEvents: { event: MidiEvent; comment?: string }[] = [];
+    
     if (!userInput.trim()) return { errors, validEvents };
-    const bracketPairs: string[] = userInput.match(/\[[^\]]*\]?/g) || [];
-    bracketPairs.forEach((pair, idx) => {
-      const fullMatch = pair.match(/\[\s*P:\s*(\d+)\s*,\s*V:\s*(\d+)\s*,\s*T:\s*([\d.]+)\s*,\s*D:\s*([\d.]+)\s*\]/);
-      if (!fullMatch) {
-        if (!pair.endsWith(']')) errors.push({ message: `Packet ${idx + 1}: Missing bracket ']'`, index: idx });
-        else errors.push({ message: `Packet ${idx + 1}: Invalid format`, index: idx });
-      } else {
-        const p = parseInt(fullMatch[1]);
-        const v = parseInt(fullMatch[2]);
-        const t = parseFloat(fullMatch[3]);
-        const d = parseFloat(fullMatch[4]);
-        if (p < 0 || p > 127) errors.push({ message: `Packet ${idx + 1}: P 0-127`, index: idx });
-        else validEvents.push({ p, v, t, d });
+
+    const lines = userInput.split('\n');
+    let pendingComments: string[] = [];
+
+    lines.forEach((line, lineIndex) => {
+      const trimmedLine = line.trim();
+      
+      // Feature: Allow comments starting with #
+      if (trimmedLine.startsWith('#')) {
+        pendingComments.push(trimmedLine);
+        return;
+      }
+      
+      if (!trimmedLine && pendingComments.length === 0) return; 
+
+      const packetRegex = /\[[^\]]*\]?/g;
+      let match;
+      let hasEventsOnLine = false;
+      let foundAnyMatch = false;
+      
+      while ((match = packetRegex.exec(line)) !== null) {
+        foundAnyMatch = true;
+        const pair = match[0];
+        const fullMatch = pair.match(/\[\s*P:\s*(\d+)\s*,\s*V:\s*(\d+)\s*,\s*T:\s*([\d.]+)\s*,\s*D:\s*([\d.]+)\s*\]/);
+        
+        if (!fullMatch) {
+          if (!pair.endsWith(']')) errors.push({ message: `Line ${lineIndex + 1}: Missing bracket ']'`, index: lineIndex });
+          else errors.push({ message: `Line ${lineIndex + 1}: Invalid format`, index: lineIndex });
+        } else {
+          const p = parseInt(fullMatch[1]);
+          const v = parseInt(fullMatch[2]);
+          const t = parseFloat(fullMatch[3]);
+          const d = parseFloat(fullMatch[4]);
+          
+          if (p < 0 || p > 127) {
+            errors.push({ message: `Line ${lineIndex + 1}: P 0-127`, index: lineIndex });
+          } else {
+            const evt: { event: MidiEvent; comment?: string } = { event: { p, v, t, d } };
+            // Attach pending comments to the first event found after the comments
+            if (!hasEventsOnLine && pendingComments.length > 0) {
+               evt.comment = pendingComments.join('\n');
+               pendingComments = [];
+            }
+            validEvents.push(evt);
+            hasEventsOnLine = true;
+          }
+        }
       }
     });
+
     return { errors, validEvents };
   }, [userInput]);
+
+  // Sync temp BPM if state changes externally (e.g. reset)
+  useEffect(() => {
+    setTempBpm(state.tempo.toString());
+  }, [state.tempo]);
+
+  const updateBpm = (newBpm: number) => {
+    const clamped = Math.max(20, Math.min(300, newBpm));
+    setState(s => ({ ...s, tempo: clamped }));
+    audioEngine.setTempo(clamped);
+    setTempBpm(clamped.toString());
+  };
+
+  const handleBpmBlur = () => {
+    const val = parseInt(tempBpm);
+    if (!isNaN(val)) {
+      updateBpm(val);
+    } else {
+      setTempBpm(state.tempo.toString());
+    }
+  };
 
   // Undo/Redo Logic
   const pushHistory = useCallback((currentEvents: typeof events) => {
@@ -154,14 +228,14 @@ const App: React.FC = () => {
     };
     animationId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animationId);
-  }, [state.isPlaying, events, state.tempo]);
+  }, [state.isPlaying, events, state.tempo, creativeDirection]); 
 
   const parseAndStore = (textChunk: string, baseBeatOffset: number) => {
     streamBufferRef.current += textChunk;
     setRawStream(prev => (prev + textChunk).slice(-800));
     const regex = /\[\s*P:\s*(\d+)\s*,\s*V:\s*(\d+)\s*,\s*T:\s*([\d.]+)\s*,\s*D:\s*([\d.]+)\s*\]/g;
     let match;
-    const newMidiEvents: { event: MidiEvent; beatOffset: number; id: string }[] = [];
+    const newMidiEvents: AppEvent[] = [];
     while ((match = regex.exec(streamBufferRef.current)) !== null) {
       const event: MidiEvent = { p: parseInt(match[1]), v: parseInt(match[2]), t: parseFloat(match[3]), d: parseFloat(match[4]) };
       newMidiEvents.push({ event, beatOffset: baseBeatOffset, id: `note-${baseBeatOffset}-${match.index}-${event.p}` });
@@ -190,7 +264,8 @@ const App: React.FC = () => {
         state.genre as MusicGenre, 
         state.tempo, 
         events, // Pass full history
-        startOffset // The absolute beat where new music should start
+        startOffset, // The absolute beat where new music should start
+        creativeDirection // Pass user prompt
       );
       
       for await (const chunk of generator) {
@@ -246,11 +321,45 @@ const App: React.FC = () => {
     if (validation.validEvents.length === 0 || validation.errors.length > 0) return;
     pushHistory(events); // Save History
     const baseOffset = playbackBeatRef.current;
-    const newEvents = validation.validEvents.map((e, idx) => ({
-      event: e, beatOffset: baseOffset, id: `user-${baseOffset}-${idx}-${Date.now()}`, isUser: true
+    
+    const newEvents = validation.validEvents.map((item, idx) => ({
+      event: item.event, 
+      beatOffset: baseOffset, 
+      id: `user-${baseOffset}-${idx}-${Date.now()}`, 
+      isUser: true,
+      comment: item.comment 
     }));
+    
     setEvents(prev => [...prev, ...newEvents]);
     setUserInput("");
+  };
+
+  const handleDownload = () => {
+    // Sort events by absolute time
+    const sortedEvents = [...events].sort((a, b) => 
+      (a.beatOffset + a.event.t) - (b.beatOffset + b.event.t)
+    );
+
+    let output = `# Neural Composer Export\n# Genre: ${state.genre}\n# Tempo: ${state.tempo}\n# Date: ${new Date().toLocaleString()}\n\n`;
+    
+    sortedEvents.forEach(e => {
+       if (e.comment) {
+         output += `\n${e.comment}\n`;
+       }
+       const absT = (e.beatOffset + e.event.t).toFixed(3);
+       const d = e.event.d.toFixed(3);
+       output += `[P:${e.event.p},V:${e.event.v},T:${absT},D:${d}]\n`;
+    });
+
+    const blob = new Blob([output], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `neural-composer-export-${Date.now()}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const handleCopy = useCallback(() => {
@@ -269,13 +378,15 @@ const App: React.FC = () => {
 
     const clipboardData = selectedEvents.map(item => ({
       event: { ...item.event },
-      relativeBeat: (item.beatOffset + item.event.t) - minBeat
+      relativeBeat: (item.beatOffset + item.event.t) - minBeat,
+      comment: item.comment
     }));
     
     setClipboard(clipboardData);
 
+    // Also write to system clipboard
     const clipboardText = clipboardData.map(item => 
-      `[P:${item.event.p},V:${item.event.v},T:${item.relativeBeat.toFixed(3)},D:${item.event.d.toFixed(3)}]`
+      `${item.comment ? `\n${item.comment}\n` : ''}[P:${item.event.p},V:${item.event.v},T:${item.relativeBeat.toFixed(3)},D:${item.event.d.toFixed(3)}]`
     ).join(' ');
     
     navigator.clipboard.writeText(clipboardText).catch(err => console.error('Failed to write to clipboard', err));
@@ -301,7 +412,8 @@ const App: React.FC = () => {
         event: { ...item.event, t: item.relativeBeat },
         beatOffset: pasteBaseBeat,
         id: id,
-        isUser: true
+        isUser: true,
+        comment: item.comment
       };
     });
 
@@ -415,6 +527,7 @@ const App: React.FC = () => {
     setRawStream("");
     
     setState(s => ({ ...s, isPlaying: false, isGenerating: false }));
+    // NOT clearing creativeDirection (persists)
   };
 
   const bufferRemaining = Math.max(0, beatsGeneratedRef.current - playbackBeat);
@@ -447,6 +560,38 @@ const App: React.FC = () => {
               {isPaused ? <Play size={18} fill="currentColor" /> : <Pause size={18} fill="currentColor" />}
             </button>
           </div>
+
+          {/* New BPM Selector */}
+          <div className="flex items-center bg-black rounded-xl border border-white/5 p-1 mr-1">
+             <div className="px-2 border-r border-white/10 flex items-center gap-2 mr-1">
+                <Gauge size={14} className="text-slate-600" />
+                <span className="text-[10px] font-black text-slate-600 hidden xl:inline">BPM</span>
+             </div>
+             
+             <button 
+               onClick={() => updateBpm(state.tempo - 1)} 
+               className="w-6 h-8 flex items-center justify-center hover:bg-white/10 rounded-lg text-slate-500 hover:text-indigo-400 transition-colors active:scale-90"
+             >
+               <Minus size={12} />
+             </button>
+             
+             <input 
+                 type="number" 
+                 value={tempBpm}
+                 onChange={(e) => setTempBpm(e.target.value)}
+                 onBlur={handleBpmBlur}
+                 onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                 className="w-10 bg-transparent text-sm font-bold text-white text-center focus:outline-none appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+             />
+
+             <button 
+               onClick={() => updateBpm(state.tempo + 1)} 
+               className="w-6 h-8 flex items-center justify-center hover:bg-white/10 rounded-lg text-slate-500 hover:text-indigo-400 transition-colors active:scale-90"
+             >
+               <Plus size={12} />
+             </button>
+          </div>
+
           <select 
             className="bg-black border-none text-xs font-bold rounded-xl px-4 py-2.5 cursor-pointer hover:bg-slate-900"
             value={state.genre}
@@ -621,7 +766,7 @@ const App: React.FC = () => {
                   <textarea 
                     value={userInput}
                     onChange={(e) => setUserInput(e.target.value)}
-                    placeholder="e.g. [P:60,V:100,T:0,D:1] where P: 0-127 specifies the pitch (central C is 60), V: 0-127 specifies the velocity/loudness, T: specifies the offset from the beginning measured by bars, D: specifies the duration of the note measured by bars"
+                    placeholder="e.g. # Intro Melody\n[P:60,V:100,T:0,D:1]\n[P:62,V:100,T:1,D:1]"
                     className="flex-1 bg-black/40 border border-white/5 rounded-xl p-3 font-mono text-[11px] text-white focus:outline-none focus:ring-1 ring-indigo-500/50 placeholder:text-slate-700 resize-none"
                   />
                   <div className="h-10 overflow-y-auto custom-scrollbar bg-black/20 rounded-lg p-2 font-mono text-[9px]">
@@ -640,7 +785,7 @@ const App: React.FC = () => {
                     ) : (
                       <div className="text-slate-500 flex flex-col justify-center h-full gap-1">
                         <div className="text-slate-600 flex items-center gap-1">
-                          <Scissors size={8} /> Drag to select, Ctrl+C to copy code
+                          <Scissors size={8} /> Lines starting with # are comments
                         </div>
                       </div>
                     )}
@@ -695,13 +840,26 @@ const App: React.FC = () => {
                        <Copy size={10} /> Clipboard: {clipboard.length > 0 ? `${clipboard.length} notes` : 'Empty'}
                     </div>
                  </div>
+                 {events.length > 0 && (
+                   <button 
+                      onClick={handleDownload}
+                      className="w-full mt-4 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-lg border border-indigo-500/20 text-[10px] font-bold uppercase flex items-center justify-center gap-2 transition-all"
+                   >
+                      <Download size={12} /> Export Session
+                   </button>
+                 )}
               </div>
 
               <div className="mt-auto p-4 bg-indigo-500/5 rounded-2xl border border-indigo-500/10">
-                 <div className="text-[9px] font-black text-indigo-400 uppercase mb-1">Advanced Editing</div>
-                 <p className="text-[10px] text-slate-600 leading-relaxed italic">
-                   The navigator above allows quick jumping through large compositions.
-                 </p>
+                 <div className="text-[9px] font-black text-indigo-400 uppercase mb-2 flex items-center gap-2">
+                    <Sparkles size={10} /> Creative Direction
+                 </div>
+                 <textarea
+                    value={creativeDirection}
+                    onChange={(e) => setCreativeDirection(e.target.value)}
+                    placeholder="e.g. Use a walking bass line, keep it sparse, add erratic drum fills..."
+                    className="w-full bg-slate-900/50 border border-indigo-500/10 rounded-lg p-2 text-[10px] text-slate-300 focus:outline-none focus:border-indigo-500/50 resize-none h-24"
+                 />
               </div>
             </div>
           </div>
