@@ -1,0 +1,5 @@
+{
+  "name": "Gemini MIDI Streamer",
+  "description": "A live-streaming music explorer that uses Gemini to generate a never-ending stream of MIDI events, visualized and synthesized in real-time.",
+  "requestFramePermissions": []
+}
