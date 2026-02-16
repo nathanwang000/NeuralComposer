@@ -67,8 +67,8 @@ const PianoRoll: React.FC<PianoRollProps> = ({
     const h = canvas.height;
     const relativeX = x - (w / 2);
     const beat = currentBeat + (relativeX / beatWidth);
-    const noteHeight = h / 48;
-    const pitch = Math.floor((h - y) / noteHeight) + 36;
+    const noteHeight = h / 72;
+    const pitch = Math.floor((h - y) / noteHeight) + 24;
     return { beat, pitch };
   };
 
@@ -186,7 +186,7 @@ const PianoRoll: React.FC<PianoRollProps> = ({
       ctx.clearRect(0, 0, w, h);
 
       const startX = (w / 2) - (currentBeat * beatWidth);
-      const noteHeight = h / 48;
+      const noteHeight = h / 72;
 
       // Vertical beat lines
       const firstVisibleBeat = Math.floor(currentBeat - (w / 2) / beatWidth);
@@ -203,7 +203,7 @@ const PianoRoll: React.FC<PianoRollProps> = ({
       }
 
       // Horizontal note lines
-      for (let i = 0; i < 48; i++) {
+      for (let i = 0; i < 72; i++) {
         const y = h - (i * noteHeight);
         ctx.beginPath();
         ctx.strokeStyle = i % 12 === 0 ? '#1e293b' : '#0a0f1a';
@@ -236,7 +236,7 @@ const PianoRoll: React.FC<PianoRollProps> = ({
         const absoluteBeatEnd = absoluteBeatStart + event.d;
         const x = startX + absoluteBeatStart * beatWidth;
         const width = event.d * beatWidth;
-        const noteIndex = pitch - 36;
+        const noteIndex = pitch - 24;
         const y = h - (noteIndex * noteHeight) - noteHeight;
 
         if (x + width < 0 || x > w) return;
@@ -267,7 +267,7 @@ const PianoRoll: React.FC<PianoRollProps> = ({
         const { startBeat, endBeat, minPitch, maxPitch } = selectionMarquee;
         let x = startX + startBeat * beatWidth;
         let wRect = (endBeat - startBeat) * beatWidth;
-        let yStart = h - ((maxPitch - 36 + 1) * noteHeight);
+        let yStart = h - ((maxPitch - 24 + 1) * noteHeight);
         let hRect = (maxPitch - minPitch + 1) * noteHeight;
 
         ctx.strokeStyle = '#22d3ee';
@@ -288,7 +288,7 @@ const PianoRoll: React.FC<PianoRollProps> = ({
 
         let selX = startX + boundStart * beatWidth;
         let selW = (boundEnd - boundStart) * beatWidth;
-        let selYStart = h - ((boundMaxP - 36 + 1) * noteHeight);
+        let selYStart = h - ((boundMaxP - 24 + 1) * noteHeight);
         let selH = (boundMaxP - boundMinP + 1) * noteHeight;
         
         ctx.strokeStyle = isMoving ? '#6366f1' : 'rgba(34, 211, 238, 0.8)';

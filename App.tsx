@@ -84,7 +84,7 @@ const App: React.FC = () => {
   const scheduledNoteIds = useRef(new Set<string>());
   const queueThreshold = 12; 
 
-  const validation = useMemo(() => {
+const validation = useMemo(() => {
     const errors: ValidationError[] = [];
     const validEvents: { event: MidiEvent; comment?: string }[] = [];
     
@@ -104,13 +104,14 @@ const App: React.FC = () => {
       
       if (!trimmedLine && pendingComments.length === 0) return; 
 
+      // Remove inline comments for parsing
+      const codePart = line.split('#')[0];
+
       const packetRegex = /\[[^\]]*\]?/g;
       let match;
       let hasEventsOnLine = false;
-      let foundAnyMatch = false;
       
-      while ((match = packetRegex.exec(line)) !== null) {
-        foundAnyMatch = true;
+      while ((match = packetRegex.exec(codePart)) !== null) {
         const pair = match[0];
         const fullMatch = pair.match(/\[\s*P:\s*(\d+)\s*,\s*V:\s*(\d+)\s*,\s*T:\s*([\d.]+)\s*,\s*D:\s*([\d.]+)\s*\]/);
         
@@ -125,6 +126,8 @@ const App: React.FC = () => {
           
           if (p < 0 || p > 127) {
             errors.push({ message: `Line ${lineIndex + 1}: P 0-127`, index: lineIndex });
+          } else if (v < 0 || v > 127) {
+            errors.push({ message: `Line ${lineIndex + 1}: V 0-127`, index: lineIndex });
           } else {
             const evt: { event: MidiEvent; comment?: string } = { event: { p, v, t, d } };
             // Attach pending comments to the first event found after the comments
@@ -141,6 +144,64 @@ const App: React.FC = () => {
 
     return { errors, validEvents };
   }, [userInput]);
+
+  // const validation = useMemo(() => {
+  //   const errors: ValidationError[] = [];
+  //   const validEvents: { event: MidiEvent; comment?: string }[] = [];
+    
+  //   if (!userInput.trim()) return { errors, validEvents };
+
+  //   const lines = userInput.split('\n');
+  //   let pendingComments: string[] = [];
+
+  //   lines.forEach((line, lineIndex) => {
+  //     const trimmedLine = line.trim();
+      
+  //     // Feature: Allow comments starting with #
+  //     if (trimmedLine.startsWith('#')) {
+  //       pendingComments.push(trimmedLine);
+  //       return;
+  //     }
+      
+  //     if (!trimmedLine && pendingComments.length === 0) return; 
+
+  //     const packetRegex = /\[[^\]]*\]?/g;
+  //     let match;
+  //     let hasEventsOnLine = false;
+  //     let foundAnyMatch = false;
+      
+  //     while ((match = packetRegex.exec(line)) !== null) {
+  //       foundAnyMatch = true;
+  //       const pair = match[0];
+  //       const fullMatch = pair.match(/\[\s*P:\s*(\d+)\s*,\s*V:\s*(\d+)\s*,\s*T:\s*([\d.]+)\s*,\s*D:\s*([\d.]+)\s*\]/);
+        
+  //       if (!fullMatch) {
+  //         if (!pair.endsWith(']')) errors.push({ message: `Line ${lineIndex + 1}: Missing bracket ']'`, index: lineIndex });
+  //         else errors.push({ message: `Line ${lineIndex + 1}: Invalid format`, index: lineIndex });
+  //       } else {
+  //         const p = parseInt(fullMatch[1]);
+  //         const v = parseInt(fullMatch[2]);
+  //         const t = parseFloat(fullMatch[3]);
+  //         const d = parseFloat(fullMatch[4]);
+          
+  //         if (p < 0 || p > 127) {
+  //           errors.push({ message: `Line ${lineIndex + 1}: P 0-127`, index: lineIndex });
+  //         } else {
+  //           const evt: { event: MidiEvent; comment?: string } = { event: { p, v, t, d } };
+  //           // Attach pending comments to the first event found after the comments
+  //           if (!hasEventsOnLine && pendingComments.length > 0) {
+  //              evt.comment = pendingComments.join('\n');
+  //              pendingComments = [];
+  //           }
+  //           validEvents.push(evt);
+  //           hasEventsOnLine = true;
+  //         }
+  //       }
+  //     }
+  //   });
+
+  //   return { errors, validEvents };
+  // }, [userInput]);
 
   // Sync temp BPM if state changes externally (e.g. reset)
   useEffect(() => {
@@ -252,6 +313,10 @@ const App: React.FC = () => {
 
   const generateNextStream = async () => {
     if (!isStreamActiveRef.current || isGeneratingRef.current) return;
+    
+    // Save current state to history before generating new content
+    pushHistory(events);
+
     isGeneratingRef.current = true;
     setState(s => ({ ...s, isGenerating: true }));
     const startOffset = beatsGeneratedRef.current;
@@ -308,7 +373,8 @@ const App: React.FC = () => {
     setIsPaused(false);
     
     setState(s => ({ ...s, isPlaying: true }));
-    generateNextStream();
+    // Removed explicit generateNextStream() to let the useEffect loop trigger it 
+    // after the state resets are propagated. This ensures history is clean.
   };
 
   const handleSeek = (beat: number) => {
@@ -766,7 +832,7 @@ const App: React.FC = () => {
                   <textarea 
                     value={userInput}
                     onChange={(e) => setUserInput(e.target.value)}
-                    placeholder="e.g. # Intro Melody\n[P:60,V:100,T:0,D:1]\n[P:62,V:100,T:1,D:1]"
+                    placeholder="e.g. # Intro Melody\n[P:60,V:100,T:0,D:1]\n[P:62,V:100,T:1,D:1] means C4 followed by D4 at volume 100 start on beat 0 and 1 for 1 beat each."
                     className="flex-1 bg-black/40 border border-white/5 rounded-xl p-3 font-mono text-[11px] text-white focus:outline-none focus:ring-1 ring-indigo-500/50 placeholder:text-slate-700 resize-none"
                   />
                   <div className="h-10 overflow-y-auto custom-scrollbar bg-black/20 rounded-lg p-2 font-mono text-[9px]">
