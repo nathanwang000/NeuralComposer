@@ -2,8 +2,6 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { MidiEvent, MusicGenre } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 // Structure matching the App's event state
 interface CompositionEvent {
   event: MidiEvent;
@@ -13,12 +11,18 @@ interface CompositionEvent {
 export class GeminiComposer {
   
   async *streamComposition(
+    apiKey: string,
     genre: MusicGenre, 
     tempo: number, 
     existingEvents: CompositionEvent[], 
     nextStartBeat: number,
     creativeDirection?: string
   ): AsyncGenerator<string> {
+    if (!apiKey) {
+      throw new Error("API Key is required");
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
     
     // 1. Serialize History
     // We convert the disjointed chunks into a linear, absolute-time timeline for the model.
@@ -87,6 +91,7 @@ export class GeminiComposer {
       }
     } catch (error) {
       console.error("Gemini Stream Error:", error);
+      throw error;
     }
   }
 }

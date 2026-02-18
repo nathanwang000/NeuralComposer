@@ -6,14 +6,14 @@ import { composer } from './services/geminiComposer';
 import PianoRoll, { SelectionBounds } from './components/PianoRoll';
 import TimeNavigator from './components/TimeNavigator';
 import SynthVisualizer from './components/SynthVisualizer';
-import { 
-  Play, 
-  Pause, 
-  Zap, 
-  RefreshCw, 
-  Terminal, 
-  Loader2, 
-  Disc, 
+import {
+  Play,
+  Pause,
+  Zap,
+  RefreshCw,
+  Terminal,
+  Loader2,
+  Disc,
   RotateCcw,
   PlusCircle,
   Cpu,
@@ -49,6 +49,11 @@ interface AppEvent {
 }
 
 const App: React.FC = () => {
+  const [apiKey, setApiKey] = useState(localStorage.getItem('gemini_api_key') || '');
+  useEffect(() => {
+    localStorage.setItem('gemini_api_key', apiKey);
+  }, [apiKey]);
+
   const [state, setState] = useState<CompositionState>({
     isPlaying: false,
     tempo: 124,
@@ -66,25 +71,25 @@ const App: React.FC = () => {
   const [userInput, setUserInput] = useState("");
   const [creativeDirection, setCreativeDirection] = useState("");
   const [rightPanelTab, setRightPanelTab] = useState<'session' | 'synth'>('session');
-  
+
   const [tempBpm, setTempBpm] = useState("124");
   const [testNote, setTestNote] = useState<MidiEvent>({ p: 60, v: 100, t: 0, d: 0.5 });
 
   const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
   const [selectionMarquee, setSelectionMarquee] = useState<SelectionBounds | null>(null);
   const [clipboard, setClipboard] = useState<{ event: MidiEvent; relativeBeat: number; comment?: string }[]>([]);
-  
+
   const [history, setHistory] = useState<{ past: typeof events[], future: typeof events[] }>({ past: [], future: [] });
 
   const [isAIStreamActive, setIsAIStreamActive] = useState(false);
   const beatsGeneratedRef = useRef(0);
-  const isGeneratingRef = useRef(false); 
+  const isGeneratingRef = useRef(false);
   const streamBufferRef = useRef("");
   const playbackBeatRef = useRef(0);
   const isPausedRef = useRef(true);
   const lastUpdateRef = useRef(performance.now());
   const scheduledNoteIds = useRef(new Set<string>());
-  const queueThreshold = 12; 
+  const queueThreshold = 12;
 
   const validation = useMemo(() => {
     const errors: ValidationError[] = [];
@@ -99,14 +104,14 @@ const App: React.FC = () => {
         pendingComments.push(trimmedLine);
         return;
       }
-      
+
       // Skip empty lines (but keep pending comments)
       if (!trimmedLine) return;
-      
+
       const codePart = line.split('#')[0];
-      
+
       // If line contains only comments or whitespace
-      if (!codePart.trim()) return; 
+      if (!codePart.trim()) return;
 
       const packetRegex = /\[[^\]]*\]?/g;
       let match;
@@ -190,19 +195,26 @@ const App: React.FC = () => {
 
   const generateNextStream = async () => {
     if (!isAIStreamActive || isGeneratingRef.current) return;
+    if (!apiKey) {
+      setIsAIStreamActive(false);
+      alert('Please enter your Gemini API Key in the top bar to continue.');
+      return;
+    }
     pushHistory(events);
     isGeneratingRef.current = true;
     setState(s => ({ ...s, isGenerating: true }));
     const startOffset = beatsGeneratedRef.current;
     beatsGeneratedRef.current += 8;
     try {
-      const generator = composer.streamComposition(state.genre as MusicGenre, state.tempo, events, startOffset, creativeDirection);
+      const generator = composer.streamComposition(apiKey, state.genre as MusicGenre, state.tempo, events, startOffset, creativeDirection);
       for await (const chunk of generator) {
         parseAndStore(chunk, startOffset);
       }
     } catch (e) {
       console.error("Stream failed", e);
       beatsGeneratedRef.current -= 8;
+      setIsAIStreamActive(false);
+      alert(`Generation failed: ${e instanceof Error ? e.message : 'Unknown error'}. Please check your API Key.`);
     } finally {
       isGeneratingRef.current = false;
       setState(s => ({ ...s, isGenerating: false }));
@@ -227,7 +239,7 @@ const App: React.FC = () => {
         playbackBeatRef.current += delta * bps;
         setPlaybackBeat(playbackBeatRef.current);
         const currentBeat = playbackBeatRef.current;
-        
+
         events.forEach(item => {
           const absoluteStart = item.beatOffset + item.event.t;
           if (absoluteStart >= currentBeat - 0.2 && absoluteStart < currentBeat + 0.5) {
@@ -242,7 +254,7 @@ const App: React.FC = () => {
     };
     animationId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animationId);
-  }, [state.isPlaying, events, state.tempo, isAIStreamActive]); 
+  }, [state.isPlaying, events, state.tempo, isAIStreamActive]);
 
   const parseAndStore = (textChunk: string, baseBeatOffset: number) => {
     streamBufferRef.current += textChunk;
@@ -273,11 +285,11 @@ const App: React.FC = () => {
     setEvents([]);
     setSelectedEventIds([]);
     setRawStream("");
-    
+
     // AI Specific State
     setIsAIStreamActive(true);
     setIsWarmingUp(true);
-    
+
     // Auto-start playback for AI session
     isPausedRef.current = false;
     setIsPaused(false);
@@ -296,11 +308,11 @@ const App: React.FC = () => {
     pushHistory(events);
     const baseOffset = playbackBeatRef.current;
     const newEvents = validation.validEvents.map((item, idx) => ({
-      event: item.event, 
-      beatOffset: baseOffset, 
-      id: `user-${baseOffset}-${idx}-${Date.now()}`, 
+      event: item.event,
+      beatOffset: baseOffset,
+      id: `user-${baseOffset}-${idx}-${Date.now()}`,
       isUser: true,
-      comment: item.comment 
+      comment: item.comment
     }));
     setEvents(prev => [...prev, ...newEvents]);
     setUserInput("");
@@ -341,7 +353,7 @@ const App: React.FC = () => {
       comment: item.comment
     }));
     setClipboard(clipboardData);
-    const clipboardText = clipboardData.map(item => 
+    const clipboardText = clipboardData.map(item =>
       `${item.comment ? `\n${item.comment}\n` : ''}[P:${item.event.p},V:${item.event.v},T:${item.relativeBeat.toFixed(3)},D:${item.event.d.toFixed(3)}]`
     ).join(' ');
     navigator.clipboard.writeText(clipboardText).catch(err => console.error(err));
@@ -389,7 +401,7 @@ const App: React.FC = () => {
   };
 
   const togglePlayback = useCallback(() => {
-    audioEngine.init(); 
+    audioEngine.init();
     if (!state.isPlaying) {
       // Manual start without AI
       setState(s => ({ ...s, isPlaying: true }));
@@ -436,7 +448,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
-      
+
       // Prevent triggering shortcuts when typing in inputs/textareas
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
 
@@ -499,7 +511,7 @@ const App: React.FC = () => {
             </div>
           </div>
         </div>
-        
+
         <div className="flex gap-3 items-center bg-slate-900/50 backdrop-blur-xl p-2 rounded-2xl border border-white/5">
           <div className="flex items-center gap-1 border-r border-white/10 pr-2 mr-1">
             <button onClick={() => handleSeek(0)} className="p-2 hover:bg-white/10 rounded-lg text-slate-400">
@@ -518,6 +530,16 @@ const App: React.FC = () => {
              <button onClick={() => updateBpm(state.tempo - 1)} className="w-6 h-8 flex items-center justify-center hover:bg-white/10 rounded-lg text-slate-500 hover:text-indigo-400"><Minus size={12} /></button>
              <input type="number" value={tempBpm} onChange={(e) => setTempBpm(e.target.value)} onBlur={() => updateBpm(parseInt(tempBpm) || 120)} className="w-10 bg-transparent text-sm font-bold text-white text-center focus:outline-none" />
              <button onClick={() => updateBpm(state.tempo + 1)} className="w-6 h-8 flex items-center justify-center hover:bg-white/10 rounded-lg text-slate-500 hover:text-indigo-400"><Plus size={12} /></button>
+          </div>
+
+          <div className="relative group">
+            <input
+              type="password"
+              placeholder="Gemini API Key"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              className="bg-black border border-white/5 text-xs font-bold rounded-xl px-4 py-2.5 w-32 focus:w-64 transition-all focus:outline-none focus:border-indigo-500/50 text-white placeholder:text-slate-600"
+            />
           </div>
 
           <select className="bg-black border-none text-xs font-bold rounded-xl px-4 py-2.5 cursor-pointer hover:bg-slate-900" value={state.genre} onChange={(e) => setState(s => ({ ...s, genre: e.target.value }))}>
@@ -546,7 +568,7 @@ const App: React.FC = () => {
                 <h2 className="text-2xl font-black text-white uppercase italic">Connecting Neural Link...</h2>
               </div>
             )}
-            
+
             <div className="absolute bottom-6 right-6 flex flex-col gap-2 z-30">
               <div className="bg-slate-900/80 backdrop-blur-md border border-indigo-500/20 p-2 rounded-2xl flex items-center gap-1 shadow-2xl">
                 <button onClick={undo} disabled={history.past.length === 0} className="p-3 disabled:opacity-30 hover:bg-white/5 text-slate-400 rounded-xl flex flex-col items-center gap-1 min-w-[50px]"><Undo size={18} /><span className="text-[8px] font-black uppercase opacity-50">Undo</span></button>
@@ -577,9 +599,9 @@ const App: React.FC = () => {
             <div className="bg-slate-950/80 rounded-2xl border border-indigo-500/10 p-4 flex flex-col overflow-hidden group hover:border-indigo-500/30 transition-all">
                <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2 text-indigo-400 uppercase font-black text-[10px]"><Cpu size={12} /> Manual Patch Bay</div>
-                  <button 
-                    onClick={handleInjectUserNotes} 
-                    disabled={validation.validEvents.length === 0 || validation.errors.length > 0} 
+                  <button
+                    onClick={handleInjectUserNotes}
+                    disabled={validation.validEvents.length === 0 || validation.errors.length > 0}
                     className={`px-3 py-1 rounded-lg font-black text-[9px] uppercase flex items-center gap-1 transition-all ${
                       validation.validEvents.length > 0 && validation.errors.length === 0
                         ? 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-500/20'
@@ -589,11 +611,11 @@ const App: React.FC = () => {
                     <PlusCircle size={10} /> Inject
                   </button>
                </div>
-               <textarea 
-                  value={userInput} 
-                  onChange={(e) => setUserInput(e.target.value)} 
-                  placeholder="[P:60,V:100,T:0,D:1] where pitch: 0-127, velocity: 0-127 volume, time: relative to playback measure in beat, duration: measured in beat" 
-                  className={`flex-1 bg-black/40 border rounded-xl p-3 font-mono text-[11px] text-white focus:outline-none placeholder:text-slate-700 resize-none ${validation.errors.length > 0 ? 'border-red-500/40' : 'border-white/5'}`} 
+               <textarea
+                  value={userInput}
+                  onChange={(e) => setUserInput(e.target.value)}
+                  placeholder="[P:60,V:100,T:0,D:1] where pitch: 0-127, velocity: 0-127 volume, time: relative to playback measure in beat, duration: measured in beat"
+                  className={`flex-1 bg-black/40 border rounded-xl p-3 font-mono text-[11px] text-white focus:outline-none placeholder:text-slate-700 resize-none ${validation.errors.length > 0 ? 'border-red-500/40' : 'border-white/5'}`}
                />
                {validation.errors.length > 0 && (
                   <div className="mt-2 px-2 max-h-16 overflow-y-auto custom-scrollbar">
@@ -612,7 +634,7 @@ const App: React.FC = () => {
                 <button onClick={() => setRightPanelTab('session')} className={`flex-1 py-2 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${rightPanelTab === 'session' ? 'bg-indigo-500/20 text-indigo-400' : 'text-slate-600 hover:text-slate-400'}`}>Session</button>
                 <button onClick={() => setRightPanelTab('synth')} className={`flex-1 py-2 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${rightPanelTab === 'synth' ? 'bg-indigo-500/20 text-indigo-400' : 'text-slate-600 hover:text-slate-400'}`}>Voice</button>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
             {rightPanelTab === 'session' ? (
                 <div className="space-y-6">
@@ -657,7 +679,7 @@ const App: React.FC = () => {
                                   <input type="number" step="0.1" value={testNote.d} onChange={(e) => setTestNote(curr => ({...curr, d: Math.max(0.1, parseFloat(e.target.value) || 0.1)}))} className="w-full bg-slate-900 border border-white/5 rounded-lg py-1 pl-5 pr-1 text-[9px] font-mono text-center focus:outline-none focus:border-indigo-500/50" />
                                 </div>
                              </div>
-                             <button 
+                             <button
                               onClick={handleTestNote}
                               className="flex-none px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg border border-indigo-400 text-[9px] font-black uppercase transition-all active:scale-95 shadow-lg shadow-indigo-500/20"
                             >
@@ -666,11 +688,11 @@ const App: React.FC = () => {
                         </div>
                       </div>
                       <SynthVisualizer config={synthConfig} />
-                      
+
                       <div className="grid grid-cols-2 gap-2 mb-6">
                         {Object.keys(SYNTH_PRESETS).map(name => (
-                          <button 
-                            key={name} 
+                          <button
+                            key={name}
                             onClick={() => setSynthConfig(SYNTH_PRESETS[name])}
                             className={`px-2 py-1.5 rounded-lg text-[7px] font-black uppercase border transition-all ${JSON.stringify(synthConfig) === JSON.stringify(SYNTH_PRESETS[name]) ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-900/50 border-white/5 text-slate-500 hover:text-slate-300'}`}
                           >
