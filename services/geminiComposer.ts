@@ -31,6 +31,7 @@ export class GeminiComposer {
         d: Number(e.event.d.toFixed(3))
       }))
       .sort((a, b) => a.t - b.t)
+      .slice(-1000) // make history manageable last N messages
       .map(e => `[P:${e.p},V:${e.v},T:${e.t},D:${e.d}]`)
       .join(' ');
 
