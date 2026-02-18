@@ -205,18 +205,26 @@ const App: React.FC = () => {
     setState(s => ({ ...s, isGenerating: true }));
     const startOffset = beatsGeneratedRef.current;
     beatsGeneratedRef.current += 8;
+    
+    let success = false;
     try {
       const generator = composer.streamComposition(apiKey, state.genre as MusicGenre, state.tempo, events, startOffset, creativeDirection);
       for await (const chunk of generator) {
         parseAndStore(chunk, startOffset);
       }
+      success = true;
     } catch (e) {
       console.error("Stream failed", e);
       beatsGeneratedRef.current -= 8;
+      // Stop AI immediately
       setIsAIStreamActive(false);
       alert(`Generation failed: ${e instanceof Error ? e.message : 'Unknown error'}. Please check your API Key.`);
+      // Note: We leave isGeneratingRef.current = true to prevent re-entry 
+      // by the animation loop until the component state updates fully.
     } finally {
-      isGeneratingRef.current = false;
+      if (success) {
+         isGeneratingRef.current = false;
+      }
       setState(s => ({ ...s, isGenerating: false }));
     }
   };
@@ -280,6 +288,7 @@ const App: React.FC = () => {
     playbackBeatRef.current = 0;
     scheduledNoteIds.current.clear();
     streamBufferRef.current = "";
+    isGeneratingRef.current = false; // Reset generator lock
     setHistory({ past: [], future: [] });
     setPlaybackBeat(0);
     setEvents([]);
