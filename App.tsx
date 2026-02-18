@@ -205,7 +205,7 @@ const App: React.FC = () => {
     setState(s => ({ ...s, isGenerating: true }));
     const startOffset = beatsGeneratedRef.current;
     beatsGeneratedRef.current += 8;
-    
+
     let success = false;
     try {
       const generator = composer.streamComposition(apiKey, state.genre as MusicGenre, state.tempo, events, startOffset, creativeDirection);
@@ -219,7 +219,7 @@ const App: React.FC = () => {
       // Stop AI immediately
       setIsAIStreamActive(false);
       alert(`Generation failed: ${e instanceof Error ? e.message : 'Unknown error'}. Please check your API Key.`);
-      // Note: We leave isGeneratingRef.current = true to prevent re-entry 
+      // Note: We leave isGeneratingRef.current = true to prevent re-entry
       // by the animation loop until the component state updates fully.
     } finally {
       if (success) {
@@ -504,7 +504,7 @@ const App: React.FC = () => {
   const waveOptions: SynthWaveType[] = ['sine', 'square', 'sawtooth', 'triangle'];
 
   return (
-    <div className="flex flex-col w-full min-h-screen lg:h-screen bg-[#020408] lg:overflow-hidden text-slate-300 font-sans selection:bg-indigo-500/30">
+    <div className="flex flex-col w-full min-h-screen lg:h-screen bg-[#020408] overflow-x-hidden lg:overflow-hidden text-slate-300 font-sans selection:bg-indigo-500/30">
       <header className="flex-none flex flex-col md:flex-row justify-between items-center gap-4 p-4 lg:p-6 border-b border-white/5 bg-[#020408]">
         <div className="flex items-center gap-4">
           <div className={`p-3 rounded-2xl transition-all duration-1000 ${state.isPlaying ? 'bg-indigo-600 shadow-[0_0_30px_rgba(79,70,229,0.3)]' : 'bg-slate-900'}`}>
