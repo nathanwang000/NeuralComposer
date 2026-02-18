@@ -1,39 +1,39 @@
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { MusicGenre, MidiEvent, CompositionState, SynthConfig, SYNTH_PRESETS, SynthWaveType } from './types';
-import { audioEngine } from './services/audioEngine';
-import { composer } from './services/geminiComposer';
-import PianoRoll, { SelectionBounds } from './components/PianoRoll';
-import TimeNavigator from './components/TimeNavigator';
-import SynthVisualizer from './components/SynthVisualizer';
 import {
-  Play,
-  Pause,
-  Zap,
-  RefreshCw,
-  Terminal,
-  Loader2,
-  Disc,
-  RotateCcw,
-  PlusCircle,
-  Cpu,
-  Scissors,
-  Copy,
+  Activity,
   ClipboardPaste,
-  X,
+  Copy,
+  Cpu,
+  Disc,
+  Download,
+  Gauge,
+  Loader2,
+  Minus,
+  Music,
+  Pause,
+  Play,
+  Plus,
+  PlusCircle,
+  Redo,
+  RefreshCw,
+  RotateCcw,
+  Scissors,
+  SlidersHorizontal,
+  Sparkles,
+  Terminal,
   Trash2,
   Undo,
-  Redo,
-  Sparkles,
-  Gauge,
-  Minus,
-  Plus,
-  Download,
-  SlidersHorizontal,
   Waves,
-  Activity,
-  Music
+  X,
+  Zap
 } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import PianoRoll, { SelectionBounds } from './components/PianoRoll';
+import SynthVisualizer from './components/SynthVisualizer';
+import TimeNavigator from './components/TimeNavigator';
+import { audioEngine } from './services/audioEngine';
+import { composer } from './services/geminiComposer';
+import { CompositionState, MidiEvent, MusicGenre, SYNTH_PRESETS, SynthConfig, SynthWaveType } from './types';
 
 interface ValidationError {
   message: string;
@@ -512,7 +512,7 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex gap-3 items-center bg-slate-900/50 backdrop-blur-xl p-2 rounded-2xl border border-white/5">
+        <div className="flex gap-3 items-center flex-wrap justify-center bg-slate-900/50 backdrop-blur-xl p-2 rounded-2xl border border-white/5">
           <div className="flex items-center gap-1 border-r border-white/10 pr-2 mr-1">
             <button onClick={() => handleSeek(0)} className="p-2 hover:bg-white/10 rounded-lg text-slate-400">
               <RotateCcw size={18} />
