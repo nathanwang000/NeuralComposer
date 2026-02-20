@@ -8,6 +8,7 @@ import {
   Download,
   Gauge,
   Loader2,
+  Mic,
   Minus,
   Music,
   Pause,
@@ -28,6 +29,7 @@ import {
   Zap
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PianoRoll, { SelectionBounds } from './components/PianoRoll';
 import SynthVisualizer from './components/SynthVisualizer';
 import TimeNavigator from './components/TimeNavigator';
@@ -49,6 +51,7 @@ interface AppEvent {
 }
 
 const App: React.FC = () => {
+  const navigate = useNavigate();
   const [apiKey, setApiKey] = useState(localStorage.getItem('gemini_api_key') || '');
   useEffect(() => {
     localStorage.setItem('gemini_api_key', apiKey);
@@ -540,6 +543,10 @@ const App: React.FC = () => {
              <input type="number" value={tempBpm} onChange={(e) => setTempBpm(e.target.value)} onBlur={() => updateBpm(parseInt(tempBpm) || 120)} className="w-10 bg-transparent text-sm font-bold text-white text-center focus:outline-none" />
              <button onClick={() => updateBpm(state.tempo + 1)} className="w-6 h-8 flex items-center justify-center hover:bg-white/10 rounded-lg text-slate-500 hover:text-indigo-400"><Plus size={12} /></button>
           </div>
+
+          <button onClick={() => navigate('/converter')} className="flex items-center gap-2 bg-black text-xs font-bold text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/10 hover:border-cyan-500/50 rounded-xl px-4 py-2.5 transition-all shadow-lg shadow-cyan-500/10">
+            <Mic size={14} /> VOICE
+          </button>
 
           <div className="relative group">
             <input
