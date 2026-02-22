@@ -94,6 +94,27 @@ const App: React.FC = () => {
   const scheduledNoteIds = useRef(new Set<string>());
   const queueThreshold = 12;
 
+  // Use Vite's glob import to load all .txt files from the samples directory
+  // eager: true loads the content immediately. as: 'raw' gives us the string content.
+  const sampleModules = import.meta.glob('./samples/*.txt', { query: '?raw', import: 'default', eager: true });
+
+  // Create an array of file names (stripped of path)
+  const SAMPLE_FILES = Object.keys(sampleModules).map(path => path.split('/').pop() || path);
+
+  const loadSample = (filename: string) => {
+    // Reconstruct the path key to find the content
+    const pathKey = `./samples/${filename}`;
+    // @ts-ignore
+    const content = sampleModules[pathKey];
+
+    if (content) {
+      setUserInput(content as string);
+    } else {
+      console.error('Sample not found:', filename);
+      alert('Failed to load sample');
+    }
+  };
+
   const validation = useMemo(() => {
     const errors: ValidationError[] = [];
     const validEvents: { event: MidiEvent; comment?: string }[] = [];
@@ -670,6 +691,23 @@ const App: React.FC = () => {
                      </div>
                      <button onClick={handleDownload} className="w-full mt-4 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-lg border border-indigo-500/20 text-[10px] font-bold uppercase"><Download size={12} className="inline mr-2" /> Export</button>
                   </div>
+
+                  <div className="p-5 bg-black/40 rounded-2xl border border-white/5">
+                     <div className="text-[10px] font-bold text-slate-600 uppercase mb-2">Example Samples</div>
+                     <div className="space-y-2">
+                        {SAMPLE_FILES.map((file) => (
+                           <button
+                              key={file}
+                              onClick={() => loadSample(file)}
+                              className="w-full py-2 px-3 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg border border-white/5 text-[10px] font-mono text-left truncate transition-colors flex items-center gap-2"
+                           >
+                              <Music size={12} />
+                              {file}
+                           </button>
+                        ))}
+                     </div>
+                  </div>
+
                   <div className="mt-auto p-4 bg-indigo-500/5 rounded-2xl border border-indigo-500/10">
                      <div className="text-[9px] font-black text-indigo-400 uppercase mb-2 flex items-center gap-2"><Sparkles size={10} /> Creative Direction</div>
                      <textarea value={creativeDirection} onChange={(e) => setCreativeDirection(e.target.value)} placeholder="e.g. Add erratic fills..." className="w-full bg-slate-900/50 border border-indigo-500/10 rounded-lg p-2 text-[10px] text-slate-300 h-24 focus:outline-none" />

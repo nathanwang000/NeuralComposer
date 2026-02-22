@@ -6,6 +6,8 @@
 
 This contains everything you need to run your app locally.
 
+If you have music to preload into the app, put it under `samples/`
+
 ## Run Locally
 
 **Prerequisites:**  Node.js
