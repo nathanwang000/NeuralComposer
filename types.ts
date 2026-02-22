@@ -2,7 +2,7 @@
 export type SynthWaveType = 'sine' | 'square' | 'sawtooth' | 'triangle';
 
 export interface MidiEvent {
-  p: number; // Pitch (MIDI note 0-127)
+  p: number; // Pitch (MIDI note 0-127, supports floats for microtonal/bends)
   v: number; // Velocity (0-127)
   t: number; // Start time offset in beats from start of movement
   d: number; // Duration in beats
@@ -13,6 +13,9 @@ export interface CompositionState {
   tempo: number;
   genre: string;
   isGenerating: boolean;
+  minPitch: number;
+  maxPitch: number;
+  legatoMode: boolean;
 }
 
 export interface SynthConfig {

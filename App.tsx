@@ -62,6 +62,9 @@ const App: React.FC = () => {
     tempo: 124,
     genre: MusicGenre.CYBERPUNK,
     isGenerating: false,
+    minPitch: 36,
+    maxPitch: 84,
+    legatoMode: false
   });
 
   const [synthConfig, setSynthConfig] = useState<SynthConfig>(SYNTH_PRESETS["Deep Bass"]);
@@ -145,12 +148,12 @@ const App: React.FC = () => {
       while ((match = packetRegex.exec(codePart)) !== null) {
         foundPacket = true;
         const pair = match[0];
-        const fullMatch = pair.match(/\[\s*P:\s*(\d+)\s*,\s*V:\s*(\d+)\s*,\s*T:\s*([\d.]+)\s*,\s*D:\s*([\d.]+)\s*\]/);
+        const fullMatch = pair.match(/\[\s*P:\s*([\d.]+)\s*,\s*V:\s*(\d+)\s*,\s*T:\s*([\d.]+)\s*,\s*D:\s*([\d.]+)\s*\]/);
         if (!fullMatch) {
           if (!pair.endsWith(']')) errors.push({ message: `Line ${lineIndex + 1}: Missing bracket ']'`, index: lineIndex });
           else errors.push({ message: `Line ${lineIndex + 1}: Invalid format`, index: lineIndex });
         } else {
-          const p = parseInt(fullMatch[1]);
+          const p = parseFloat(fullMatch[1]);
           const v = parseInt(fullMatch[2]);
           const t = parseFloat(fullMatch[3]);
           const d = parseFloat(fullMatch[4]);
@@ -276,7 +279,7 @@ const App: React.FC = () => {
           const absoluteStart = item.beatOffset + item.event.t;
           if (absoluteStart >= currentBeat - 0.2 && absoluteStart < currentBeat + 0.5) {
             if (!scheduledNoteIds.current.has(item.id)) {
-              audioEngine.scheduleNote(item.event, absoluteStart, currentBeat);
+              audioEngine.scheduleNote(item.event, absoluteStart, currentBeat, state.legatoMode);
               scheduledNoteIds.current.add(item.id);
             }
           }
@@ -291,11 +294,11 @@ const App: React.FC = () => {
   const parseAndStore = (textChunk: string, baseBeatOffset: number) => {
     streamBufferRef.current += textChunk;
     setRawStream(prev => (prev + textChunk).slice(-800));
-    const regex = /\[\s*P:\s*(\d+)\s*,\s*V:\s*(\d+)\s*,\s*T:\s*([\d.]+)\s*,\s*D:\s*([\d.]+)\s*\]/g;
+    const regex = /\[\s*P:\s*([\d.]+)\s*,\s*V:\s*(\d+)\s*,\s*T:\s*([\d.]+)\s*,\s*D:\s*([\d.]+)\s*\]/g;
     let match;
     const newMidiEvents: AppEvent[] = [];
     while ((match = regex.exec(streamBufferRef.current)) !== null) {
-      const event: MidiEvent = { p: parseInt(match[1]), v: parseInt(match[2]), t: parseFloat(match[3]), d: parseFloat(match[4]) };
+      const event: MidiEvent = { p: parseFloat(match[1]), v: parseInt(match[2]), t: parseFloat(match[3]), d: parseFloat(match[4]) };
       newMidiEvents.push({ event, beatOffset: baseBeatOffset, id: `note-${baseBeatOffset}-${match.index}-${event.p}` });
     }
     if (newMidiEvents.length > 0) {
@@ -565,8 +568,17 @@ const App: React.FC = () => {
              <button onClick={() => updateBpm(state.tempo + 1)} className="w-6 h-8 flex items-center justify-center hover:bg-white/10 rounded-lg text-slate-500 hover:text-indigo-400"><Plus size={12} /></button>
           </div>
 
-          <button onClick={() => navigate('/converter')} className="flex items-center gap-2 bg-black text-xs font-bold text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/10 hover:border-cyan-500/50 rounded-xl px-4 py-2.5 transition-all shadow-lg shadow-cyan-500/10">
+          <div className="flex items-center gap-1 bg-black rounded-xl border border-white/5 p-1">
+             <button title="Toggle Legato Mode" onClick={() => setState(s => ({ ...s, legatoMode: !s.legatoMode }))} className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${state.legatoMode ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/50' : 'bg-transparent text-slate-500 border-transparent hover:bg-white/5'}`}>
+               <Waves size={14} /> Legato
+             </button>
+          </div>
+
+          <button onClick={() => navigate('/converter')} className="hidden sm:flex items-center gap-2 bg-black text-xs font-bold text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/10 hover:border-cyan-500/50 rounded-xl px-4 py-2.5 transition-all shadow-lg shadow-cyan-500/10">
             <Mic size={14} /> VOICE
+          </button>
+          <button onClick={() => navigate('/lab')} className="hidden sm:flex items-center gap-2 bg-black text-xs font-bold text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/10 hover:border-indigo-500/50 rounded-xl px-4 py-2.5 transition-all shadow-lg shadow-indigo-500/10">
+             <Zap size={14} /> LAB
           </button>
 
           <div className="relative group">
