@@ -41,7 +41,8 @@ const AVAILABLE_TARGETS: { label: string; value: ModulationTarget }[] = [
 
 const PerformancePad: React.FC = () => {
   const padRef = useRef<HTMLDivElement>(null);
-    const activePointerIdRef = useRef<number | null>(null);
+    const activePointerIdsRef = useRef<Set<number>>(new Set());
+    const controlPointerIdRef = useRef<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isFallbackFullscreen, setIsFallbackFullscreen] = useState(false);
@@ -51,6 +52,7 @@ const PerformancePad: React.FC = () => {
   const [sequenceInput, setSequenceInput] = useState("C4, E4, G4, B4, C5, B4, G4, E4");
   const [noteSequence, setNoteSequence] = useState<number[]>([]);
   const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
+    const currentNoteIndexRef = useRef(0);
 
   // Mappings
   const [xTargets, setXTargets] = useState<ModulationTarget[]>(['cutoff']);
@@ -61,7 +63,12 @@ const PerformancePad: React.FC = () => {
     const notes = sequenceInput.split(/[, ]+/).filter(Boolean).map(n => noteToMidi(n.trim()));
     setNoteSequence(notes.length > 0 ? notes : [60]);
     setCurrentNoteIndex(0);
+        currentNoteIndexRef.current = 0;
   }, [sequenceInput]);
+
+    useEffect(() => {
+        currentNoteIndexRef.current = currentNoteIndex;
+    }, [currentNoteIndex]);
 
     useEffect(() => {
         const syncFullscreenState = () => {
@@ -177,11 +184,8 @@ const PerformancePad: React.FC = () => {
     e.preventDefault();
     if (!padRef.current) return;
 
-    if (activePointerIdRef.current !== null && activePointerIdRef.current !== e.pointerId) {
-      return;
-    }
-
-    activePointerIdRef.current = e.pointerId;
+        activePointerIdsRef.current.add(e.pointerId);
+        controlPointerIdRef.current = e.pointerId;
     padRef.current.setPointerCapture(e.pointerId);
 
     const rect = padRef.current.getBoundingClientRect();
@@ -191,19 +195,24 @@ const PerformancePad: React.FC = () => {
     setIsPlaying(true);
     setCursorPos({ x, y });
 
-    const note = noteSequence[currentNoteIndex % noteSequence.length];
+    const sequence = noteSequence.length > 0 ? noteSequence : [60];
+    const nextIndex = currentNoteIndexRef.current;
+    const note = sequence[nextIndex % sequence.length];
 
     // Initial Params
     const params = calculateParams(x, y);
     audioEngine.updateActiveVoiceParams(params);
 
-    // Start Note
-    // Hardcoded velocity for now, or could map to pressure/Y-axis
+    // Retrigger immediately on every touch-down.
     audioEngine.startContinuousNote(note, 100);
+
+    const advancedIndex = (nextIndex + 1) % sequence.length;
+    currentNoteIndexRef.current = advancedIndex;
+    setCurrentNoteIndex(advancedIndex);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-        if (!isPlaying || !padRef.current || activePointerIdRef.current !== e.pointerId) return;
+        if (!isPlaying || !padRef.current || controlPointerIdRef.current !== e.pointerId) return;
         e.preventDefault();
 
     const rect = padRef.current.getBoundingClientRect();
@@ -216,17 +225,26 @@ const PerformancePad: React.FC = () => {
   };
 
     const handlePointerEnd = (e: React.PointerEvent) => {
-        if (activePointerIdRef.current !== e.pointerId) return;
+        if (!activePointerIdsRef.current.has(e.pointerId)) return;
         e.preventDefault();
 
         if (padRef.current?.hasPointerCapture(e.pointerId)) {
             padRef.current.releasePointerCapture(e.pointerId);
         }
 
-        activePointerIdRef.current = null;
+        activePointerIdsRef.current.delete(e.pointerId);
+
+        if (controlPointerIdRef.current === e.pointerId) {
+            const remainingPointers = Array.from(activePointerIdsRef.current);
+            controlPointerIdRef.current = remainingPointers.length > 0 ? remainingPointers[remainingPointers.length - 1] : null;
+        }
+
+        if (activePointerIdsRef.current.size > 0) {
+            return;
+        }
+
     setIsPlaying(false);
     audioEngine.stopContinuousNote();
-    setCurrentNoteIndex(prev => (prev + 1) % noteSequence.length);
   };
 
   const toggleTarget = (axis: 'x' | 'y', target: ModulationTarget) => {
