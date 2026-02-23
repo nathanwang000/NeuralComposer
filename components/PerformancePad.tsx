@@ -1,5 +1,6 @@
 import { Maximize2, Minimize2, Music } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { audioEngine } from '../services/audioEngine';
 import { SynthConfig } from '../types';
 
@@ -90,7 +91,7 @@ const PerformancePad: React.FC = () => {
         const prevHtmlOverscroll = document.documentElement.style.overscrollBehavior;
 
         document.body.style.position = 'fixed';
-        document.body.style.top = `-${scrollY}px`;
+        document.body.style.top = '0';
         document.body.style.left = '0';
         document.body.style.right = '0';
         document.body.style.width = '100%';
@@ -98,6 +99,7 @@ const PerformancePad: React.FC = () => {
         document.documentElement.style.overflow = 'hidden';
         document.body.style.overscrollBehavior = 'none';
         document.documentElement.style.overscrollBehavior = 'none';
+        window.scrollTo(0, 0);
 
         return () => {
             document.body.style.position = prevBodyPosition;
@@ -250,16 +252,10 @@ const PerformancePad: React.FC = () => {
       });
   };
 
-    return (
-        <div
-            className="flex flex-col gap-4 h-full select-none"
-            style={{ userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
-            onContextMenu={(e) => e.preventDefault()}
-        >
-        {/* Main Pad Area */}
+    const padElement = (
         <div
             ref={padRef}
-                        className={`flex-1 min-h-[300px] relative bg-slate-900 rounded-3xl border border-white/10 cursor-crosshair overflow-hidden group shadow-inner transition-colors hover:border-indigo-500/30 select-none ${isFallbackFullscreen ? 'fixed inset-0 z-[100] min-h-0 rounded-none bg-slate-950' : ''}`}
+                        className={`flex-1 min-h-[300px] relative bg-slate-900 rounded-3xl border border-white/10 cursor-crosshair overflow-hidden group shadow-inner transition-colors hover:border-indigo-500/30 select-none ${isFallbackFullscreen ? 'fixed inset-0 min-h-0 rounded-none bg-slate-950' : ''}`}
                         style={{
                             touchAction: 'none',
                             userSelect: 'none',
@@ -267,7 +263,14 @@ const PerformancePad: React.FC = () => {
                             WebkitTouchCallout: 'none',
                             ...(isFallbackFullscreen
                                 ? {
-                                        width: '100%',
+                                        position: 'fixed',
+                                        top: 0,
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        zIndex: 2147483647,
+                                        margin: 0,
+                                        width: '100vw',
                                         height: '100dvh',
                                         minHeight: '100dvh',
                                         maxHeight: '100dvh',
@@ -337,6 +340,16 @@ const PerformancePad: React.FC = () => {
                 {!isPlaying && <span className="text-slate-800 font-black text-6xl uppercase tracking-tighter mix-blend-screen">Touch Perf</span>}
             </div> */}
         </div>
+    );
+
+    return (
+        <div
+            className="flex flex-col gap-4 h-full select-none"
+            style={{ userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
+            onContextMenu={(e) => e.preventDefault()}
+        >
+        {/* Main Pad Area */}
+        {isFallbackFullscreen ? createPortal(padElement, document.body) : padElement}
 
         {/* Controls */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-none h-auto">
