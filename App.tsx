@@ -289,7 +289,7 @@ const App: React.FC = () => {
     };
     animationId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animationId);
-  }, [state.isPlaying, events, state.tempo, isAIStreamActive]);
+  }, [state.isPlaying, events, state.tempo, state.legatoMode, isAIStreamActive]);
 
   const parseAndStore = (textChunk: string, baseBeatOffset: number) => {
     streamBufferRef.current += textChunk;

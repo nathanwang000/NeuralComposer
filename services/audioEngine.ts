@@ -37,8 +37,8 @@ class AudioEngine {
     return 440 * Math.pow(2, (midi - 69) / 12);
   }
 
-  private lastNoteEndTime: number = 0;
-  private activeNodes: { osc: OscillatorNode, filter: BiquadFilterNode, env: GainNode } | null = null;
+  // Track the end time of the last note to detect legato phrases (for potential future use or global legato logic)
+  private globalLastNoteEndTime: number = 0;
 
   scheduleNote(event: MidiEvent, eventAbsoluteBeat: number, currentPlaybackBeat: number, legato: boolean = false) {
     if (!this.ctx || !this.masterGain) return;
@@ -53,87 +53,71 @@ class AudioEngine {
 
     const actualStart = Math.max(playAt, this.ctx.currentTime);
     const freq = this.midiToFreq(event.p);
-    const releaseTime = actualStart + noteDuration;
 
-    // Check for Legato overlap
-    // We allow a generous window: if the new note starts while the previous one is still releasing
-    // (or just finished), we can legato. The previous note "ends" at releaseTime + release.
-    // So if (actualStart < lastNoteEndTime + 0.1), we are good.
-    if (legato && this.activeNodes && actualStart < this.lastNoteEndTime + 0.1) {
-        // Reuse existing oscillator for smooth slide
-        const { osc, filter, env } = this.activeNodes;
+    // Waveform compensation: Sines are pure fundamental, Saws have lots of energy. Adjust accordingly.
+    const waveCorrection = this.config.waveType === 'sine' ? 1.1 : (this.config.waveType === 'sawtooth' ? 0.9 : 1.0);
+    const targetVolume = (event.v / 127) * 0.4 * this.config.drive * waveCorrection;
 
-        // Slide Frequency
-        osc.frequency.setTargetAtTime(freq, actualStart, 0.05); // 50ms portamento
+    // --- Polyphonic Legato Logic ---
+    // Instead of reusing oscillators (which kills polyphony), we start a NEW oscillator for every note.
+    // "Legato" here means: if we are close to the previous note, we skip the attack phase
+    // and start directly at the sustain level to simulate a connected phrase.
 
-        // Extend Envelope (Sustain)
-        env.gain.cancelScheduledValues(actualStart);
-        env.gain.setValueAtTime(env.gain.value, actualStart);
-
-        // We stay at sustain level until the end of THIS new note
-        const vol = (event.v / 127) * 0.4 * this.config.drive;
-        env.gain.linearRampToValueAtTime(vol * this.config.sustain, actualStart + 0.05);
-
-        // Schedule new release
-        const releaseEnd = releaseTime + this.config.release;
-        env.gain.setValueAtTime(vol * this.config.sustain, releaseTime);
-        env.gain.exponentialRampToValueAtTime(0.001, releaseEnd);
-
-        // Update tracking
-        this.lastNoteEndTime = releaseEnd; // actually note end, not release end
-
-        // Cancel previous stop and schedule new stop
-        // Note: OscillatorNode does not support canceling a scheduled stop.
-        // The standard workaround is to schedule a stop far in the future initially (done below for new notes)
-        // or just let it run. Since we are reusing it, we can't "cancel" the stop from the previous note
-        // if it was already scheduled tight.
-        // FIX: In a robust engine, we would create a source node that loops or uses a custom gain envelope,
-        // or just set a very long stop time on creation (e.g. 24 hours).
-        // For this demo, let's assume the previous note had a long stop time or we simply accept
-        // that extremely long legatos might cut off if they exceed the original stop time.
-
-        return;
-    }
-
-    // --- Standard Note Trigger (Attack) ---
+    const isLegatoTransition = legato && (actualStart < this.globalLastNoteEndTime + 0.1);
 
     // Nodes
     const osc = this.ctx.createOscillator();
     const filter = this.ctx.createBiquadFilter();
     const env = this.ctx.createGain();
 
-    // 1. Configure Oscillator - Explicitly set type from config
+    // 1. Configure Oscillator
     osc.type = this.config.waveType as OscillatorType;
     osc.frequency.setValueAtTime(freq, actualStart);
     osc.detune.setValueAtTime(this.config.detune, actualStart);
 
-    // 2. Configure Filter with Envelope (Sweep)
-    // A simple filter envelope makes oscillator character much more obvious
+    // 2. Configure Filter
     const filterEnvAmount = this.config.cutoff * 1.5;
     filter.type = 'lowpass';
     filter.Q.setValueAtTime(this.config.resonance, actualStart);
 
-    // Start at base cutoff
+    // Filter Envelope
     filter.frequency.setValueAtTime(this.config.cutoff, actualStart);
-    // Sweep up during attack
-    filter.frequency.exponentialRampToValueAtTime(Math.min(20000, this.config.cutoff + filterEnvAmount), actualStart + this.config.attack);
-    // Decay back to base sustain level
-    filter.frequency.exponentialRampToValueAtTime(this.config.cutoff, actualStart + this.config.attack + this.config.decay);
+
+    if (isLegatoTransition) {
+        // Legato: Less filter movement to sound "connected"
+        filter.frequency.setValueAtTime(this.config.cutoff + (filterEnvAmount * 0.5), actualStart);
+        filter.frequency.exponentialRampToValueAtTime(this.config.cutoff, actualStart + this.config.decay);
+    } else {
+      // Full filter sweep
+        filter.frequency.exponentialRampToValueAtTime(Math.min(20000, this.config.cutoff + filterEnvAmount), actualStart + this.config.attack);
+        filter.frequency.exponentialRampToValueAtTime(this.config.cutoff, actualStart + this.config.attack + this.config.decay);
+    }
 
     // 3. ADSR Volume Logic
-    // Waveform compensation: Sines are pure fundamental, Saws have lots of energy. Adjust accordingly.
-    const waveCorrection = this.config.waveType === 'sine' ? 1.5 : (this.config.waveType === 'sawtooth' ? 0.8 : 1.0);
-    const v = (event.v / 127) * 0.4 * this.config.drive * waveCorrection;
-
     const attackEnd = actualStart + this.config.attack;
     const decayEnd = attackEnd + this.config.decay;
     const releaseStart = actualStart + noteDuration;
     const releaseEnd = releaseStart + this.config.release;
 
-    env.gain.setValueAtTime(0, actualStart);
-    env.gain.linearRampToValueAtTime(v, attackEnd);
-    env.gain.exponentialRampToValueAtTime(Math.max(0.001, v * this.config.sustain), decayEnd);
-    env.gain.setValueAtTime(v * this.config.sustain, releaseStart);
+    env.gain.cancelScheduledValues(actualStart);
+
+    if (isLegatoTransition) {
+        // Legato: Skip Attack, start at Sustain volume immediately (with tiny fade in to avoid clicks)
+        // This simulates the "fingered legato" where the sound doesn't die down between notes
+        env.gain.setValueAtTime(0, actualStart);
+        env.gain.linearRampToValueAtTime(targetVolume * this.config.sustain, actualStart + 0.02); // 20ms quick fade
+
+        // No decay needed if we are already at sustain. Just hold level.
+        env.gain.setValueAtTime(targetVolume * this.config.sustain, releaseStart);
+    } else {
+        // Normal Envelop
+        env.gain.setValueAtTime(0, actualStart);
+        env.gain.linearRampToValueAtTime(targetVolume, attackEnd);
+        env.gain.exponentialRampToValueAtTime(Math.max(0.001, targetVolume * this.config.sustain), decayEnd);
+        env.gain.setValueAtTime(targetVolume * this.config.sustain, releaseStart);
+    }
+
+    // Release (always the same)
     env.gain.exponentialRampToValueAtTime(0.001, releaseEnd);
 
     // Connect Graph
@@ -142,13 +126,14 @@ class AudioEngine {
     env.connect(this.masterGain);
 
     osc.start(actualStart);
-    // Don't stop immediately if we might want to legato from this note
-    // But we do need a safety stop if no next note comes
-    osc.stop(releaseEnd + 2.0);
+    osc.stop(releaseEnd + 0.1); // Simple stop, no need for hour-long safety buffer anymore
 
-    // Update tracking for next note
-    this.lastNoteEndTime = releaseEnd; // actually note end, not release end
-    this.activeNodes = { osc, filter, env };
+    // Update tracking
+    // For polyphony, we just track the "latest" known note end to know if the "music" is continuous.
+    // It's a simplification but works well for detecting phrases.
+    if (releaseEnd > this.globalLastNoteEndTime) {
+        this.globalLastNoteEndTime = releaseEnd;
+    }
   }
 
   stopAll() {
@@ -156,6 +141,7 @@ class AudioEngine {
       this.ctx.close();
       this.ctx = null;
     }
+    this.globalLastNoteEndTime = 0;
   }
 
   get currentTime(): number {
