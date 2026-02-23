@@ -6,6 +6,7 @@ interface ActiveVoice {
   env: GainNode;
   pitch: number;
   levelPerDrive: number;
+  startTime: number;
 }
 
 class AudioEngine {
@@ -182,11 +183,11 @@ class AudioEngine {
     }
   }
 
-  private createContinuousVoice(midi: number, velocity: number): ActiveVoice | null {
+  private createContinuousVoice(midi: number, velocity: number, startTime: number): ActiveVoice | null {
     if (!this.ctx) this.init();
-    if (!this.ctx || !this.masterGain) return;
+    if (!this.ctx || !this.masterGain) return null;
 
-    const now = this.ctx.currentTime;
+    const now = Math.max(startTime, this.ctx.currentTime);
     const freq = this.midiToFreq(midi);
 
     const waveCorrection = this.config.waveType === 'sine' ? 1.1 : (this.config.waveType === 'sawtooth' ? 0.9 : 1.0);
@@ -235,18 +236,24 @@ class AudioEngine {
       filter,
       env,
       pitch: midi,
-      levelPerDrive
+      levelPerDrive,
+      startTime: now
     };
   }
 
-  startContinuousNotes(midis: number[], velocity: number) {
+  startContinuousNotes(midis: number[], velocity: number, strumMs: number = 0) {
     if (!midis || midis.length === 0) return;
 
     this.stopContinuousNote();
 
-    const uniqueMidis = Array.from(new Set(midis));
-    const voices = uniqueMidis
-      .map((midi) => this.createContinuousVoice(midi, velocity))
+    if (!this.ctx) this.init();
+    if (!this.ctx) return;
+
+    const baseStartTime = this.ctx.currentTime;
+    const safeStepDelaySeconds = Math.max(0, strumMs) / 1000;
+
+    const voices = midis
+      .map((midi, index) => this.createContinuousVoice(midi, velocity, baseStartTime + (index * safeStepDelaySeconds)))
       .filter((voice): voice is ActiveVoice => voice !== null);
 
     this.activeVoices = voices;
@@ -260,21 +267,24 @@ class AudioEngine {
     if (this.activeVoices.length === 0 || !this.ctx) return;
 
     const now = this.ctx.currentTime;
-    const releaseTime = now + Math.max(0.01, this.config.release);
+    const releaseDuration = Math.max(0.01, this.config.release);
 
-    this.activeVoices.forEach(({ osc, env, filter }) => {
+    this.activeVoices.forEach(({ osc, env, filter, startTime }) => {
       try {
+        const releaseStart = Math.max(now, startTime);
+        const releaseTime = releaseStart + releaseDuration;
+
         if (typeof env.gain.cancelAndHoldAtTime === 'function') {
-          env.gain.cancelAndHoldAtTime(now);
+          env.gain.cancelAndHoldAtTime(releaseStart);
         } else {
-          env.gain.cancelScheduledValues(now);
-          env.gain.setValueAtTime(Math.max(0.001, env.gain.value), now);
+          env.gain.cancelScheduledValues(releaseStart);
+          env.gain.setValueAtTime(Math.max(0.001, env.gain.value), releaseStart);
         }
 
         if (typeof filter.frequency.cancelAndHoldAtTime === 'function') {
-          filter.frequency.cancelAndHoldAtTime(now);
+          filter.frequency.cancelAndHoldAtTime(releaseStart);
         } else {
-          filter.frequency.cancelScheduledValues(now);
+          filter.frequency.cancelScheduledValues(releaseStart);
         }
 
         env.gain.exponentialRampToValueAtTime(0.001, releaseTime);
