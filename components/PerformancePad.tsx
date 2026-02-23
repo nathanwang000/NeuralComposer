@@ -168,7 +168,11 @@ const PerformancePad: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-4 h-full">
+        <div
+            className="flex flex-col gap-4 h-full select-none"
+            style={{ userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
+            onContextMenu={(e) => e.preventDefault()}
+        >
         {/* Main Pad Area */}
         <div
             ref={padRef}
