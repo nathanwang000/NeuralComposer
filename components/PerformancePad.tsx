@@ -52,8 +52,8 @@ const PerformancePad: React.FC = () => {
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 }); // 0-1 normalized
 
   // Sequence
-  const [sequenceInput, setSequenceInput] = useState("C4, E4, G4, B4, C5, B4, G4, E4");
-  const [noteSequence, setNoteSequence] = useState<number[]>([]);
+    const [sequenceInput, setSequenceInput] = useState("C4+E4+G4, D4+F4+A4, E4+G4+B4, F4+A4+C5");
+    const [chordSequence, setChordSequence] = useState<number[][]>([]);
   const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
     const currentNoteIndexRef = useRef(0);
 
@@ -62,9 +62,13 @@ const PerformancePad: React.FC = () => {
   const [yTargets, setYTargets] = useState<ModulationTarget[]>(['resonance']);
 
   useEffect(() => {
-    // Parse sequence
-    const notes = sequenceInput.split(/[, ]+/).filter(Boolean).map(n => noteToMidi(n.trim()));
-    setNoteSequence(notes.length > 0 ? notes : [60]);
+        const parsedChords = sequenceInput
+                .split(',')
+                .map(step => step.trim())
+                .filter(Boolean)
+                .map(step => step.split('+').map(n => n.trim()).filter(Boolean).map(n => noteToMidi(n)));
+
+        setChordSequence(parsedChords.length > 0 ? parsedChords : [[60]]);
     setCurrentNoteIndex(0);
         currentNoteIndexRef.current = 0;
   }, [sequenceInput]);
@@ -192,18 +196,18 @@ const PerformancePad: React.FC = () => {
         setIsPlaying(true);
         setCursorPos({ x, y });
 
-        const sequence = noteSequence.length > 0 ? noteSequence : [60];
+        const sequence = chordSequence.length > 0 ? chordSequence : [[60]];
         const nextIndex = currentNoteIndexRef.current;
-        const note = sequence[nextIndex % sequence.length];
+        const notes = sequence[nextIndex % sequence.length];
 
         const params = calculateParams(x, y);
         audioEngine.updateActiveVoiceParams(params);
-        audioEngine.startContinuousNote(note, 100);
+        audioEngine.startContinuousNotes(notes, 100);
 
         const advancedIndex = (nextIndex + 1) % sequence.length;
         currentNoteIndexRef.current = advancedIndex;
         setCurrentNoteIndex(advancedIndex);
-    }, [calculateParams, noteSequence]);
+    }, [calculateParams, chordSequence]);
 
     const stopTriggerIfIdle = useCallback(() => {
         if (activePointerIdsRef.current.size > 0) return;
@@ -442,11 +446,11 @@ const PerformancePad: React.FC = () => {
                     className="w-full bg-black/40 border border-white/5 rounded-xl p-3 text-xs font-mono text-indigo-300 focus:outline-none focus:border-indigo-500/50 h-24 resize-none"
                     value={sequenceInput}
                     onChange={(e) => setSequenceInput(e.target.value)}
-                    placeholder="e.g. C4, E4, G4, C5 (Separated by commas)"
+                    placeholder="e.g. C4+E4+G4, D4+F#4+A4 (Chord steps separated by commas)"
                 />
                 <div className="flex justify-between items-center mt-2">
                     <div className="text-[10px] text-slate-600 font-bold uppercase">
-                        Current Step: <span className="text-indigo-400">{currentNoteIndex + 1}</span> / {noteSequence.length}
+                        Current Step: <span className="text-indigo-400">{currentNoteIndex + 1}</span> / {chordSequence.length}
                     </div>
                     <button
                         onClick={() => setCurrentNoteIndex(0)}

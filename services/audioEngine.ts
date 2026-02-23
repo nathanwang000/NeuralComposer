@@ -24,7 +24,7 @@ class AudioEngine {
     drive: 1.0
   };
 
-  private activeVoice: ActiveVoice | null = null;
+  private activeVoices: ActiveVoice[] = [];
 
   init() {
     if (this.ctx && this.ctx.state !== 'closed') return;
@@ -40,7 +40,7 @@ class AudioEngine {
 
   updateConfig(newConfig: SynthConfig) {
     this.config = { ...newConfig };
-    if (this.activeVoice) {
+    if (this.activeVoices.length > 0) {
       this.updateActiveVoiceParams(newConfig);
     }
   }
@@ -48,32 +48,34 @@ class AudioEngine {
   updateActiveVoiceParams(params: Partial<SynthConfig>) {
     this.config = { ...this.config, ...params };
 
-    if (this.activeVoice && this.ctx) {
-      const { osc, filter, env } = this.activeVoice;
+    if (this.activeVoices.length > 0 && this.ctx) {
       const now = this.ctx.currentTime;
       const rampTime = 0.05;
+      this.activeVoices.forEach((voice) => {
+        const { osc, filter, env } = voice;
 
-      if (params.cutoff !== undefined) {
-        filter.frequency.setTargetAtTime(params.cutoff, now, rampTime);
-      }
-      if (params.resonance !== undefined) {
-        filter.Q.setTargetAtTime(params.resonance, now, rampTime);
-      }
+        if (params.cutoff !== undefined) {
+          filter.frequency.setTargetAtTime(params.cutoff, now, rampTime);
+        }
+        if (params.resonance !== undefined) {
+          filter.Q.setTargetAtTime(params.resonance, now, rampTime);
+        }
 
-      if (params.detune !== undefined) {
-        osc.detune.setTargetAtTime(params.detune, now, rampTime);
-      }
-      if (params.waveType !== undefined && params.waveType !== osc.type) {
-         osc.type = params.waveType as OscillatorType;
-      }
+        if (params.detune !== undefined) {
+          osc.detune.setTargetAtTime(params.detune, now, rampTime);
+        }
+        if (params.waveType !== undefined && params.waveType !== osc.type) {
+          osc.type = params.waveType as OscillatorType;
+        }
 
-      if (params.sustain !== undefined || params.drive !== undefined) {
-        const sustainLevel = Math.max(
-          0.001,
-          this.activeVoice.levelPerDrive * this.config.drive * this.config.sustain
-        );
-        env.gain.setTargetAtTime(sustainLevel, now, rampTime);
-      }
+        if (params.sustain !== undefined || params.drive !== undefined) {
+          const sustainLevel = Math.max(
+            0.001,
+            voice.levelPerDrive * this.config.drive * this.config.sustain
+          );
+          env.gain.setTargetAtTime(sustainLevel, now, rampTime);
+        }
+      });
     }
   }
 
@@ -180,11 +182,9 @@ class AudioEngine {
     }
   }
 
-  startContinuousNote(midi: number, velocity: number) {
+  private createContinuousVoice(midi: number, velocity: number): ActiveVoice | null {
     if (!this.ctx) this.init();
     if (!this.ctx || !this.masterGain) return;
-
-    this.stopContinuousNote();
 
     const now = this.ctx.currentTime;
     const freq = this.midiToFreq(midi);
@@ -230,7 +230,7 @@ class AudioEngine {
 
     osc.start(now);
 
-    this.activeVoice = {
+    return {
       osc,
       filter,
       env,
@@ -239,35 +239,52 @@ class AudioEngine {
     };
   }
 
-  stopContinuousNote() {
-    if (!this.activeVoice || !this.ctx) return;
+  startContinuousNotes(midis: number[], velocity: number) {
+    if (!midis || midis.length === 0) return;
 
-    const { osc, env, filter } = this.activeVoice;
+    this.stopContinuousNote();
+
+    const uniqueMidis = Array.from(new Set(midis));
+    const voices = uniqueMidis
+      .map((midi) => this.createContinuousVoice(midi, velocity))
+      .filter((voice): voice is ActiveVoice => voice !== null);
+
+    this.activeVoices = voices;
+  }
+
+  startContinuousNote(midi: number, velocity: number) {
+    this.startContinuousNotes([midi], velocity);
+  }
+
+  stopContinuousNote() {
+    if (this.activeVoices.length === 0 || !this.ctx) return;
+
     const now = this.ctx.currentTime;
     const releaseTime = now + Math.max(0.01, this.config.release);
 
-    try {
-      if (typeof env.gain.cancelAndHoldAtTime === 'function') {
-        env.gain.cancelAndHoldAtTime(now);
-      } else {
-        env.gain.cancelScheduledValues(now);
-        env.gain.setValueAtTime(Math.max(0.001, env.gain.value), now);
+    this.activeVoices.forEach(({ osc, env, filter }) => {
+      try {
+        if (typeof env.gain.cancelAndHoldAtTime === 'function') {
+          env.gain.cancelAndHoldAtTime(now);
+        } else {
+          env.gain.cancelScheduledValues(now);
+          env.gain.setValueAtTime(Math.max(0.001, env.gain.value), now);
+        }
+
+        if (typeof filter.frequency.cancelAndHoldAtTime === 'function') {
+          filter.frequency.cancelAndHoldAtTime(now);
+        } else {
+          filter.frequency.cancelScheduledValues(now);
+        }
+
+        env.gain.exponentialRampToValueAtTime(0.001, releaseTime);
+        osc.stop(releaseTime + 0.1);
+      } catch (e) {
+        console.warn("Error stopping note", e);
       }
+    });
 
-      if (typeof filter.frequency.cancelAndHoldAtTime === 'function') {
-        filter.frequency.cancelAndHoldAtTime(now);
-      } else {
-        filter.frequency.cancelScheduledValues(now);
-      }
-
-      env.gain.exponentialRampToValueAtTime(0.001, releaseTime);
-
-      osc.stop(releaseTime + 0.1);
-    } catch (e) {
-      console.warn("Error stopping note", e);
-    }
-
-    this.activeVoice = null;
+    this.activeVoices = [];
   }
 
   stopAll() {
