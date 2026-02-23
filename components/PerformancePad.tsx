@@ -75,6 +75,21 @@ const PerformancePad: React.FC = () => {
         };
     }, [isFallbackFullscreen]);
 
+    useEffect(() => {
+        if (!isFallbackFullscreen) return;
+
+        const prevBodyOverflow = document.body.style.overflow;
+        const prevHtmlOverflow = document.documentElement.style.overflow;
+
+        document.body.style.overflow = 'hidden';
+        document.documentElement.style.overflow = 'hidden';
+
+        return () => {
+            document.body.style.overflow = prevBodyOverflow;
+            document.documentElement.style.overflow = prevHtmlOverflow;
+        };
+    }, [isFallbackFullscreen]);
+
     const toggleFullscreen = useCallback(async () => {
         const el = padRef.current;
         if (!el) return;
@@ -222,7 +237,19 @@ const PerformancePad: React.FC = () => {
         <div
             ref={padRef}
                         className={`flex-1 min-h-[300px] relative bg-slate-900 rounded-3xl border border-white/10 cursor-crosshair overflow-hidden group shadow-inner transition-colors hover:border-indigo-500/30 select-none ${isFallbackFullscreen ? 'fixed inset-0 z-[100] min-h-0 rounded-none bg-slate-950' : ''}`}
-            style={{ touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
+                        style={{
+                            touchAction: 'none',
+                            userSelect: 'none',
+                            WebkitUserSelect: 'none',
+                            WebkitTouchCallout: 'none',
+                            ...(isFallbackFullscreen
+                                ? {
+                                        width: '100vw',
+                                        height: '100dvh',
+                                        maxHeight: '100dvh',
+                                    }
+                                : {}),
+                        }}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerEnd}
