@@ -43,6 +43,9 @@ const PerformancePad: React.FC = () => {
   const padRef = useRef<HTMLDivElement>(null);
     const activePointerIdsRef = useRef<Set<number>>(new Set());
     const controlPointerIdRef = useRef<number | null>(null);
+        const activeKeyboardKeysRef = useRef<Set<string>>(new Set());
+        const isMouseInPadRef = useRef(false);
+        const hoverPosRef = useRef({ x: 0.5, y: 0.5 });
   const [isPlaying, setIsPlaying] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isFallbackFullscreen, setIsFallbackFullscreen] = useState(false);
@@ -175,6 +178,91 @@ const PerformancePad: React.FC = () => {
     return updates;
   }, [xTargets, yTargets]);
 
+    const updateHoverFromClientPosition = useCallback((clientX: number, clientY: number) => {
+        if (!padRef.current) return null;
+
+        const rect = padRef.current.getBoundingClientRect();
+        const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+        const y = Math.max(0, Math.min(1, 1 - (clientY - rect.top) / rect.height));
+        hoverPosRef.current = { x, y };
+        return { x, y };
+    }, []);
+
+    const startTrigger = useCallback((x: number, y: number) => {
+        setIsPlaying(true);
+        setCursorPos({ x, y });
+
+        const sequence = noteSequence.length > 0 ? noteSequence : [60];
+        const nextIndex = currentNoteIndexRef.current;
+        const note = sequence[nextIndex % sequence.length];
+
+        const params = calculateParams(x, y);
+        audioEngine.updateActiveVoiceParams(params);
+        audioEngine.startContinuousNote(note, 100);
+
+        const advancedIndex = (nextIndex + 1) % sequence.length;
+        currentNoteIndexRef.current = advancedIndex;
+        setCurrentNoteIndex(advancedIndex);
+    }, [calculateParams, noteSequence]);
+
+    const stopTriggerIfIdle = useCallback(() => {
+        if (activePointerIdsRef.current.size > 0) return;
+        if (activeKeyboardKeysRef.current.size > 0) return;
+
+        setIsPlaying(false);
+        audioEngine.stopContinuousNote();
+    }, []);
+
+    const handleMouseEnter = (e: React.MouseEvent) => {
+        isMouseInPadRef.current = true;
+        updateHoverFromClientPosition(e.clientX, e.clientY);
+    };
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+        updateHoverFromClientPosition(e.clientX, e.clientY);
+    };
+
+    const handleMouseLeave = () => {
+        isMouseInPadRef.current = false;
+    };
+
+    useEffect(() => {
+        const isTypingElement = (target: EventTarget | null) => {
+            const el = target as HTMLElement | null;
+            if (!el) return false;
+            const tag = el.tagName;
+            return el.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+        };
+
+        const onKeyDown = (e: KeyboardEvent) => {
+            const key = e.key.toLowerCase();
+            if (key !== 'd' && key !== 'f') return;
+            if (!isMouseInPadRef.current) return;
+            if (isTypingElement(e.target)) return;
+            if (e.repeat || activeKeyboardKeysRef.current.has(key)) return;
+
+            activeKeyboardKeysRef.current.add(key);
+            const { x, y } = hoverPosRef.current;
+            startTrigger(x, y);
+        };
+
+        const onKeyUp = (e: KeyboardEvent) => {
+            const key = e.key.toLowerCase();
+            if (key !== 'd' && key !== 'f') return;
+
+            activeKeyboardKeysRef.current.delete(key);
+            stopTriggerIfIdle();
+        };
+
+        window.addEventListener('keydown', onKeyDown);
+        window.addEventListener('keyup', onKeyUp);
+
+        return () => {
+            window.removeEventListener('keydown', onKeyDown);
+            window.removeEventListener('keyup', onKeyUp);
+        };
+    }, [startTrigger, stopTriggerIfIdle]);
+
   const handlePointerDown = (e: React.PointerEvent) => {
         const target = e.target as HTMLElement;
         if (target.closest('[data-pad-control="true"]')) {
@@ -191,24 +279,8 @@ const PerformancePad: React.FC = () => {
     const rect = padRef.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     const y = Math.max(0, Math.min(1, 1 - (e.clientY - rect.top) / rect.height)); // Y up is 1
-
-    setIsPlaying(true);
-    setCursorPos({ x, y });
-
-    const sequence = noteSequence.length > 0 ? noteSequence : [60];
-    const nextIndex = currentNoteIndexRef.current;
-    const note = sequence[nextIndex % sequence.length];
-
-    // Initial Params
-    const params = calculateParams(x, y);
-    audioEngine.updateActiveVoiceParams(params);
-
-    // Retrigger immediately on every touch-down.
-    audioEngine.startContinuousNote(note, 100);
-
-    const advancedIndex = (nextIndex + 1) % sequence.length;
-    currentNoteIndexRef.current = advancedIndex;
-    setCurrentNoteIndex(advancedIndex);
+                hoverPosRef.current = { x, y };
+                startTrigger(x, y);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
@@ -243,8 +315,7 @@ const PerformancePad: React.FC = () => {
             return;
         }
 
-    setIsPlaying(false);
-    audioEngine.stopContinuousNote();
+        stopTriggerIfIdle();
   };
 
   const toggleTarget = (axis: 'x' | 'y', target: ModulationTarget) => {
@@ -285,6 +356,9 @@ const PerformancePad: React.FC = () => {
             onPointerUp={handlePointerEnd}
             onPointerCancel={handlePointerEnd}
             onLostPointerCapture={handlePointerEnd}
+            onMouseEnter={handleMouseEnter}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
             onContextMenu={(e) => e.preventDefault()}
         >
             <button
@@ -316,6 +390,9 @@ const PerformancePad: React.FC = () => {
             <div className="absolute top-4 left-4 text-xs font-black text-slate-700 pointer-events-none select-none uppercase tracking-widest rotate-90 origin-top-left translate-x-4">
                Y: {yTargets.join(', ') || 'None'}
             </div>
+                <div className="absolute bottom-4 left-4 text-[10px] font-black text-slate-700 pointer-events-none select-none uppercase tracking-widest">
+                    Keys: D / F
+                </div>
 
             {/* Active Cursor/Visualizer */}
             {isPlaying && (
