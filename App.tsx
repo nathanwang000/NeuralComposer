@@ -31,6 +31,7 @@ import {
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PianoRoll, { SelectionBounds } from './components/PianoRoll';
+import PerformancePad from './components/PerformancePad';
 import SynthVisualizer from './components/SynthVisualizer';
 import TimeNavigator from './components/TimeNavigator';
 import { audioEngine } from './services/audioEngine';
@@ -77,6 +78,7 @@ const App: React.FC = () => {
   const [userInput, setUserInput] = useState("");
   const [creativeDirection, setCreativeDirection] = useState("");
   const [rightPanelTab, setRightPanelTab] = useState<'session' | 'synth'>('session');
+  const [mainTab, setMainTab] = useState<'sequencer' | 'performance'>('sequencer');
 
   const [tempBpm, setTempBpm] = useState("124");
   const [testNote, setTestNote] = useState<MidiEvent>({ p: 60, v: 100, t: 0, d: 0.5 });
@@ -549,6 +551,21 @@ const App: React.FC = () => {
         </div>
 
         <div className="flex gap-3 items-center flex-wrap justify-center bg-slate-900/50 backdrop-blur-xl p-2 rounded-2xl border border-white/5">
+          <div className="flex items-center gap-1 bg-slate-900/50 p-1 rounded-xl border border-white/5 mr-2">
+             <button
+               onClick={() => setMainTab('sequencer')}
+               className={`px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${mainTab === 'sequencer' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}
+             >
+               Sequencer
+             </button>
+             <button
+               onClick={() => setMainTab('performance')}
+               className={`px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${mainTab === 'performance' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}
+             >
+               Perform
+             </button>
+          </div>
+
           <div className="flex items-center gap-1 border-r border-white/10 pr-2 mr-1">
             <button onClick={() => handleSeek(0)} className="p-2 hover:bg-white/10 rounded-lg text-slate-400">
               <RotateCcw size={18} />
@@ -606,6 +623,10 @@ const App: React.FC = () => {
 
       <main className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-6 p-4 lg:p-6 pt-0 lg:pt-0">
         <div className="lg:col-span-9 flex flex-col gap-4 min-h-0">
+          {mainTab === 'performance' ? (
+             <PerformancePad />
+          ) : (
+          <>
           <div className="relative flex-1 min-h-[350px] border border-white/5 rounded-3xl overflow-hidden bg-black shadow-inner">
             <PianoRoll events={events} currentBeat={playbackBeat} selectedNoteIds={selectedEventIds} selectionMarquee={selectionMarquee} onSeek={handleSeek} onSelectionMarqueeChange={setSelectionMarquee} onSelectNotes={setSelectedEventIds} onMoveSelection={handleMoveSelection} />
             {isWarmingUp && (
@@ -672,6 +693,8 @@ const App: React.FC = () => {
                )}
             </div>
           </div>
+          </>
+        )}
         </div>
 
         <div className="lg:col-span-3 flex flex-col h-full min-h-0">

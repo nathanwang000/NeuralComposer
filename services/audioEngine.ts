@@ -1,5 +1,11 @@
-
 import { MidiEvent, SynthConfig } from '../types';
+
+interface ActiveVoice {
+  osc: OscillatorNode;
+  filter: BiquadFilterNode;
+  env: GainNode;
+  pitch: number;
+}
 
 class AudioEngine {
   private ctx: AudioContext | null = null;
@@ -17,6 +23,8 @@ class AudioEngine {
     drive: 1.0
   };
 
+  private activeVoice: ActiveVoice | null = null;
+
   init() {
     if (this.ctx && this.ctx.state !== 'closed') return;
     this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -31,6 +39,33 @@ class AudioEngine {
 
   updateConfig(newConfig: SynthConfig) {
     this.config = { ...newConfig };
+    if (this.activeVoice) {
+      this.updateActiveVoiceParams(newConfig);
+    }
+  }
+
+  updateActiveVoiceParams(params: Partial<SynthConfig>) {
+    this.config = { ...this.config, ...params };
+
+    if (this.activeVoice && this.ctx) {
+      const { osc, filter } = this.activeVoice;
+      const now = this.ctx.currentTime;
+      const rampTime = 0.05;
+
+      if (params.cutoff !== undefined) {
+        filter.frequency.setTargetAtTime(params.cutoff, now, rampTime);
+      }
+      if (params.resonance !== undefined) {
+        filter.Q.setTargetAtTime(params.resonance, now, rampTime);
+      }
+
+      if (params.detune !== undefined) {
+        osc.detune.setTargetAtTime(params.detune, now, rampTime);
+      }
+      if (params.waveType !== undefined && params.waveType !== osc.type) {
+         osc.type = params.waveType as OscillatorType;
+      }
+    }
   }
 
   private midiToFreq(midi: number): number {
@@ -136,7 +171,87 @@ class AudioEngine {
     }
   }
 
+  startContinuousNote(midi: number, velocity: number) {
+    if (!this.ctx) this.init();
+    if (!this.ctx || !this.masterGain) return;
+
+    this.stopContinuousNote();
+
+    const now = this.ctx.currentTime;
+    const freq = this.midiToFreq(midi);
+
+    const waveCorrection = this.config.waveType === 'sine' ? 1.1 : (this.config.waveType === 'sawtooth' ? 0.9 : 1.0);
+    const targetVolume = (velocity / 127) * 0.4 * this.config.drive * waveCorrection;
+
+    const osc = this.ctx.createOscillator();
+    const filter = this.ctx.createBiquadFilter();
+    const env = this.ctx.createGain();
+
+    osc.type = this.config.waveType as OscillatorType;
+    osc.frequency.setValueAtTime(freq, now);
+    osc.detune.setValueAtTime(this.config.detune, now);
+
+    const filterEnvAmount = this.config.cutoff * 1.5;
+    filter.type = 'lowpass';
+    filter.Q.setValueAtTime(this.config.resonance, now);
+
+    const startCutoff = Math.max(100, this.config.cutoff);
+    filter.frequency.setValueAtTime(startCutoff, now);
+
+    filter.frequency.exponentialRampToValueAtTime(
+        Math.min(20000, Math.max(100, this.config.cutoff + filterEnvAmount)),
+        now + this.config.attack
+    );
+    filter.frequency.exponentialRampToValueAtTime(
+        Math.max(100, this.config.cutoff),
+        now + this.config.attack + this.config.decay
+    );
+
+    const safeSustain = Math.max(0.001, targetVolume * this.config.sustain);
+    const safeVolume = Math.max(0.001, targetVolume);
+
+    env.gain.setValueAtTime(0, now);
+    env.gain.linearRampToValueAtTime(safeVolume, now + this.config.attack);
+    env.gain.exponentialRampToValueAtTime(safeSustain, now + this.config.attack + this.config.decay);
+
+    osc.connect(filter);
+    filter.connect(env);
+    env.connect(this.masterGain);
+
+    osc.start(now);
+
+    this.activeVoice = {
+      osc,
+      filter,
+      env,
+      pitch: midi
+    };
+  }
+
+  stopContinuousNote() {
+    if (!this.activeVoice || !this.ctx) return;
+
+    const { osc, env, filter } = this.activeVoice;
+    const now = this.ctx.currentTime;
+    const releaseTime = now + this.config.release;
+
+    try {
+      env.gain.cancelScheduledValues(now);
+      filter.frequency.cancelScheduledValues(now);
+
+      env.gain.setValueAtTime(env.gain.value, now);
+      env.gain.exponentialRampToValueAtTime(0.001, releaseTime);
+
+      osc.stop(releaseTime + 0.1);
+    } catch (e) {
+      console.warn("Error stopping note", e);
+    }
+
+    this.activeVoice = null;
+  }
+
   stopAll() {
+    this.stopContinuousNote();
     if (this.ctx) {
       this.ctx.close();
       this.ctx = null;
