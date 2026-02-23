@@ -78,15 +78,38 @@ const PerformancePad: React.FC = () => {
     useEffect(() => {
         if (!isFallbackFullscreen) return;
 
+        const scrollY = window.scrollY;
+        const prevBodyPosition = document.body.style.position;
+        const prevBodyTop = document.body.style.top;
+        const prevBodyLeft = document.body.style.left;
+        const prevBodyRight = document.body.style.right;
+        const prevBodyWidth = document.body.style.width;
         const prevBodyOverflow = document.body.style.overflow;
         const prevHtmlOverflow = document.documentElement.style.overflow;
+        const prevBodyOverscroll = document.body.style.overscrollBehavior;
+        const prevHtmlOverscroll = document.documentElement.style.overscrollBehavior;
 
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${scrollY}px`;
+        document.body.style.left = '0';
+        document.body.style.right = '0';
+        document.body.style.width = '100%';
         document.body.style.overflow = 'hidden';
         document.documentElement.style.overflow = 'hidden';
+        document.body.style.overscrollBehavior = 'none';
+        document.documentElement.style.overscrollBehavior = 'none';
 
         return () => {
+            document.body.style.position = prevBodyPosition;
+            document.body.style.top = prevBodyTop;
+            document.body.style.left = prevBodyLeft;
+            document.body.style.right = prevBodyRight;
+            document.body.style.width = prevBodyWidth;
             document.body.style.overflow = prevBodyOverflow;
             document.documentElement.style.overflow = prevHtmlOverflow;
+            document.body.style.overscrollBehavior = prevBodyOverscroll;
+            document.documentElement.style.overscrollBehavior = prevHtmlOverscroll;
+            window.scrollTo(0, scrollY);
         };
     }, [isFallbackFullscreen]);
 
@@ -244,10 +267,10 @@ const PerformancePad: React.FC = () => {
                             WebkitTouchCallout: 'none',
                             ...(isFallbackFullscreen
                                 ? {
-                                        width: '100vw',
-                                        height: '100dvh',
-                                        minHeight: '100dvh',
-                                        maxHeight: '100dvh',
+                                        width: '100%',
+                                        height: '100%',
+                                        minHeight: '100%',
+                                        maxHeight: '100%',
                                     }
                                 : {}),
                         }}
