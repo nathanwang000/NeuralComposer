@@ -104,9 +104,7 @@ const PerformancePad: React.FC = () => {
   }, [xTargets, yTargets]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
-        if (e.pointerType !== 'touch') {
-            e.preventDefault();
-        }
+        e.preventDefault();
     if (!padRef.current) return;
 
         if (activePointerIdRef.current !== null && activePointerIdRef.current !== e.pointerId) {
@@ -114,9 +112,7 @@ const PerformancePad: React.FC = () => {
         }
 
         activePointerIdRef.current = e.pointerId;
-        if (e.pointerType !== 'touch') {
-            padRef.current.setPointerCapture(e.pointerId);
-        }
+        padRef.current.setPointerCapture(e.pointerId);
 
     const rect = padRef.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
@@ -138,9 +134,7 @@ const PerformancePad: React.FC = () => {
 
   const handlePointerMove = (e: React.PointerEvent) => {
         if (!isPlaying || !padRef.current || activePointerIdRef.current !== e.pointerId) return;
-        if (e.pointerType !== 'touch') {
-            e.preventDefault();
-        }
+        e.preventDefault();
 
     const rect = padRef.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
@@ -153,9 +147,7 @@ const PerformancePad: React.FC = () => {
 
     const handlePointerEnd = (e: React.PointerEvent) => {
         if (activePointerIdRef.current !== e.pointerId) return;
-        if (e.pointerType !== 'touch') {
-            e.preventDefault();
-        }
+        e.preventDefault();
 
         if (padRef.current?.hasPointerCapture(e.pointerId)) {
             padRef.current.releasePointerCapture(e.pointerId);
@@ -181,7 +173,7 @@ const PerformancePad: React.FC = () => {
         <div
             ref={padRef}
             className="flex-1 min-h-[300px] relative bg-slate-900 rounded-3xl border border-white/10 cursor-crosshair overflow-hidden group shadow-inner transition-colors hover:border-indigo-500/30 select-none"
-            style={{ touchAction: 'auto', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
+            style={{ touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerEnd}
