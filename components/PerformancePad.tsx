@@ -268,9 +268,9 @@ const PerformancePad: React.FC = () => {
                             ...(isFallbackFullscreen
                                 ? {
                                         width: '100%',
-                                        height: '100%',
-                                        minHeight: '100%',
-                                        maxHeight: '100%',
+                                        height: '100dvh',
+                                        minHeight: '100dvh',
+                                        maxHeight: '100dvh',
                                     }
                                 : {}),
                         }}
