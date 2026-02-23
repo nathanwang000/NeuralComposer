@@ -158,7 +158,7 @@ const PerformancePad: React.FC = () => {
         {/* Main Pad Area */}
         <div
             ref={padRef}
-            className="flex-1 relative bg-slate-900 rounded-3xl border border-white/10 touch-none cursor-crosshair overflow-hidden group shadow-inner transition-colors hover:border-indigo-500/30"
+            className="flex-1 min-h-[300px] relative bg-slate-900 rounded-3xl border border-white/10 touch-none cursor-crosshair overflow-hidden group shadow-inner transition-colors hover:border-indigo-500/30"
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
@@ -201,9 +201,9 @@ const PerformancePad: React.FC = () => {
                 </>
             )}
 
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-700">
+            {/* <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-700">
                 {!isPlaying && <span className="text-slate-800 font-black text-6xl uppercase tracking-tighter mix-blend-screen">Touch Perf</span>}
-            </div>
+            </div> */}
         </div>
 
         {/* Controls */}
