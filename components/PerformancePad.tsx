@@ -57,7 +57,7 @@ const PerformancePad: React.FC = () => {
     const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 }); // 0-1 normalized
 
     // Sequence
-    const [sequenceInput, setSequenceInput] = useState("C4+E4+G4@60ms, D4+F4+A4, E4+G4+B4, F4+A4+C5, G4+B4+D5, A4+C5+E5, B4+D5+F5");
+    const [sequenceInput, setSequenceInput] = useState("C4+E4+G4+B5+C5+E6+G6+E5+C5+B4@200ms, D4+E4+G4+B5+C5+E6+G6+E5+C5+B4@200ms,F4+C5+A5,F4+C5+A5,F4+C5+G5,F4+C5+F5,E4+C5+G5");
     const [chordSequence, setChordSequence] = useState<ChordStep[]>([]);
     const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
     const currentNoteIndexRef = useRef(0);
