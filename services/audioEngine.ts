@@ -102,13 +102,13 @@ class AudioEngine {
     env.gain.cancelScheduledValues(actualStart);
 
     if (isLegatoTransition) {
-        // Legato: Skip Attack, start at Sustain volume immediately (with tiny fade in to avoid clicks)
+        // Legato: Skip Attack, start at target volume immediately (with tiny fade in to avoid clicks)
         // This simulates the "fingered legato" where the sound doesn't die down between notes
         env.gain.setValueAtTime(0, actualStart);
-        env.gain.linearRampToValueAtTime(targetVolume * this.config.sustain, actualStart + 0.02); // 20ms quick fade
+        env.gain.linearRampToValueAtTime(targetVolume, actualStart + 0.02); // 20ms quick fade
 
-        // No decay needed if we are already at sustain. Just hold level.
-        env.gain.setValueAtTime(targetVolume * this.config.sustain, releaseStart);
+        // No decay needed, just hold level.
+        env.gain.setValueAtTime(targetVolume, releaseStart);
     } else {
         // Normal Envelop
         env.gain.setValueAtTime(0, actualStart);

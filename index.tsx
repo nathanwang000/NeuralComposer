@@ -3,7 +3,6 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import App from './App';
-import ContinuousAudioLab from './components/ContinuousAudioLab';
 import VoiceToMidiConverter from './components/VoiceToMidiConverter';
 
 const rootElement = document.getElementById('root');
@@ -18,7 +17,6 @@ root.render(
       <Routes>
         <Route path="/" element={<App />} />
         <Route path="/converter" element={<VoiceToMidiConverter />} />
-        <Route path="/lab" element={<ContinuousAudioLab />} />
       </Routes>
     </BrowserRouter>
   </React.StrictMode>

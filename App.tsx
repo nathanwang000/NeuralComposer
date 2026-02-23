@@ -577,9 +577,6 @@ const App: React.FC = () => {
           <button onClick={() => navigate('/converter')} className="hidden sm:flex items-center gap-2 bg-black text-xs font-bold text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/10 hover:border-cyan-500/50 rounded-xl px-4 py-2.5 transition-all shadow-lg shadow-cyan-500/10">
             <Mic size={14} /> VOICE
           </button>
-          <button onClick={() => navigate('/lab')} className="hidden sm:flex items-center gap-2 bg-black text-xs font-bold text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/10 hover:border-indigo-500/50 rounded-xl px-4 py-2.5 transition-all shadow-lg shadow-indigo-500/10">
-             <Zap size={14} /> LAB
-          </button>
 
           <div className="relative group">
             <input

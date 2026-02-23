@@ -2,6 +2,7 @@ import { ArrowLeft, Download, Mic, Square, Upload } from 'lucide-react';
 import { AMDF } from 'pitchfinder';
 import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { MidiEvent } from '../types';
 
 const VoiceToMidiConverter: React.FC = () => {
     const navigate = useNavigate();
@@ -31,8 +32,8 @@ const VoiceToMidiConverter: React.FC = () => {
 
     const frequencyToMidi = (freq: number): number => {
         if (!freq || freq <= 0) return 0;
-        // MIDI note formula: 69 + 12 * log2(f / 440)
-        return Math.round(69 + 12 * Math.log2(freq / 440));
+        // Float precision for continuous pitch
+        return 69 + 12 * Math.log2(freq / 440);
     };
 
     const processAudio = async (blob: Blob) => {
@@ -46,13 +47,15 @@ const VoiceToMidiConverter: React.FC = () => {
         const audioBuffer = await audioContextRef.current.decodeAudioData(arrayBuffer);
 
         const rawData = audioBuffer.getChannelData(0); // Mono channel
-        const bufferSize = 1024; // Window size for analysis
+        // Sampling Window
+        // 1024 samples @ 44.1k = ~23ms resolution
+        const bufferSize = 1024;
 
-        // Analyze chunks
-        const events: { p: number, t: number, d: number }[] = [];
-        let currentNote: number | null = null;
-        let noteStartTime = 0;
-        let lastTime = 0;
+        const events: MidiEvent[] = [];
+        
+        // Simple smoothing filter
+        let lastPitch = 0;
+        const PITCH_SMOOTHING = 0.5;
 
         // Threshold for silence/noise
         // We iterate through the buffer in chunks
@@ -61,67 +64,41 @@ const VoiceToMidiConverter: React.FC = () => {
             // Basic silence detection by amplitude
             const rms = Math.sqrt(chunk.reduce((sum, val) => sum + val * val, 0) / chunk.length);
 
-            let midiNote = null;
-
-            if (rms > 0.01) { // Silence threshold
+            if (rms > 0.02) { 
                  const freq = detectPitch(chunk);
                  if (freq) {
-                     midiNote = frequencyToMidi(freq);
+                     let midiPitch = frequencyToMidi(freq);
+
+                     // Basic Low Pass Filter for Pitch
+                     if (lastPitch > 0) {
+                        midiPitch = lastPitch * PITCH_SMOOTHING + midiPitch * (1 - PITCH_SMOOTHING);
+                     }
+                     lastPitch = midiPitch;
+
+                     const timeInSeconds = i / SAMPLE_RATE;
+                     const durationInSeconds = bufferSize / SAMPLE_RATE;
+
+                     events.push({
+                         p: parseFloat(midiPitch.toFixed(2)),
+                         v: Math.min(127, Math.floor(rms * 1000)), // Approximate volume
+                         t: parseFloat((timeInSeconds / TEMPO_SEC_PER_BEAT).toFixed(3)),
+                         d: parseFloat((durationInSeconds / TEMPO_SEC_PER_BEAT).toFixed(3))
+                     });
+                 } else {
+                    lastPitch = 0; // Reset smoothing on silence/unvoiced
                  }
+            } else {
+                lastPitch = 0;
             }
-
-            const currentTime = i / audioBuffer.sampleRate; // Seconds
-
-            // Check if note changed
-            if (midiNote !== currentNote) {
-                // Determine if we should end the previous note
-                if (currentNote !== null) {
-                    // Start time in beats calculation
-                    // We need to quantize a bit to make it usable, or provide raw float
-                    // Start time relative to beginning (0)
-                    const startTimeBeats = parseFloat((noteStartTime / TEMPO_SEC_PER_BEAT).toFixed(2));
-                    const durationBeats = parseFloat(((currentTime - noteStartTime) / TEMPO_SEC_PER_BEAT).toFixed(2));
-
-                    if (durationBeats > 0.1) { // Filter very short blips
-                        events.push({
-                            p: currentNote,
-                            t: startTimeBeats,
-                            d: durationBeats
-                        });
-                    }
-                }
-
-                // Start new note
-                if (midiNote !== null) {
-                    currentNote = midiNote;
-                    noteStartTime = currentTime;
-                } else {
-                    currentNote = null;
-                }
-            }
-            lastTime = currentTime;
-        }
-
-        // Handle the last note if there is one
-        if (currentNote !== null) {
-             const startTimeBeats = parseFloat((noteStartTime / TEMPO_SEC_PER_BEAT).toFixed(2));
-             const durationBeats = parseFloat(((rawData.length / audioBuffer.sampleRate - noteStartTime) / TEMPO_SEC_PER_BEAT).toFixed(2));
-             if (durationBeats > 0.1) {
-                events.push({
-                    p: currentNote,
-                    t: startTimeBeats,
-                    d: durationBeats
-                });
-             }
         }
 
         formatOutput(events);
         setStatus('Ready');
     };
 
-    const formatOutput = (events: { p: number, t: number, d: number }[]) => {
+    const formatOutput = (events: MidiEvent[]) => {
         // Format: [P:60,V:100,T:0,D:1]
-        const formatted = events.map(e => `[P:${e.p},V:80,T:${e.t},D:${e.d}]`).join('');
+        const formatted = events.map(e => `[P:${e.p},V:${e.v},T:${e.t},D:${e.d}]`).join(', ');
         setMidiOutput(formatted);
     };
 
