@@ -41,6 +41,7 @@ const AVAILABLE_TARGETS: { label: string; value: ModulationTarget }[] = [
 
 const PerformancePad: React.FC = () => {
   const padRef = useRef<HTMLDivElement>(null);
+    const activePointerIdRef = useRef<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 }); // 0-1 normalized
 
@@ -103,9 +104,19 @@ const PerformancePad: React.FC = () => {
   }, [xTargets, yTargets]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
-    e.preventDefault();
+        if (e.pointerType !== 'touch') {
+            e.preventDefault();
+        }
     if (!padRef.current) return;
-    padRef.current.setPointerCapture(e.pointerId);
+
+        if (activePointerIdRef.current !== null && activePointerIdRef.current !== e.pointerId) {
+            return;
+        }
+
+        activePointerIdRef.current = e.pointerId;
+        if (e.pointerType !== 'touch') {
+            padRef.current.setPointerCapture(e.pointerId);
+        }
 
     const rect = padRef.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
@@ -126,8 +137,10 @@ const PerformancePad: React.FC = () => {
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (!isPlaying || !padRef.current) return;
-    e.preventDefault();
+        if (!isPlaying || !padRef.current || activePointerIdRef.current !== e.pointerId) return;
+        if (e.pointerType !== 'touch') {
+            e.preventDefault();
+        }
 
     const rect = padRef.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
@@ -138,8 +151,17 @@ const PerformancePad: React.FC = () => {
     audioEngine.updateActiveVoiceParams(params);
   };
 
-  const handlePointerUp = (e: React.PointerEvent) => {
-    e.preventDefault();
+    const handlePointerEnd = (e: React.PointerEvent) => {
+        if (activePointerIdRef.current !== e.pointerId) return;
+        if (e.pointerType !== 'touch') {
+            e.preventDefault();
+        }
+
+        if (padRef.current?.hasPointerCapture(e.pointerId)) {
+            padRef.current.releasePointerCapture(e.pointerId);
+        }
+
+        activePointerIdRef.current = null;
     setIsPlaying(false);
     audioEngine.stopContinuousNote();
     setCurrentNoteIndex(prev => (prev + 1) % noteSequence.length);
@@ -158,11 +180,13 @@ const PerformancePad: React.FC = () => {
         {/* Main Pad Area */}
         <div
             ref={padRef}
-            className="flex-1 min-h-[300px] relative bg-slate-900 rounded-3xl border border-white/10 touch-none cursor-crosshair overflow-hidden group shadow-inner transition-colors hover:border-indigo-500/30"
+            className="flex-1 min-h-[300px] relative bg-slate-900 rounded-3xl border border-white/10 cursor-crosshair overflow-hidden group shadow-inner transition-colors hover:border-indigo-500/30"
+            style={{ touchAction: 'auto' }}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerLeave={handlePointerUp}
+            onPointerUp={handlePointerEnd}
+            onPointerCancel={handlePointerEnd}
+            onLostPointerCapture={handlePointerEnd}
         >
             {/* Grid Lines */}
             <div className="absolute inset-0 grid grid-cols-4 grid-rows-4 pointer-events-none opacity-20">
