@@ -30,8 +30,8 @@ import {
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import PianoRoll, { SelectionBounds } from './components/PianoRoll';
 import PerformancePad from './components/PerformancePad';
+import PianoRoll, { SelectionBounds } from './components/PianoRoll';
 import SynthVisualizer from './components/SynthVisualizer';
 import TimeNavigator from './components/TimeNavigator';
 import { audioEngine } from './services/audioEngine';
