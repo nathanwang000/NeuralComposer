@@ -1,4 +1,4 @@
-import { Maximize2, Music } from 'lucide-react';
+import { Maximize2, Minimize2, Music } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { audioEngine } from '../services/audioEngine';
 import { SynthConfig } from '../types';
@@ -43,6 +43,8 @@ const PerformancePad: React.FC = () => {
   const padRef = useRef<HTMLDivElement>(null);
     const activePointerIdRef = useRef<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [isFallbackFullscreen, setIsFallbackFullscreen] = useState(false);
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 }); // 0-1 normalized
 
   // Sequence
@@ -60,6 +62,44 @@ const PerformancePad: React.FC = () => {
     setNoteSequence(notes.length > 0 ? notes : [60]);
     setCurrentNoteIndex(0);
   }, [sequenceInput]);
+
+    useEffect(() => {
+        const syncFullscreenState = () => {
+            const active = document.fullscreenElement === padRef.current;
+            setIsFullscreen(active || isFallbackFullscreen);
+        };
+
+        document.addEventListener('fullscreenchange', syncFullscreenState);
+        return () => {
+            document.removeEventListener('fullscreenchange', syncFullscreenState);
+        };
+    }, [isFallbackFullscreen]);
+
+    const toggleFullscreen = useCallback(async () => {
+        const el = padRef.current;
+        if (!el) return;
+
+        try {
+            if (document.fullscreenElement === el) {
+                await document.exitFullscreen();
+                return;
+            }
+
+            if (!document.fullscreenElement && el.requestFullscreen) {
+                await el.requestFullscreen();
+                return;
+            }
+        } catch {
+            setIsFallbackFullscreen(prev => !prev);
+            return;
+        }
+
+        if (document.fullscreenElement) {
+            await document.exitFullscreen();
+        } else {
+            setIsFallbackFullscreen(prev => !prev);
+        }
+    }, []);
 
   const calculateParams = useCallback((x: number, y: number) => {
     // x, y are 0-1
@@ -104,15 +144,20 @@ const PerformancePad: React.FC = () => {
   }, [xTargets, yTargets]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
-        e.preventDefault();
-    if (!padRef.current) return;
-
-        if (activePointerIdRef.current !== null && activePointerIdRef.current !== e.pointerId) {
+        const target = e.target as HTMLElement;
+        if (target.closest('[data-pad-control="true"]')) {
             return;
         }
 
-        activePointerIdRef.current = e.pointerId;
-        padRef.current.setPointerCapture(e.pointerId);
+    e.preventDefault();
+    if (!padRef.current) return;
+
+    if (activePointerIdRef.current !== null && activePointerIdRef.current !== e.pointerId) {
+      return;
+    }
+
+    activePointerIdRef.current = e.pointerId;
+    padRef.current.setPointerCapture(e.pointerId);
 
     const rect = padRef.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
@@ -167,7 +212,7 @@ const PerformancePad: React.FC = () => {
       });
   };
 
-  return (
+    return (
         <div
             className="flex flex-col gap-4 h-full select-none"
             style={{ userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
@@ -176,7 +221,7 @@ const PerformancePad: React.FC = () => {
         {/* Main Pad Area */}
         <div
             ref={padRef}
-            className="flex-1 min-h-[300px] relative bg-slate-900 rounded-3xl border border-white/10 cursor-crosshair overflow-hidden group shadow-inner transition-colors hover:border-indigo-500/30 select-none"
+                        className={`flex-1 min-h-[300px] relative bg-slate-900 rounded-3xl border border-white/10 cursor-crosshair overflow-hidden group shadow-inner transition-colors hover:border-indigo-500/30 select-none ${isFallbackFullscreen ? 'fixed inset-0 z-[100] min-h-0 rounded-none bg-slate-950' : ''}`}
             style={{ touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
@@ -185,6 +230,21 @@ const PerformancePad: React.FC = () => {
             onLostPointerCapture={handlePointerEnd}
             onContextMenu={(e) => e.preventDefault()}
         >
+            <button
+                type="button"
+                data-pad-control="true"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleFullscreen();
+                }}
+                className="absolute top-3 right-3 z-20 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/60 border border-white/10 text-slate-200 hover:text-white hover:border-white/20 text-[10px] font-black uppercase tracking-widest"
+            >
+                {isFullscreen ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+                {isFullscreen ? 'Exit' : 'Full'}
+            </button>
+
             {/* Grid Lines */}
             <div className="absolute inset-0 grid grid-cols-4 grid-rows-4 pointer-events-none opacity-20">
                  {Array.from({length: 16}).map((_, i) => (
