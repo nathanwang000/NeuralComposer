@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { audioEngine } from '../services/audioEngine';
 import { SynthConfig } from '../types';
 
-type ModulationTarget = keyof SynthConfig | 'volume';
+type ModulationTarget = keyof SynthConfig;
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
@@ -36,8 +36,7 @@ const AVAILABLE_TARGETS: { label: string; value: ModulationTarget }[] = [
   { label: 'Filter Cutoff', value: 'cutoff' },
   { label: 'Resonance', value: 'resonance' },
   { label: 'Detune', value: 'detune' },
-  { label: 'Drive/Distortion', value: 'drive' },
-  { label: 'Volume', value: 'volume' }, // Special case, mapped manually if needed or via drive
+    { label: 'Sustain', value: 'sustain' },
 ];
 
 const PerformancePad: React.FC = () => {
@@ -151,33 +150,19 @@ const PerformancePad: React.FC = () => {
             case 'cutoff': return 100 + (val * 8000); // 100Hz - 8100Hz
             case 'resonance': return val * 20; // 0 - 20
             case 'detune': return (val - 0.5) * 100; // -50 to +50 cents
-            case 'drive': return val * 2.0; // 0 - 2.0
-            // Volume is handled via direct gain modulation or drive hacks,
-            // but let's assume 'drive' controls loudness/character for now as per AudioEngine implementation
-            // or we might need to add explicit volume control to ActiveVoice params if requested.
-            case 'volume':
-                // drive is closest to volume in current engine without master gain access
-                return val * 1.5;
+            case 'sustain': return val; // 0 - 1
             default: return 0;
         }
     };
 
     xTargets.forEach(t => {
-        if (t === 'volume' || t === 'drive') {
-            updates.drive = mapValue(x, t);
-        } else {
-             // @ts-ignore
-            updates[t] = mapValue(x, t);
-        }
+         // @ts-ignore
+        updates[t] = mapValue(x, t);
     });
 
     yTargets.forEach(t => {
-         if (t === 'volume' || t === 'drive') {
-            updates.drive = mapValue(y, t);
-        } else {
-             // @ts-ignore
-            updates[t] = mapValue(y, t);
-        }
+         // @ts-ignore
+        updates[t] = mapValue(y, t);
     });
 
     return updates;

@@ -5,6 +5,7 @@ interface ActiveVoice {
   filter: BiquadFilterNode;
   env: GainNode;
   pitch: number;
+  levelPerDrive: number;
 }
 
 class AudioEngine {
@@ -48,7 +49,7 @@ class AudioEngine {
     this.config = { ...this.config, ...params };
 
     if (this.activeVoice && this.ctx) {
-      const { osc, filter } = this.activeVoice;
+      const { osc, filter, env } = this.activeVoice;
       const now = this.ctx.currentTime;
       const rampTime = 0.05;
 
@@ -64,6 +65,14 @@ class AudioEngine {
       }
       if (params.waveType !== undefined && params.waveType !== osc.type) {
          osc.type = params.waveType as OscillatorType;
+      }
+
+      if (params.sustain !== undefined || params.drive !== undefined) {
+        const sustainLevel = Math.max(
+          0.001,
+          this.activeVoice.levelPerDrive * this.config.drive * this.config.sustain
+        );
+        env.gain.setTargetAtTime(sustainLevel, now, rampTime);
       }
     }
   }
@@ -181,7 +190,8 @@ class AudioEngine {
     const freq = this.midiToFreq(midi);
 
     const waveCorrection = this.config.waveType === 'sine' ? 1.1 : (this.config.waveType === 'sawtooth' ? 0.9 : 1.0);
-    const targetVolume = (velocity / 127) * 0.4 * this.config.drive * waveCorrection;
+    const levelPerDrive = (velocity / 127) * 0.4 * waveCorrection;
+    const targetVolume = levelPerDrive * this.config.drive;
 
     const osc = this.ctx.createOscillator();
     const filter = this.ctx.createBiquadFilter();
@@ -224,7 +234,8 @@ class AudioEngine {
       osc,
       filter,
       env,
-      pitch: midi
+      pitch: midi,
+      levelPerDrive
     };
   }
 
