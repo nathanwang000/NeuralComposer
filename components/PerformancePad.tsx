@@ -180,13 +180,14 @@ const PerformancePad: React.FC = () => {
         {/* Main Pad Area */}
         <div
             ref={padRef}
-            className="flex-1 min-h-[300px] relative bg-slate-900 rounded-3xl border border-white/10 cursor-crosshair overflow-hidden group shadow-inner transition-colors hover:border-indigo-500/30"
-            style={{ touchAction: 'auto' }}
+            className="flex-1 min-h-[300px] relative bg-slate-900 rounded-3xl border border-white/10 cursor-crosshair overflow-hidden group shadow-inner transition-colors hover:border-indigo-500/30 select-none"
+            style={{ touchAction: 'auto', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerEnd}
             onPointerCancel={handlePointerEnd}
             onLostPointerCapture={handlePointerEnd}
+            onContextMenu={(e) => e.preventDefault()}
         >
             {/* Grid Lines */}
             <div className="absolute inset-0 grid grid-cols-4 grid-rows-4 pointer-events-none opacity-20">

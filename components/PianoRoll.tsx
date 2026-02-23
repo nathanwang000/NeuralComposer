@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MidiEvent } from '../types';
 
 export interface SelectionBounds {
@@ -19,21 +19,21 @@ interface PianoRollProps {
   onMoveSelection?: (deltaBeat: number, deltaPitch: number, ids: string[]) => void;
 }
 
-const PianoRoll: React.FC<PianoRollProps> = ({ 
-  events, 
-  currentBeat, 
+const PianoRoll: React.FC<PianoRollProps> = ({
+  events,
+  currentBeat,
   selectedNoteIds,
   selectionMarquee,
-  onSeek, 
+  onSeek,
   onSelectionMarqueeChange,
   onSelectNotes,
-  onMoveSelection 
+  onMoveSelection
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [dragStart, setDragStart] = useState<{ x: number, y: number, beat: number, pitch: number } | null>(null);
   const [dragEnd, setDragEnd] = useState<{ x: number, y: number, beat: number, pitch: number } | null>(null);
   const [isMoving, setIsMoving] = useState(false);
-  
+
   const beatWidth = 100;
 
   // Compute the bounding box of the currently selected notes
@@ -74,7 +74,7 @@ const PianoRoll: React.FC<PianoRollProps> = ({
 
   const isInsideRect = (beat: number, pitch: number, rect: SelectionBounds | null) => {
     if (!rect) return false;
-    return beat >= rect.startBeat && beat <= rect.endBeat && 
+    return beat >= rect.startBeat && beat <= rect.endBeat &&
            pitch >= rect.minPitch && pitch <= rect.maxPitch;
   };
 
@@ -84,9 +84,9 @@ const PianoRoll: React.FC<PianoRollProps> = ({
     const rect = canvas.getBoundingClientRect();
     const x = (e.clientX - rect.left) * (canvas.width / rect.width);
     const y = (e.clientY - rect.top) * (canvas.height / rect.height);
-    
+
     const coords = getMusicCoords(x, y, canvas);
-    
+
     // Check if clicking inside the existing selection bounds to move
     if (selectionBounds && isInsideRect(coords.beat, coords.pitch, selectionBounds)) {
       setIsMoving(true);
@@ -106,7 +106,7 @@ const PianoRoll: React.FC<PianoRollProps> = ({
     const rect = canvas.getBoundingClientRect();
     const x = (e.clientX - rect.left) * (canvas.width / rect.width);
     const y = (e.clientY - rect.top) * (canvas.height / rect.height);
-    
+
     const coords = getMusicCoords(x, y, canvas);
     setDragEnd({ x, y, ...coords });
 
@@ -122,7 +122,7 @@ const PianoRoll: React.FC<PianoRollProps> = ({
 
   const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!dragStart) return;
-    
+
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
@@ -131,7 +131,7 @@ const PianoRoll: React.FC<PianoRollProps> = ({
     const coords = getMusicCoords(x, y, canvas);
 
     const isClick = !dragEnd || (Math.abs(dragEnd.x - dragStart.x) < 5 && Math.abs(dragEnd.y - dragStart.y) < 5);
-    
+
     if (isMoving) {
       if (!isClick && onMoveSelection) {
         onMoveSelection(coords.beat - dragStart.beat, coords.pitch - dragStart.pitch, selectedNoteIds);
@@ -146,7 +146,7 @@ const PianoRoll: React.FC<PianoRollProps> = ({
       } else {
         // Marquee selection finished
         if (onSelectionMarqueeChange) onSelectionMarqueeChange(null);
-        
+
         // Calculate what's inside the marquee
         if (onSelectNotes) {
            const selectionRect = {
@@ -155,19 +155,19 @@ const PianoRoll: React.FC<PianoRollProps> = ({
               minPitch: Math.min(dragStart.pitch, coords.pitch),
               maxPitch: Math.max(dragStart.pitch, coords.pitch),
            };
-           
+
            const captured = events.filter(({ event, beatOffset }) => {
               const absoluteStart = beatOffset + event.t;
               const absoluteEnd = absoluteStart + event.d;
               return absoluteStart < selectionRect.endBeat && absoluteEnd > selectionRect.startBeat &&
                      event.p >= selectionRect.minPitch && event.p <= selectionRect.maxPitch;
            }).map(n => n.id);
-           
+
            onSelectNotes(captured);
         }
       }
     }
-    
+
     setDragStart(null);
     setDragEnd(null);
   };
@@ -224,7 +224,7 @@ const PianoRoll: React.FC<PianoRollProps> = ({
       events.forEach(({ event, beatOffset, isUser, id }) => {
         let absoluteBeatStart = beatOffset + event.t;
         let pitch = event.p;
-        
+
         const isSelected = selectedNoteIds.includes(id);
 
         // Apply visual offset if moving and this note is selected
@@ -242,22 +242,22 @@ const PianoRoll: React.FC<PianoRollProps> = ({
         if (x + width < 0 || x > w) return;
 
         const isActive = currentBeat >= absoluteBeatStart && currentBeat <= absoluteBeatEnd;
-        
+
         if (isUser) {
           ctx.fillStyle = isSelected ? '#ef4444' : (isActive ? '#22d3ee' : 'rgba(8, 145, 178, 0.4)');
           ctx.shadowBlur = isSelected ? 20 : (isActive ? 15 : 5);
           ctx.shadowColor = isSelected ? '#ef4444' : '#22d3ee';
         } else {
           const hue = (event.p * 13) % 360;
-          ctx.fillStyle = isSelected 
-            ? '#ef4444' 
+          ctx.fillStyle = isSelected
+            ? '#ef4444'
             : (isActive ? `hsla(${hue}, 80%, 60%, 1)` : `hsla(${hue}, 50%, 40%, 0.6)`);
           if (isSelected) {
             ctx.shadowBlur = 20;
             ctx.shadowColor = '#ef4444';
           }
         }
-        
+
         ctx.fillRect(x, y, width - 1, noteHeight - 1);
         ctx.shadowBlur = 0;
       });
@@ -290,7 +290,7 @@ const PianoRoll: React.FC<PianoRollProps> = ({
         let selW = (boundEnd - boundStart) * beatWidth;
         let selYStart = h - ((boundMaxP - 24 + 1) * noteHeight);
         let selH = (boundMaxP - boundMinP + 1) * noteHeight;
-        
+
         ctx.strokeStyle = isMoving ? '#6366f1' : 'rgba(34, 211, 238, 0.8)';
         ctx.lineWidth = 2;
         ctx.strokeRect(selX, selYStart, selW, selH);
@@ -305,7 +305,7 @@ const PianoRoll: React.FC<PianoRollProps> = ({
       ctx.moveTo(w / 2, 0);
       ctx.lineTo(w / 2, h);
       ctx.stroke();
-      
+
       animationFrame = requestAnimationFrame(draw);
     };
 
@@ -314,19 +314,21 @@ const PianoRoll: React.FC<PianoRollProps> = ({
   }, [events, currentBeat, dragStart, dragEnd, selectedNoteIds, selectionMarquee, selectionBounds, isMoving]);
 
   return (
-    <canvas 
-      ref={canvasRef} 
+    <canvas
+      ref={canvasRef}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
-      onMouseLeave={() => { 
-        setDragStart(null); 
-        setDragEnd(null); 
-        setIsMoving(false); 
+      onMouseLeave={() => {
+        setDragStart(null);
+        setDragEnd(null);
+        setIsMoving(false);
       }}
-      className="w-full h-full rounded-lg bg-black cursor-crosshair" 
-      width={1600} 
-      height={800} 
+      onContextMenu={(e) => e.preventDefault()}
+      className="w-full h-full rounded-lg bg-black cursor-crosshair select-none"
+      style={{ userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
+      width={1600}
+      height={800}
     />
   );
 };
