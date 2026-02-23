@@ -6,6 +6,11 @@ import { SynthConfig } from '../types';
 
 type ModulationTarget = keyof SynthConfig;
 
+type ChordStep = {
+    notes: number[];
+    strumMs: number;
+};
+
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
 function noteToMidi(note: string): number {
@@ -52,8 +57,8 @@ const PerformancePad: React.FC = () => {
     const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 }); // 0-1 normalized
 
     // Sequence
-    const [sequenceInput, setSequenceInput] = useState("C4+E4+G4, D4+F4+A4, E4+G4+B4, F4+A4+C5, G4+B4+D5, A4+C5+E5, B4+D5+F5");
-    const [chordSequence, setChordSequence] = useState<number[][]>([]);
+    const [sequenceInput, setSequenceInput] = useState("C4+E4+G4@60ms, D4+F4+A4, E4+G4+B4, F4+A4+C5, G4+B4+D5, A4+C5+E5, B4+D5+F5");
+    const [chordSequence, setChordSequence] = useState<ChordStep[]>([]);
     const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
     const currentNoteIndexRef = useRef(0);
 
@@ -61,17 +66,33 @@ const PerformancePad: React.FC = () => {
     const [xTargets, setXTargets] = useState<ModulationTarget[]>(['cutoff']);
     const [yTargets, setYTargets] = useState<ModulationTarget[]>(['resonance']);
 
-  useEffect(() => {
+    useEffect(() => {
         const parsedChords = sequenceInput
-                .split(',')
-                .map(step => step.trim())
-                .filter(Boolean)
-                .map(step => step.split('+').map(n => n.trim()).filter(Boolean).map(n => noteToMidi(n)));
+            .split(',')
+            .map(step => step.trim())
+            .filter(Boolean)
+            .map((step): ChordStep | null => {
+                const match = step.match(/^(.*?)(?:@\s*(\d+(?:\.\d+)?)\s*ms?)?$/i);
+                const notesPart = (match?.[1] ?? step).trim();
+                const rawStrum = match?.[2];
+                const parsedStrum = rawStrum !== undefined ? Number(rawStrum) : 0;
+                const strumMs = Number.isFinite(parsedStrum) ? Math.max(0, parsedStrum) : 0;
 
-        setChordSequence(parsedChords.length > 0 ? parsedChords : [[60]]);
-    setCurrentNoteIndex(0);
+                const notes = notesPart
+                    .split('+')
+                    .map(n => n.trim())
+                    .filter(Boolean)
+                    .map(n => noteToMidi(n));
+
+                if (notes.length === 0) return null;
+                return { notes, strumMs };
+            })
+            .filter((step): step is ChordStep => step !== null);
+
+        setChordSequence(parsedChords.length > 0 ? parsedChords : [{ notes: [60], strumMs: 0 }]);
+        setCurrentNoteIndex(0);
         currentNoteIndexRef.current = 0;
-  }, [sequenceInput]);
+    }, [sequenceInput]);
 
     useEffect(() => {
         currentNoteIndexRef.current = currentNoteIndex;
@@ -196,13 +217,13 @@ const PerformancePad: React.FC = () => {
         setIsPlaying(true);
         setCursorPos({ x, y });
 
-        const sequence = chordSequence.length > 0 ? chordSequence : [[60]];
+        const sequence = chordSequence.length > 0 ? chordSequence : [{ notes: [60], strumMs: 0 }];
         const nextIndex = currentNoteIndexRef.current;
-        const notes = sequence[nextIndex % sequence.length];
+        const step = sequence[nextIndex % sequence.length];
 
         const params = calculateParams(x, y);
         audioEngine.updateActiveVoiceParams(params);
-        audioEngine.startContinuousNotes(notes, 100);
+        audioEngine.startContinuousNotes(step.notes, 100, step.strumMs);
 
         const advancedIndex = (nextIndex + 1) % sequence.length;
         currentNoteIndexRef.current = advancedIndex;
@@ -446,7 +467,7 @@ const PerformancePad: React.FC = () => {
                     className="w-full bg-black/40 border border-white/5 rounded-xl p-3 text-xs font-mono text-indigo-300 focus:outline-none focus:border-indigo-500/50 h-24 resize-none"
                     value={sequenceInput}
                     onChange={(e) => setSequenceInput(e.target.value)}
-                    placeholder="e.g. C4+E4+G4, D4+F#4+A4 (Chord steps separated by commas)"
+                    placeholder="e.g. C4+E4+G4@12ms, D4+F#4+A4 (optional step strum in ms)"
                 />
                 <div className="flex justify-between items-center mt-2">
                     <div className="text-[10px] text-slate-600 font-bold uppercase">
