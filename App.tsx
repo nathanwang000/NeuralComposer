@@ -591,8 +591,8 @@ const App: React.FC = () => {
              </button>
           </div>
 
-          <button onClick={() => navigate('/converter')} className="hidden sm:flex items-center gap-2 bg-black text-xs font-bold text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/10 hover:border-cyan-500/50 rounded-xl px-4 py-2.5 transition-all shadow-lg shadow-cyan-500/10">
-            <Mic size={14} /> VOICE
+          <button onClick={() => navigate('/converter')} className="flex items-center gap-1 sm:gap-2 bg-black text-xs font-bold text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/10 hover:border-cyan-500/50 rounded-xl px-3 sm:px-4 py-2.5 transition-all shadow-lg shadow-cyan-500/10">
+            <Mic size={14} /> <span className="sm:hidden">MIC</span><span className="hidden sm:inline">VOICE</span>
           </button>
 
           <div className="relative group">
