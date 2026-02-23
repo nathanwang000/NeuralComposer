@@ -242,7 +242,7 @@ const PerformancePad: React.FC = () => {
                             userSelect: 'none',
                             WebkitUserSelect: 'none',
                             WebkitTouchCallout: 'none',
-                            ...(isFullscreen
+                            ...(isFallbackFullscreen
                                 ? {
                                         width: '100vw',
                                         height: '100dvh',
