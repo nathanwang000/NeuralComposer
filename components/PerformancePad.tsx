@@ -40,26 +40,26 @@ const AVAILABLE_TARGETS: { label: string; value: ModulationTarget }[] = [
 ];
 
 const PerformancePad: React.FC = () => {
-  const padRef = useRef<HTMLDivElement>(null);
+    const padRef = useRef<HTMLDivElement>(null);
     const activePointerIdsRef = useRef<Set<number>>(new Set());
     const controlPointerIdRef = useRef<number | null>(null);
-        const activeKeyboardKeysRef = useRef<Set<string>>(new Set());
-        const isMouseInPadRef = useRef(false);
-        const hoverPosRef = useRef({ x: 0.5, y: 0.5 });
-  const [isPlaying, setIsPlaying] = useState(false);
+    const activeKeyboardKeysRef = useRef<Set<string>>(new Set());
+    const isMouseInPadRef = useRef(false);
+    const hoverPosRef = useRef({ x: 0.5, y: 0.5 });
+    const [isPlaying, setIsPlaying] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isFallbackFullscreen, setIsFallbackFullscreen] = useState(false);
-  const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 }); // 0-1 normalized
+    const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 }); // 0-1 normalized
 
-  // Sequence
-    const [sequenceInput, setSequenceInput] = useState("C4+E4+G4, D4+F4+A4, E4+G4+B4, F4+A4+C5");
+    // Sequence
+    const [sequenceInput, setSequenceInput] = useState("C4+E4+G4, D4+F4+A4, E4+G4+B4, F4+A4+C5, G4+B4+D5, A4+C5+E5, B4+D5+F5");
     const [chordSequence, setChordSequence] = useState<number[][]>([]);
-  const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
+    const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
     const currentNoteIndexRef = useRef(0);
 
-  // Mappings
-  const [xTargets, setXTargets] = useState<ModulationTarget[]>(['cutoff']);
-  const [yTargets, setYTargets] = useState<ModulationTarget[]>(['resonance']);
+    // Mappings
+    const [xTargets, setXTargets] = useState<ModulationTarget[]>(['cutoff']);
+    const [yTargets, setYTargets] = useState<ModulationTarget[]>(['resonance']);
 
   useEffect(() => {
         const parsedChords = sequenceInput
