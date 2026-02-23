@@ -244,13 +244,22 @@ class AudioEngine {
 
     const { osc, env, filter } = this.activeVoice;
     const now = this.ctx.currentTime;
-    const releaseTime = now + this.config.release;
+    const releaseTime = now + Math.max(0.01, this.config.release);
 
     try {
-      env.gain.cancelScheduledValues(now);
-      filter.frequency.cancelScheduledValues(now);
+      if (typeof env.gain.cancelAndHoldAtTime === 'function') {
+        env.gain.cancelAndHoldAtTime(now);
+      } else {
+        env.gain.cancelScheduledValues(now);
+        env.gain.setValueAtTime(Math.max(0.001, env.gain.value), now);
+      }
 
-      env.gain.setValueAtTime(env.gain.value, now);
+      if (typeof filter.frequency.cancelAndHoldAtTime === 'function') {
+        filter.frequency.cancelAndHoldAtTime(now);
+      } else {
+        filter.frequency.cancelScheduledValues(now);
+      }
+
       env.gain.exponentialRampToValueAtTime(0.001, releaseTime);
 
       osc.stop(releaseTime + 0.1);
