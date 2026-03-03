@@ -83,5 +83,49 @@ export const SYNTH_PRESETS: Record<string, SynthConfig> = {
     sustain: 0.0,
     release: 0.15,
     drive: 1.3
+  },
+  "Grand Piano": {
+    waveType: 'triangle',
+    detune: 0,
+    cutoff: 5500,
+    resonance: 1,
+    attack: 0.001,
+    decay: 0.9,
+    sustain: 0.08,
+    release: 0.6,
+    drive: 1.0
+  },
+  "Warm Rhodes": {
+    waveType: 'triangle',
+    detune: 3,
+    cutoff: 3200,
+    resonance: 2,
+    attack: 0.005,
+    decay: 0.5,
+    sustain: 0.25,
+    release: 0.9,
+    drive: 1.05
+  },
+  "Soft Strings": {
+    waveType: 'sawtooth',
+    detune: 8,
+    cutoff: 2000,
+    resonance: 1,
+    attack: 0.8,
+    decay: 0.5,
+    sustain: 0.9,
+    release: 1.4,
+    drive: 1.0
+  },
+  "Acid Bass": {
+    waveType: 'sawtooth',
+    detune: 0,
+    cutoff: 600,
+    resonance: 18,
+    attack: 0.001,
+    decay: 0.3,
+    sustain: 0.0,
+    release: 0.1,
+    drive: 1.7
   }
 };
