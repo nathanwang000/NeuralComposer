@@ -69,6 +69,29 @@ function scaleStrumSpeed(sequence: string, factor: number): string {
   });
 }
 
+function reorderChordNotes(sequence: string, mode: 'reverse' | 'random'): string {
+  return sequence
+    .split(',')
+    .map(step => {
+      const trimmed = step.trim();
+      const match = trimmed.match(/^(.*?)(@\s*\d+(?:\.\d+)?\s*ms?)?$/i);
+      const notesPart = (match?.[1] ?? trimmed).trim();
+      const strumPart = match?.[2] ?? '';
+      const notes = notesPart.split('+').map(n => n.trim()).filter(Boolean);
+      if (mode === 'reverse') {
+        notes.reverse();
+      } else {
+        // Fisher-Yates shuffle
+        for (let i = notes.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [notes[i], notes[j]] = [notes[j], notes[i]];
+        }
+      }
+      return notes.join('+') + strumPart;
+    })
+    .join(', ');
+}
+
 const AVAILABLE_TARGETS: { label: string; value: ModulationTarget }[] = [
   { label: 'Filter Cutoff', value: 'cutoff' },
   { label: 'Resonance', value: 'resonance' },
@@ -619,6 +642,23 @@ const PerformancePad: React.FC = () => {
                             className="text-[10px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 uppercase font-bold"
                         >
                             Reset
+                        </button>
+                    </div>
+                    <div className="flex items-center gap-1 flex-wrap">
+                        <span className="text-[9px] text-slate-700 font-black uppercase w-16 shrink-0">Order</span>
+                        <button
+                            title="Reverse note order within each chord (e.g. C4+E4+G4 → G4+E4+C4)"
+                            onClick={() => setSequenceInput(prev => reorderChordNotes(prev, 'reverse'))}
+                            className="text-[9px] bg-white/5 hover:bg-amber-500/20 hover:text-amber-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
+                        >
+                            Reverse
+                        </button>
+                        <button
+                            title="Randomise note order within each chord"
+                            onClick={() => setSequenceInput(prev => reorderChordNotes(prev, 'random'))}
+                            className="text-[9px] bg-white/5 hover:bg-amber-500/20 hover:text-amber-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
+                        >
+                            Random
                         </button>
                     </div>
                 </div>
