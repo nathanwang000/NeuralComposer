@@ -381,11 +381,13 @@ const PerformancePad: React.FC = () => {
             if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
                 e.preventDefault();
                 if (e.shiftKey) {
-                    // Shift+Arrow: scale strum speed
+                    // Shift+Up/Down: scale strum speed ×/÷1.5
                     const strumFactor: Record<string, number> = {
-                        ArrowRight: 1.5, ArrowLeft: 1 / 1.5, ArrowUp: 2, ArrowDown: 0.5,
+                        ArrowUp: 1.5, ArrowDown: 1 / 1.5,
                     };
-                    setSequenceInput(prev => scaleStrumSpeed(prev, strumFactor[e.key]));
+                    if (strumFactor[e.key] !== undefined) {
+                        setSequenceInput(prev => scaleStrumSpeed(prev, strumFactor[e.key]));
+                    }
                 } else {
                     // Arrow: transpose semitones / octaves
                     const arrowDelta: Record<string, number> = {
@@ -567,7 +569,7 @@ const PerformancePad: React.FC = () => {
                Y: {yTargets.join(', ') || 'None'}
             </div>
                 <div className="absolute bottom-4 left-4 text-[10px] font-black text-slate-700 pointer-events-none select-none uppercase tracking-widest hidden md:block">
-                    D/F: Play · ←→: Semitone · ↑↓: Octave · ⇧←→: Strum÷× · ⇧↑↓: Strum×2 · R: Random · ⇧R: Reverse · S: Sort · Space: Reset
+                    D/F: Play · ←→: Semitone · ↑↓: Octave · ⇧↑↓: Strum×÷1.5 · R: Random · ⇧R: Reverse · S: Sort · Space: Reset
                 </div>
 
             {/* Active Cursor/Visualizer */}
@@ -649,7 +651,7 @@ const PerformancePad: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-1 flex-wrap">
                         <span className="text-[9px] text-slate-700 font-black uppercase w-16 shrink-0">Strum</span>
-                        {([[0.5, '÷2', 'Halve strum ms (×0.5)'], [1/1.5, '÷1.5', 'Slow strum (÷1.5)'], [1.5, '×1.5', 'Speed strum up (×1.5)'], [2, '×2', 'Double strum ms (×2)']] as [number, string, string][]).map(([factor, label, tooltip]) => (
+                        {([[1/1.5, '÷1.5', 'Slow strum (÷1.5) (⇧↓)'], [1.5, '×1.5', 'Speed strum up (×1.5) (⇧↑)']] as [number, string, string][]).map(([factor, label, tooltip]) => (
                             <button
                                 key={label}
                                 title={tooltip}
