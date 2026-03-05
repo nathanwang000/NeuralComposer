@@ -44,6 +44,23 @@ function noteToMidi(note: string): number {
   return (octave + 1) * 12 + baseSemitone + offset;
 }
 
+const CANONICAL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+function midiToNote(midi: number): string {
+  const clamped = Math.max(0, Math.min(127, midi));
+  const octave = Math.floor(clamped / 12) - 1;
+  const name = CANONICAL_NOTES[clamped % 12];
+  return `${name}${octave}`;
+}
+
+function transposeSequence(sequence: string, delta: number): string {
+  // Match note tokens like C4, F#3, Db-1, Cx5 etc.
+  return sequence.replace(/([A-G](?:x|[#b]+)?-?\d+)/gi, (match) => {
+    const midi = noteToMidi(match);
+    return midiToNote(midi + delta);
+  });
+}
+
 const AVAILABLE_TARGETS: { label: string; value: ModulationTarget }[] = [
   { label: 'Filter Cutoff', value: 'cutoff' },
   { label: 'Resonance', value: 'resonance' },
@@ -532,16 +549,29 @@ const PerformancePad: React.FC = () => {
                     onChange={(e) => setSequenceInput(e.target.value)}
                     placeholder="e.g. C4+E4+G4@12ms, D4+F#4+A4 (optional step strum in ms)"
                 />
-                <div className="flex justify-between items-center mt-2">
+                <div className="flex justify-between items-center mt-2 gap-2 flex-wrap">
                     <div className="text-[10px] text-slate-600 font-bold uppercase">
                         Current Step: <span className="text-indigo-400">{currentNoteIndex + 1}</span> / {chordSequence.length}
                     </div>
-                    <button
-                        onClick={() => setCurrentNoteIndex(0)}
-                        className="text-[10px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 uppercase font-bold"
-                    >
-                        Reset Step
-                    </button>
+                    <div className="flex items-center gap-1 ml-auto">
+                        <span className="text-[9px] text-slate-700 font-black uppercase mr-1">Transpose</span>
+                        {([-12, -1, 1, 12] as const).map(delta => (
+                            <button
+                                key={delta}
+                                onClick={() => setSequenceInput(prev => transposeSequence(prev, delta))}
+                                className="text-[9px] bg-white/5 hover:bg-indigo-500/20 hover:text-indigo-300 px-2 py-1 rounded text-slate-400 font-bold tabular-nums transition-all"
+                            >
+                                {delta > 0 ? `+${delta}` : delta}
+                            </button>
+                        ))}
+                        <div className="w-px h-4 bg-white/10 mx-1" />
+                        <button
+                            onClick={() => setCurrentNoteIndex(0)}
+                            className="text-[10px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 uppercase font-bold"
+                        >
+                            Reset Step
+                        </button>
+                    </div>
                 </div>
             </div>
 
