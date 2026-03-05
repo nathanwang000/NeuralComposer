@@ -53,24 +53,54 @@ function midiToNote(midi: number): string {
   return `${name}${octave}`;
 }
 
+/** Strip // line comments from a sequence string. */
+function stripComments(sequence: string): string {
+  return sequence
+    .split('\n')
+    .map(line => {
+      const idx = line.indexOf('//');
+      return idx === -1 ? line : line.slice(0, idx);
+    })
+    .join('\n');
+}
+
+/**
+ * Apply a transform only to the non-comment portion of each line,
+ * preserving any trailing // ... comment as-is.
+ */
+function applyToNonComments(sequence: string, transform: (code: string) => string): string {
+  return sequence
+    .split('\n')
+    .map(line => {
+      const idx = line.indexOf('//');
+      if (idx === -1) return transform(line);
+      return transform(line.slice(0, idx)) + line.slice(idx);
+    })
+    .join('\n');
+}
+
 function transposeSequence(sequence: string, delta: number): string {
-  // Match note tokens like C4, F#3, Db-1, Cx5 etc.
-  return sequence.replace(/([A-G](?:x|[#b]+)?-?\d+)/gi, (match) => {
-    const midi = noteToMidi(match);
-    return midiToNote(midi + delta);
-  });
+  // Match note tokens like C4, F#3, Db-1, Cx5 etc. — skip comment text.
+  return applyToNonComments(sequence, code =>
+    code.replace(/([A-G](?:x|[#b]+)?-?\d+)/gi, (match) => {
+      const midi = noteToMidi(match);
+      return midiToNote(midi + delta);
+    })
+  );
 }
 
 function scaleStrumSpeed(sequence: string, factor: number): string {
-  // Scale every @Xms value by factor; 0ms stays 0ms
-  return sequence.replace(/@\s*(\d+(?:\.\d+)?)\s*ms?/gi, (_, ms) => {
-    const scaled = Math.round(parseFloat(ms) * factor);
-    return `@${Math.max(0, scaled)}ms`;
-  });
+  // Scale every @Xms value by factor; 0ms stays 0ms — skip comment text.
+  return applyToNonComments(sequence, code =>
+    code.replace(/@\s*(\d+(?:\.\d+)?)\s*ms?/gi, (_, ms) => {
+      const scaled = Math.round(parseFloat(ms) * factor);
+      return `@${Math.max(0, scaled)}ms`;
+    })
+  );
 }
 
 function reorderChordNotes(sequence: string, mode: 'reverse' | 'random' | 'sort'): string {
-  return sequence
+  return applyToNonComments(sequence, code => code
     .split(',')
     .map(step => {
       const trimmed = step.trim();
@@ -91,7 +121,8 @@ function reorderChordNotes(sequence: string, mode: 'reverse' | 'random' | 'sort'
       }
       return notes.join('+') + strumPart;
     })
-    .join(', ');
+    .join(', ')
+  );
 }
 
 const AVAILABLE_TARGETS: { label: string; value: ModulationTarget }[] = [
@@ -167,7 +198,7 @@ const PerformancePad: React.FC = () => {
     const [yTargets, setYTargets] = useState<ModulationTarget[]>(['resonance']);
 
     useEffect(() => {
-        const parsedChords = sequenceInput
+        const parsedChords = stripComments(sequenceInput)
             .split(',')
             .map(step => step.trim())
             .filter(Boolean)
@@ -633,7 +664,7 @@ const PerformancePad: React.FC = () => {
                     className="w-full bg-black/40 border border-white/5 rounded-xl p-3 text-xs font-mono text-indigo-300 focus:outline-none focus:border-indigo-500/50 h-24 resize-none"
                     value={sequenceInput}
                     onChange={(e) => setSequenceInput(e.target.value)}
-                    placeholder="e.g. C4+E4+G4@12ms, D4+F#4+A4 (optional step strum in ms)"
+                    placeholder="e.g. C4+E4+G4@12ms, // tonic&#10;D4+F#4+A4 // use // for comments"
                 />
                 <div className="flex flex-col gap-1.5 mt-2">
                     <div className="flex items-center gap-1 flex-wrap">
