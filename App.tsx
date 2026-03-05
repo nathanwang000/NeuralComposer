@@ -725,7 +725,7 @@ const App: React.FC = () => {
                   </div>
 
                   <div className="p-5 bg-black/40 rounded-2xl border border-white/5">
-                     <div className="text-[10px] font-bold text-slate-600 uppercase mb-2">Example Samples</div>
+                     <div className="text-[10px] font-bold text-slate-600 uppercase mb-2">Sample Compositions</div>
                      <div className="space-y-2">
                         {SAMPLE_FILES.map((file) => (
                            <button
@@ -741,7 +741,7 @@ const App: React.FC = () => {
                   </div>
 
                   <div className="mt-auto p-4 bg-indigo-500/5 rounded-2xl border border-indigo-500/10">
-                     <div className="text-[9px] font-black text-indigo-400 uppercase mb-2 flex items-center gap-2"><Sparkles size={10} /> Creative Direction</div>
+                     <div className="text-[9px] font-black text-indigo-400 uppercase mb-2 flex items-center gap-2"><Sparkles size={10} /> Creative Direction for AI</div>
                      <textarea value={creativeDirection} onChange={(e) => setCreativeDirection(e.target.value)} placeholder="e.g. Add erratic fills..." className="w-full bg-slate-900/50 border border-indigo-500/10 rounded-lg p-2 text-[10px] text-slate-300 h-24 focus:outline-none" />
                   </div>
                 </div>

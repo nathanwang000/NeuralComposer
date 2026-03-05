@@ -48,7 +48,50 @@ const AVAILABLE_TARGETS: { label: string; value: ModulationTarget }[] = [
   { label: 'Filter Cutoff', value: 'cutoff' },
   { label: 'Resonance', value: 'resonance' },
   { label: 'Detune', value: 'detune' },
-    { label: 'Sustain', value: 'sustain' },
+  { label: 'Sustain', value: 'sustain' },
+];
+
+const CHORD_PRESETS: { label: string; description: string; sequence: string }[] = [
+  {
+    label: 'Jazz ii-V-I',
+    description: 'Dm7 → G7 → Cmaj7 → Am7',
+    sequence: 'D3+F3+A3+C4@40ms, G3+B3+D4+F4@40ms, C3+E3+G3+B3@40ms, A2+C3+G3+E4@40ms',
+  },
+  {
+    label: 'Funky E7',
+    description: 'E7 → A7 → B7 dominant groove',
+    sequence: 'E3+G#3+B3+D4@15ms, E3+G#3+B3+D4@15ms, A3+C#4+E4+G4@15ms, A3+C#4+E4+G4@15ms, B3+D#4+F#4+A4@15ms, A3+C#4+E4+G4@15ms',
+  },
+  {
+    label: 'Japanese In',
+    description: 'Hirajōshi-flavoured voicings (C In scale)',
+    sequence: 'C4+Db4+G4@70ms, G3+Ab3+Eb4@70ms, F3+Gb3+C4+Eb4@80ms, Ab3+C4+Eb4+G4@70ms',
+  },
+  {
+    label: 'Natural Minor',
+    description: 'Am: i → iv → VII → III → V → i',
+    sequence: 'A3+C4+E4+A4@30ms, D4+F4+A4+D5@30ms, G3+B3+D4+G4@30ms, C4+E4+G4+C5@30ms, E4+G#4+B4+E5@25ms, A3+C4+E4+A4@30ms',
+  },
+  {
+    label: 'Lo-fi Chill',
+    description: 'Cmaj9 → Fmaj7 → Am7 → G6/9',
+    sequence: 'C3+E3+G3+B3+D4@55ms, F3+A3+C4+E4+G4@55ms, A2+C3+E3+G3+B3@55ms, G3+A3+B3+D4+E4@55ms',
+  },
+  {
+    label: 'Bossa Nova',
+    description: 'Cmaj7 → A7 → Dm7 → G7',
+    sequence: 'C3+G3+B3+E4@35ms, A3+E4+G4+C#5@35ms, D3+A3+C4+F4@35ms, G3+B3+D4+F4@35ms',
+  },
+  {
+    label: 'Whole Tone',
+    description: 'Augmented dreamy wash (C whole-tone scale)',
+    sequence: 'C4+E4+G#4+A#4@60ms, D4+F#4+A#4+C4@60ms, E4+G#4+C5+D5@60ms, F#4+A#4+D5+E5@60ms',
+  },
+  {
+    label: 'Phrygian Stomp',
+    description: 'E Phrygian flamenco-style i → bII',
+    sequence: 'E3+G3+B3+E4@20ms, F3+A3+C4+F4@20ms, E3+G3+B3+E4@20ms, F3+A3+C4+F4@60ms, E3+G3+B3+E4@20ms',
+  },
 ];
 
 const PerformancePad: React.FC = () => {
@@ -469,6 +512,19 @@ const PerformancePad: React.FC = () => {
             <div className="bg-slate-950/50 rounded-2xl border border-white/5 p-4">
                 <div className="flex items-center gap-2 mb-3 text-slate-500 font-black uppercase text-xs">
                     <Music size={14} /> Note Sequence
+                </div>
+                {/* Chord presets */}
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                    {CHORD_PRESETS.map(preset => (
+                        <button
+                            key={preset.label}
+                            title={preset.description}
+                            onClick={() => setSequenceInput(preset.sequence)}
+                            className="px-2 py-1 rounded-lg text-[9px] font-bold uppercase border border-white/5 bg-slate-900 text-slate-500 hover:text-indigo-300 hover:border-indigo-500/30 transition-all"
+                        >
+                            {preset.label}
+                        </button>
+                    ))}
                 </div>
                 <textarea
                     className="w-full bg-black/40 border border-white/5 rounded-xl p-3 text-xs font-mono text-indigo-300 focus:outline-none focus:border-indigo-500/50 h-24 resize-none"
