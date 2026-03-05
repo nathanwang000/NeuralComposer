@@ -156,9 +156,15 @@ const PerformancePad: React.FC = () => {
             })
             .filter((step): step is ChordStep => step !== null);
 
-        setChordSequence(parsedChords.length > 0 ? parsedChords : [{ notes: [60], strumMs: 0 }]);
-        setCurrentNoteIndex(0);
-        currentNoteIndexRef.current = 0;
+        const newSequence = parsedChords.length > 0 ? parsedChords : [{ notes: [60], strumMs: 0 }];
+        setChordSequence(newSequence);
+        // Only reset the step counter when the number of steps changes (e.g. editing the
+        // sequence structure), not when notes are merely transposed in place.
+        setCurrentNoteIndex(prev => {
+            const reset = prev >= newSequence.length;
+            if (reset) currentNoteIndexRef.current = 0;
+            return reset ? 0 : prev;
+        });
     }, [sequenceInput]);
 
     useEffect(() => {
@@ -327,10 +333,22 @@ const PerformancePad: React.FC = () => {
         };
 
         const onKeyDown = (e: KeyboardEvent) => {
-            const key = e.key.toLowerCase();
-            if (key !== 'd' && key !== 'f') return;
             if (!isMouseInPadRef.current) return;
             if (isTypingElement(e.target)) return;
+
+            // Arrow keys: transpose sequence on the fly
+            const arrowDelta: Record<string, number> = {
+                ArrowLeft: -1, ArrowRight: 1, ArrowUp: 12, ArrowDown: -12,
+            };
+            if (e.key in arrowDelta) {
+                e.preventDefault();
+                const delta = arrowDelta[e.key];
+                setSequenceInput(prev => transposeSequence(prev, delta));
+                return;
+            }
+
+            const key = e.key.toLowerCase();
+            if (key !== 'd' && key !== 'f') return;
             if (e.repeat || activeKeyboardKeysRef.current.has(key)) return;
 
             activeKeyboardKeysRef.current.add(key);
