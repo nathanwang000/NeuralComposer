@@ -375,14 +375,34 @@ const PerformancePad: React.FC = () => {
                 return;
             }
 
-            // Arrow keys: transpose sequence on the fly
-            const arrowDelta: Record<string, number> = {
-                ArrowLeft: -1, ArrowRight: 1, ArrowUp: 12, ArrowDown: -12,
-            };
-            if (e.key in arrowDelta) {
+            // Arrow keys
+            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
                 e.preventDefault();
-                const delta = arrowDelta[e.key];
-                setSequenceInput(prev => transposeSequence(prev, delta));
+                if (e.shiftKey) {
+                    // Shift+Arrow: scale strum speed
+                    const strumFactor: Record<string, number> = {
+                        ArrowRight: 1.5, ArrowLeft: 1 / 1.5, ArrowUp: 2, ArrowDown: 0.5,
+                    };
+                    setSequenceInput(prev => scaleStrumSpeed(prev, strumFactor[e.key]));
+                } else {
+                    // Arrow: transpose semitones / octaves
+                    const arrowDelta: Record<string, number> = {
+                        ArrowLeft: -1, ArrowRight: 1, ArrowUp: 12, ArrowDown: -12,
+                    };
+                    setSequenceInput(prev => transposeSequence(prev, arrowDelta[e.key]));
+                }
+                return;
+            }
+
+            // R / Shift+R: reorder chord notes
+            if (e.key === 'r') {
+                e.preventDefault();
+                setSequenceInput(prev => reorderChordNotes(prev, 'random'));
+                return;
+            }
+            if (e.key === 'R') {
+                e.preventDefault();
+                setSequenceInput(prev => reorderChordNotes(prev, 'reverse'));
                 return;
             }
 
@@ -539,8 +559,8 @@ const PerformancePad: React.FC = () => {
             <div className="absolute top-4 left-4 text-xs font-black text-slate-700 pointer-events-none select-none uppercase tracking-widest rotate-90 origin-top-left translate-x-4">
                Y: {yTargets.join(', ') || 'None'}
             </div>
-                <div className="absolute bottom-4 left-4 text-[10px] font-black text-slate-700 pointer-events-none select-none uppercase tracking-widest">
-                    D/F: Play · ←→: Semitone · ↑↓: Octave · Space: Reset
+                <div className="absolute bottom-4 left-4 text-[10px] font-black text-slate-700 pointer-events-none select-none uppercase tracking-widest hidden md:block">
+                    D/F: Play · ←→: Semitone · ↑↓: Octave · ⇧←→: Strum÷× · ⇧↑↓: Strum×2 · R: Random · ⇧R: Reverse · Space: Reset
                 </div>
 
             {/* Active Cursor/Visualizer */}
