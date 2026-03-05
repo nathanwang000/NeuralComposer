@@ -336,6 +336,14 @@ const PerformancePad: React.FC = () => {
             if (!isMouseInPadRef.current) return;
             if (isTypingElement(e.target)) return;
 
+            // Space: reset step counter
+            if (e.key === ' ') {
+                e.preventDefault();
+                setCurrentNoteIndex(0);
+                currentNoteIndexRef.current = 0;
+                return;
+            }
+
             // Arrow keys: transpose sequence on the fly
             const arrowDelta: Record<string, number> = {
                 ArrowLeft: -1, ArrowRight: 1, ArrowUp: 12, ArrowDown: -12,
@@ -501,7 +509,7 @@ const PerformancePad: React.FC = () => {
                Y: {yTargets.join(', ') || 'None'}
             </div>
                 <div className="absolute bottom-4 left-4 text-[10px] font-black text-slate-700 pointer-events-none select-none uppercase tracking-widest">
-                    Keys: D / F
+                    D/F: Play · ←→: Semitone · ↑↓: Octave · Space: Reset
                 </div>
 
             {/* Active Cursor/Visualizer */}
@@ -573,9 +581,10 @@ const PerformancePad: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-1 ml-auto">
                         <span className="text-[9px] text-slate-700 font-black uppercase mr-1">Transpose</span>
-                        {([-12, -1, 1, 12] as const).map(delta => (
+                        {([[-12, '↓ Octave (↓ Arrow)'], [-1, '−1 Semitone (← Arrow)'], [1, '+1 Semitone (→ Arrow)'], [12, '↑ Octave (↑ Arrow)']] as const).map(([delta, tooltip]) => (
                             <button
                                 key={delta}
+                                title={tooltip}
                                 onClick={() => setSequenceInput(prev => transposeSequence(prev, delta))}
                                 className="text-[9px] bg-white/5 hover:bg-indigo-500/20 hover:text-indigo-300 px-2 py-1 rounded text-slate-400 font-bold tabular-nums transition-all"
                             >
@@ -584,7 +593,8 @@ const PerformancePad: React.FC = () => {
                         ))}
                         <div className="w-px h-4 bg-white/10 mx-1" />
                         <button
-                            onClick={() => setCurrentNoteIndex(0)}
+                            title="Reset to step 1 (Space)"
+                            onClick={() => { setCurrentNoteIndex(0); currentNoteIndexRef.current = 0; }}
                             className="text-[10px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 uppercase font-bold"
                         >
                             Reset Step
