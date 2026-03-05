@@ -69,7 +69,7 @@ function scaleStrumSpeed(sequence: string, factor: number): string {
   });
 }
 
-function reorderChordNotes(sequence: string, mode: 'reverse' | 'random'): string {
+function reorderChordNotes(sequence: string, mode: 'reverse' | 'random' | 'sort'): string {
   return sequence
     .split(',')
     .map(step => {
@@ -80,6 +80,8 @@ function reorderChordNotes(sequence: string, mode: 'reverse' | 'random'): string
       const notes = notesPart.split('+').map(n => n.trim()).filter(Boolean);
       if (mode === 'reverse') {
         notes.reverse();
+      } else if (mode === 'sort') {
+        notes.sort((a, b) => noteToMidi(a) - noteToMidi(b));
       } else {
         // Fisher-Yates shuffle
         for (let i = notes.length - 1; i > 0; i--) {
@@ -394,7 +396,7 @@ const PerformancePad: React.FC = () => {
                 return;
             }
 
-            // R / Shift+R: reorder chord notes
+            // R / Shift+R / S: reorder chord notes
             if (e.key === 'r') {
                 e.preventDefault();
                 setSequenceInput(prev => reorderChordNotes(prev, 'random'));
@@ -403,6 +405,11 @@ const PerformancePad: React.FC = () => {
             if (e.key === 'R') {
                 e.preventDefault();
                 setSequenceInput(prev => reorderChordNotes(prev, 'reverse'));
+                return;
+            }
+            if (e.key === 's') {
+                e.preventDefault();
+                setSequenceInput(prev => reorderChordNotes(prev, 'sort'));
                 return;
             }
 
@@ -560,7 +567,7 @@ const PerformancePad: React.FC = () => {
                Y: {yTargets.join(', ') || 'None'}
             </div>
                 <div className="absolute bottom-4 left-4 text-[10px] font-black text-slate-700 pointer-events-none select-none uppercase tracking-widest hidden md:block">
-                    D/F: Play · ←→: Semitone · ↑↓: Octave · ⇧←→: Strum÷× · ⇧↑↓: Strum×2 · R: Random · ⇧R: Reverse · Space: Reset
+                    D/F: Play · ←→: Semitone · ↑↓: Octave · ⇧←→: Strum÷× · ⇧↑↓: Strum×2 · R: Random · ⇧R: Reverse · S: Sort · Space: Reset
                 </div>
 
             {/* Active Cursor/Visualizer */}
@@ -667,18 +674,25 @@ const PerformancePad: React.FC = () => {
                     <div className="flex items-center gap-1 flex-wrap">
                         <span className="text-[9px] text-slate-700 font-black uppercase w-16 shrink-0">Order</span>
                         <button
-                            title="Reverse note order within each chord (e.g. C4+E4+G4 → G4+E4+C4)"
+                            title="Reverse note order within each chord (e.g. C4+E4+G4 → G4+E4+C4) (⇧R)"
                             onClick={() => setSequenceInput(prev => reorderChordNotes(prev, 'reverse'))}
                             className="text-[9px] bg-white/5 hover:bg-amber-500/20 hover:text-amber-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
                         >
                             Reverse
                         </button>
                         <button
-                            title="Randomise note order within each chord"
+                            title="Randomise note order within each chord (R)"
                             onClick={() => setSequenceInput(prev => reorderChordNotes(prev, 'random'))}
                             className="text-[9px] bg-white/5 hover:bg-amber-500/20 hover:text-amber-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
                         >
                             Random
+                        </button>
+                        <button
+                            title="Sort notes by pitch low→high within each chord (S)"
+                            onClick={() => setSequenceInput(prev => reorderChordNotes(prev, 'sort'))}
+                            className="text-[9px] bg-white/5 hover:bg-amber-500/20 hover:text-amber-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
+                        >
+                            Sort ↑
                         </button>
                     </div>
                 </div>
