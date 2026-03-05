@@ -61,6 +61,14 @@ function transposeSequence(sequence: string, delta: number): string {
   });
 }
 
+function scaleStrumSpeed(sequence: string, factor: number): string {
+  // Scale every @Xms value by factor; 0ms stays 0ms
+  return sequence.replace(/@\s*(\d+(?:\.\d+)?)\s*ms?/gi, (_, ms) => {
+    const scaled = Math.round(parseFloat(ms) * factor);
+    return `@${Math.max(0, scaled)}ms`;
+  });
+}
+
 const AVAILABLE_TARGETS: { label: string; value: ModulationTarget }[] = [
   { label: 'Filter Cutoff', value: 'cutoff' },
   { label: 'Resonance', value: 'resonance' },
@@ -575,12 +583,9 @@ const PerformancePad: React.FC = () => {
                     onChange={(e) => setSequenceInput(e.target.value)}
                     placeholder="e.g. C4+E4+G4@12ms, D4+F#4+A4 (optional step strum in ms)"
                 />
-                <div className="flex justify-between items-center mt-2 gap-2 flex-wrap">
-                    <div className="text-[10px] text-slate-600 font-bold uppercase">
-                        Current Step: <span className="text-indigo-400">{currentNoteIndex + 1}</span> / {chordSequence.length}
-                    </div>
-                    <div className="flex items-center gap-1 ml-auto">
-                        <span className="text-[9px] text-slate-700 font-black uppercase mr-1">Transpose</span>
+                <div className="flex flex-col gap-1.5 mt-2">
+                    <div className="flex items-center gap-1 flex-wrap">
+                        <span className="text-[9px] text-slate-700 font-black uppercase w-16 shrink-0">Transpose</span>
                         {([[-12, '↓ Octave (↓ Arrow)'], [-1, '−1 Semitone (← Arrow)'], [1, '+1 Semitone (→ Arrow)'], [12, '↑ Octave (↑ Arrow)']] as const).map(([delta, tooltip]) => (
                             <button
                                 key={delta}
@@ -591,13 +596,29 @@ const PerformancePad: React.FC = () => {
                                 {delta > 0 ? `+${delta}` : delta}
                             </button>
                         ))}
-                        <div className="w-px h-4 bg-white/10 mx-1" />
+                    </div>
+                    <div className="flex items-center gap-1 flex-wrap">
+                        <span className="text-[9px] text-slate-700 font-black uppercase w-16 shrink-0">Strum</span>
+                        {([[0.5, '÷2', 'Halve strum ms (×0.5)'], [1/1.5, '÷1.5', 'Slow strum (÷1.5)'], [1.5, '×1.5', 'Speed strum up (×1.5)'], [2, '×2', 'Double strum ms (×2)']] as [number, string, string][]).map(([factor, label, tooltip]) => (
+                            <button
+                                key={label}
+                                title={tooltip}
+                                onClick={() => setSequenceInput(prev => scaleStrumSpeed(prev, factor))}
+                                className="text-[9px] bg-white/5 hover:bg-emerald-500/20 hover:text-emerald-300 px-2 py-1 rounded text-slate-400 font-bold tabular-nums transition-all"
+                            >
+                                {label}
+                            </button>
+                        ))}
+                        <div className="flex-1" />
+                        <div className="text-[10px] text-slate-600 font-bold uppercase">
+                            Step: <span className="text-indigo-400">{currentNoteIndex + 1}</span>/<span className="text-slate-600">{chordSequence.length}</span>
+                        </div>
                         <button
                             title="Reset to step 1 (Space)"
                             onClick={() => { setCurrentNoteIndex(0); currentNoteIndexRef.current = 0; }}
                             className="text-[10px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 uppercase font-bold"
                         >
-                            Reset Step
+                            Reset
                         </button>
                     </div>
                 </div>
