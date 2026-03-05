@@ -11,30 +11,37 @@ type ChordStep = {
     strumMs: number;
 };
 
-const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+// Semitone values for natural notes
+const BASE_SEMITONES: Record<string, number> = {
+  C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11,
+};
 
 function noteToMidi(note: string): number {
-  const regex = /^([A-G][#b]?)(-?\d+)$/i;
+  // Supports any number of sharps (#, ##, ...), flats (b, bb, ...),
+  // and the double-sharp shorthand (x), e.g. E#, E##, Dbb, Cx, B##
+  const regex = /^([A-G])(x|[#b]+)?(-?\d+)$/i;
   const match = note.match(regex);
   if (!match) return 60; // Default Middle C
 
-  let [_, name, octaveStr] = match;
-  name = name.toUpperCase();
-  let octave = parseInt(octaveStr);
+  const [_, noteLetter, accidental, octaveStr] = match;
+  const octave = parseInt(octaveStr);
+  const baseSemitone = BASE_SEMITONES[noteLetter.toUpperCase()];
 
-  let index = NOTE_NAMES.indexOf(name);
-  if (index === -1) {
-    // Handle flats
-    if (name.endsWith('B')) {
-       const natural = name[0];
-       const naturalIndex = NOTE_NAMES.indexOf(natural);
-       index = (naturalIndex - 1 + 12) % 12;
+  let offset = 0;
+  if (accidental) {
+    if (accidental.toLowerCase() === 'x') {
+      offset = 2; // double sharp shorthand
+    } else {
+      for (const ch of accidental) {
+        if (ch === '#') offset += 1;
+        else if (ch === 'b') offset -= 1;
+      }
     }
   }
 
-  // C4 = 60
-  // MIDI = (octave + 1) * 12 + index
-  return (octave + 1) * 12 + index;
+  // C4 = 60; octave boundary crossings are handled automatically,
+  // e.g. B##4 → 71 + 2 = 73 = C#5, Cb4 → 60 - 1 = 59 = B3
+  return (octave + 1) * 12 + baseSemitone + offset;
 }
 
 const AVAILABLE_TARGETS: { label: string; value: ModulationTarget }[] = [
