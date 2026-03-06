@@ -26,7 +26,7 @@ If you have music to preload into the app, put it under `samples/`
 preview the result
 `npm run preview`
 
-## NeuralComposer Sample File Syntax Guide
+# NeuralComposer Sample File Syntax Guide
 
 This document covers the two sample file formats used in NeuralComposer:
 - **Pad Samples** (`pad_samples/*.txt`) — human-readable chord notation for performance pads
@@ -34,11 +34,11 @@ This document covers the two sample file formats used in NeuralComposer:
 
 ---
 
-### Pad Sample Format (`pad_samples/`)
+## Pad Sample Format (`pad_samples/`)
 
 Used by the performance pad system. Designed to be compact and readable.
 
-#### Structure
+### Structure
 
 ```
 [SectionName]
@@ -46,7 +46,7 @@ Used by the performance pad system. Designed to be compact and readable.
 Note1+Note2+Note3@DURATIONms, Note1+Note2@DURATIONms, ...
 ```
 
-#### Section Headers
+### Section Headers
 
 Sections group related chord progressions under a named style or mode. Wrap the name in square brackets:
 
@@ -58,7 +58,7 @@ Sections group related chord progressions under a named style or mode. Wrap the 
 
 Section names are case-sensitive and may contain spaces.
 
-#### Comments
+### Comments
 
 Single-line comments start with `//`:
 
@@ -66,7 +66,7 @@ Single-line comments start with `//`:
 // jazzy chord
 ```
 
-#### Chord Notation
+### Chord Notation
 
 Each chord is a group of simultaneous notes joined by `+`, followed by a duration:
 
@@ -80,13 +80,13 @@ D4+C5+A4+F4@305ms
 | `+` | Separator between notes in a chord |
 | `@305ms` | Duration in milliseconds |
 
-##### Note Names
+#### Note Names
 
 Standard Western pitch notation: `C`, `D`, `E`, `F`, `G`, `A`, `B`
 Append `#` for sharp or `b` for flat (e.g. `C#4`, `Gb5`).
 Octave range: `0`–`8` (middle C = `C4`).
 
-##### Duration
+#### Duration
 
 Written as `@<number>ms`. The `ms` suffix is required:
 
@@ -96,7 +96,7 @@ Written as `@<number>ms`. The `ms` suffix is required:
 
 > **Note:** The `m` shorthand (e.g. `@305m`) also appears in some files and is treated as equivalent to `ms`.
 
-#### Chord Sequences
+### Chord Sequences
 
 Multiple chords on one line are comma-separated and play in order:
 
@@ -104,7 +104,7 @@ Multiple chords on one line are comma-separated and play in order:
 D4+C5+A4+F4@305ms, B4+F5+G4+D5@305ms, B4+E4+C4+G4@305ms
 ```
 
-#### Full Example
+### Full Example
 
 ```
 [jazz]
@@ -120,18 +120,18 @@ G4+C4+B4+E5@305ms, A4+C#6+E5+G5@305ms, D4+F5+C5+A4@305ms
 
 ---
 
-### MIDI Sample Format (`samples/`)
+## MIDI Sample Format (`samples/`)
 
 Used for full compositions with precise timing, velocity, and duration. Parameters are expressed in beats rather than milliseconds, enabling tempo-independent playback.
 
-#### Structure
+### Structure
 
 ```
 # Comment or section marker
 [P:nn, V:nn, T:n.n, D:n.n], [P:nn, V:nn, T:n.n, D:n.n], ...
 ```
 
-#### Comments
+### Comments
 
 Single-line comments start with `#`. They may appear on their own line or inline after events:
 
@@ -140,7 +140,7 @@ Single-line comments start with `#`. They may appear on their own line or inline
 [P:41, V:70, T:3.0, D:3.0], # bass note
 ```
 
-#### Event Notation
+### Event Notation
 
 Each note event is enclosed in square brackets as a comma-separated list of four parameters:
 
@@ -155,7 +155,7 @@ Each note event is enclosed in square brackets as a comma-separated list of four
 | `T` | Time | Float | ≥ 0.0 | Start time in beats from the beginning |
 | `D` | Duration | Float | > 0.0 | Note duration in beats |
 
-#### Common MIDI Pitch Reference
+### Common MIDI Pitch Reference
 
 | Note | Octave 3 | Octave 4 | Octave 5 |
 |------|----------|----------|----------|
@@ -167,7 +167,7 @@ Each note event is enclosed in square brackets as a comma-separated list of four
 | A  | 57 | 69 | 81 |
 | B  | 59 | 71 | 83 |
 
-#### Simultaneous Notes (Chords)
+### Simultaneous Notes (Chords)
 
 To play notes at the same time, give them the same `T` value:
 
@@ -175,7 +175,7 @@ To play notes at the same time, give them the same `T` value:
 [P:41, V:70, T:3.0, D:3.0], [P:57, V:65, T:3.0, D:3.0], [P:64, V:65, T:3.0, D:3.0]
 ```
 
-#### Swing Notation
+### Swing Notation
 
 Swing is expressed by staggering event times using a 2:3 subdivision ratio (0.66 / 0.33 beats):
 
@@ -183,7 +183,7 @@ Swing is expressed by staggering event times using a 2:3 subdivision ratio (0.66
 [P:60, V:90, T:2.0, D:0.66], [P:60, V:90, T:2.66, D:0.33]
 ```
 
-#### Section Markers
+### Section Markers
 
 Bars and chord changes are annotated with comments for readability:
 
@@ -192,7 +192,7 @@ Bars and chord changes are annotated with comments for readability:
 [P:41, V:70, T:3.0, D:3.0], ...
 ```
 
-#### Full Example
+### Full Example
 
 ```
 # Jazzy Happy Birthday - Version 1
@@ -208,7 +208,7 @@ Bars and chord changes are annotated with comments for readability:
 
 ---
 
-### Format Comparison
+## Format Comparison
 
 | Feature | Pad Samples | MIDI Samples |
 |---------|-------------|--------------|

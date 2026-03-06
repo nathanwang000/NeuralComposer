@@ -1,5 +1,5 @@
 [jazz]
-
+// jazy chord
 D4+C5+A4+F4@305ms, B4+F5+G4+D5@305ms, B4+E4+C4+G4@305ms, A3+C4+E5+G4@305ms
 
 [Natural Minor]
@@ -7,3 +7,11 @@ C5+A4+A5+E5@305ms, D6+F5+A5+D5@305ms, B4+D5+G4+G5@305ms, C5+G5+E5+C6@305ms, B5+E
 
 [bossa nova]
 G4+C4+B4+E5@305m, A4+C#6+E5+G5@305m, D4+F5+C5+A4@305m, G4+B4+D5+F5@305m
+
+[reggae]
+// one-drop riddim - Am / F / C / G (classic minor reggae cycle)
+A3+C4+E4+A4@400ms, F3+A3+C4+F4@400ms, C4+E4+G4+C5@400ms, G3+B3+D4+G4@400ms
+// ska skank upbeat chords - D / G / A7 / G
+D4+F#4+A4@200ms, G4+B4+D5@200ms, A4+C#5+E5+G5@200ms, G4+B4+D5@200ms
+// rootsy drop - Gm / Eb / Bb / F
+G3+A#3+D4+G4@400ms, G#3+A#3+D#4+G#4@400ms, A#3+D4+F4+A#4@400ms, F3+A3+C4+F4@400ms
