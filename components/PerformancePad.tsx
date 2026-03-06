@@ -231,6 +231,8 @@ const PerformancePad: React.FC = () => {
     const [sections, setSections] = useState<Section[]>([]);
     const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
     const currentNoteIndexRef = useRef(0);
+    const [chordVolume, setChordVolume] = useState(1.0);
+    const chordVolumeRef = useRef(1.0);
 
     // Mappings
     const [xTargets, setXTargets] = useState<ModulationTarget[]>(['cutoff']);
@@ -284,6 +286,10 @@ const PerformancePad: React.FC = () => {
     useEffect(() => {
         currentNoteIndexRef.current = currentNoteIndex;
     }, [currentNoteIndex]);
+
+    useEffect(() => {
+        chordVolumeRef.current = chordVolume;
+    }, [chordVolume]);
 
     useEffect(() => {
         const syncFullscreenState = () => {
@@ -410,7 +416,7 @@ const PerformancePad: React.FC = () => {
 
         const params = calculateParams(x, y);
         audioEngine.updateActiveVoiceParams(params);
-        audioEngine.startContinuousNotes(step.notes, 100, step.strumMs);
+        audioEngine.startContinuousNotes(step.notes, Math.round(chordVolumeRef.current * 100), step.strumMs);
 
         const advancedIndex = (nextIndex + 1) % sequence.length;
         currentNoteIndexRef.current = advancedIndex;
@@ -491,6 +497,23 @@ const PerformancePad: React.FC = () => {
             if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
                 e.preventDefault();
                 if (e.shiftKey) {
+                    // Shift+Left/Right: chord volume −/+ 0.1
+                    if (e.key === 'ArrowLeft') {
+                        setChordVolume(prev => {
+                            const v = Math.max(0, Math.round((prev - 0.1) * 10) / 10);
+                            chordVolumeRef.current = v;
+                            return v;
+                        });
+                        return;
+                    }
+                    if (e.key === 'ArrowRight') {
+                        setChordVolume(prev => {
+                            const v = Math.min(1, Math.round((prev + 0.1) * 10) / 10);
+                            chordVolumeRef.current = v;
+                            return v;
+                        });
+                        return;
+                    }
                     // Shift+Up/Down: scale strum speed ×/÷1.5
                     const strumFactor: Record<string, number> = {
                         ArrowUp: 1.5, ArrowDown: 1 / 1.5,
@@ -725,7 +748,7 @@ const PerformancePad: React.FC = () => {
                Y: {yTargets.join(', ') || 'None'}
             </div>
                 <div className="absolute bottom-4 left-4 text-[10px] font-black text-slate-700 pointer-events-none select-none uppercase tracking-widest hidden md:block">
-                    D/F: Play · ←→: Semitone · ↑↓: Octave · ⇧↑↓: Strum×÷1.5 · R: Random · ⇧R: Reverse · S: Sort · J/K: Rand Note · Space: Reset · 1-9: Section
+                    D/F: Play · ←→: Semitone · ↑↓: Octave · ⇧←→: Chord Vol · ⇧↑↓: Strum×÷1.5 · R: Random · ⇧R: Reverse · S: Sort · J/K: Rand Note · Space: Reset · 1-9: Section
                 </div>
 
             {/* Active Cursor/Visualizer */}
@@ -819,6 +842,29 @@ const PerformancePad: React.FC = () => {
                                 {delta > 0 ? `+${delta}` : delta}
                             </button>
                         ))}
+                    </div>
+                    <div className="flex items-center gap-1 flex-wrap">
+                        <span className="text-[9px] text-slate-700 font-black uppercase w-16 shrink-0">Chord Vol</span>
+                        <button
+                            title="Decrease chord volume by 0.1 (⇧← Arrow)"
+                            onClick={() => setChordVolume(prev => { const v = Math.max(0, Math.round((prev - 0.1) * 10) / 10); chordVolumeRef.current = v; return v; })}
+                            className="text-[9px] bg-white/5 hover:bg-rose-500/20 hover:text-rose-300 px-2 py-1 rounded text-slate-400 font-bold tabular-nums transition-all"
+                        >
+                            −0.1
+                        </button>
+                        <div className="text-[10px] font-bold tabular-nums px-2 py-1 rounded bg-black/30 border border-white/5" style={{ color: chordVolume < 0.4 ? '#f87171' : chordVolume < 0.8 ? '#fbbf24' : '#a5b4fc' }}>
+                            {chordVolume.toFixed(1)}
+                        </div>
+                        <button
+                            title="Increase chord volume by 0.1 (⇧→ Arrow)"
+                            onClick={() => setChordVolume(prev => { const v = Math.min(1, Math.round((prev + 0.1) * 10) / 10); chordVolumeRef.current = v; return v; })}
+                            className="text-[9px] bg-white/5 hover:bg-indigo-500/20 hover:text-indigo-300 px-2 py-1 rounded text-slate-400 font-bold tabular-nums transition-all"
+                        >
+                            +0.1
+                        </button>
+                        <div className="w-24 h-1.5 rounded-full bg-white/5 overflow-hidden ml-1">
+                            <div className="h-full rounded-full transition-all duration-150" style={{ width: `${chordVolume * 100}%`, background: chordVolume < 0.4 ? '#f87171' : chordVolume < 0.8 ? '#fbbf24' : '#818cf8' }} />
+                        </div>
                     </div>
                     <div className="flex items-center gap-1 flex-wrap">
                         <span className="text-[9px] text-slate-700 font-black uppercase w-16 shrink-0">Strum</span>
