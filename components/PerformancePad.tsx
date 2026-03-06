@@ -408,6 +408,21 @@ const PerformancePad: React.FC = () => {
         isMouseInPadRef.current = false;
     };
 
+    /**
+     * Plays one random note from the current step without advancing the step counter.
+     * If the pad/key is held (isPlaying), the "current" step is the one already sounding
+     * (one behind the advanced pointer). Otherwise it is the next-to-play step.
+     */
+    const playRandomNoteFromCurrentStep = useCallback(() => {
+        const sequence = chordSequence.length > 0 ? chordSequence : [{ notes: [60], strumMs: 0 }];
+        const stepIndex = isPlaying
+            ? (currentNoteIndexRef.current - 1 + sequence.length) % sequence.length
+            : currentNoteIndexRef.current % sequence.length;
+        const step = sequence[stepIndex];
+        const midi = step.notes[Math.floor(Math.random() * step.notes.length)];
+        audioEngine.scheduleNote({ p: midi, v: 100, t: 0, d: 1 }, 0, 0);
+    }, [chordSequence, isPlaying]);
+
     const jumpToSection = useCallback((sectionIndex: number) => {
         if (sectionIndex < 0 || sectionIndex >= sections.length) return;
         const step = sections[sectionIndex].startStep;
@@ -480,6 +495,12 @@ const PerformancePad: React.FC = () => {
                 return;
             }
 
+            if (e.key === 'k') {
+                e.preventDefault();
+                playRandomNoteFromCurrentStep();
+                return;
+            }
+
             const key = e.key.toLowerCase();
             if (key !== 'd' && key !== 'f') return;
             if (e.repeat || activeKeyboardKeysRef.current.has(key)) return;
@@ -504,7 +525,7 @@ const PerformancePad: React.FC = () => {
             window.removeEventListener('keydown', onKeyDown);
             window.removeEventListener('keyup', onKeyUp);
         };
-    }, [startTrigger, stopTriggerIfIdle, jumpToSection]);
+    }, [startTrigger, stopTriggerIfIdle, jumpToSection, playRandomNoteFromCurrentStep]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
         const target = e.target as HTMLElement;
@@ -774,6 +795,13 @@ const PerformancePad: React.FC = () => {
                             className="text-[10px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 uppercase font-bold"
                         >
                             Reset
+                        </button>
+                        <button
+                            title="Play one random note from the current step (no step advance) (K)"
+                            onClick={playRandomNoteFromCurrentStep}
+                            className="text-[10px] bg-white/5 hover:bg-violet-500/20 hover:text-violet-300 px-2 py-1 rounded text-slate-400 uppercase font-bold"
+                        >
+                            Rand Note
                         </button>
                     </div>
                     {sections.length > 0 && (

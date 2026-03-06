@@ -1,0 +1,9 @@
+[jazz]
+
+D4+C5+A4+F4@305ms, B4+F5+G4+D5@305ms, B4+E4+C4+G4@305ms, A3+C4+E5+G4@305ms
+
+[Natural Minor]
+C5+A4+A5+E5@305ms, D6+F5+A5+D5@305ms, B4+D5+G4+G5@305ms, C5+G5+E5+C6@305ms, B5+E6+G#5+E5@305ms, C5+A5+A4+E5@305ms
+
+[bossa nova]
+G4+C4+B4+E5@305m, A4+C#6+E5+G5@305m, D4+F5+C5+A4@305m, G4+B4+D5+F5@305m
