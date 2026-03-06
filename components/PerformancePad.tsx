@@ -450,7 +450,7 @@ const PerformancePad: React.FC = () => {
             : currentNoteIndexRef.current % sequence.length;
         const step = sequence[stepIndex];
         const midi = step.notes[Math.floor(Math.random() * step.notes.length)];
-        audioEngine.scheduleNote({ p: midi, v: 100, t: 0, d: 1 }, 0, 0);
+        audioEngine.addContinuousNote(midi, 100);
     }, [chordSequence, isPlaying]);
 
     const jumpToSection = useCallback((sectionIndex: number) => {
@@ -526,8 +526,9 @@ const PerformancePad: React.FC = () => {
             }
 
             if (e.key === 'k' || e.key === 'j') {
-                if (e.repeat) return;
+                if (e.repeat || activeKeyboardKeysRef.current.has(e.key.toLowerCase())) return;
                 e.preventDefault();
+                activeKeyboardKeysRef.current.add(e.key.toLowerCase());
                 playRandomNoteFromCurrentStep();
                 return;
             }
@@ -543,7 +544,7 @@ const PerformancePad: React.FC = () => {
 
         const onKeyUp = (e: KeyboardEvent) => {
             const key = e.key.toLowerCase();
-            if (key !== 'd' && key !== 'f') return;
+            if (!['d', 'f', 'j', 'k'].includes(key)) return;
 
             activeKeyboardKeysRef.current.delete(key);
             stopTriggerIfIdle();
@@ -844,8 +845,11 @@ const PerformancePad: React.FC = () => {
                         </button>
                         <button
                             title="Play one random note from the current step (no step advance) (J / K)"
-                            onClick={playRandomNoteFromCurrentStep}
-                            className="text-[10px] bg-white/5 hover:bg-violet-500/20 hover:text-violet-300 px-2 py-1 rounded text-slate-400 uppercase font-bold"
+                            onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); playRandomNoteFromCurrentStep(); }}
+                            onPointerUp={() => stopTriggerIfIdle()}
+                            onPointerLeave={() => stopTriggerIfIdle()}
+                            onPointerCancel={() => stopTriggerIfIdle()}
+                            className="text-[10px] bg-white/5 hover:bg-violet-500/20 hover:text-violet-300 px-2 py-1 rounded text-slate-400 uppercase font-bold select-none"
                         >
                             Rand Note
                         </button>

@@ -263,6 +263,14 @@ class AudioEngine {
     this.startContinuousNotes([midi], velocity);
   }
 
+  /** Start a note and add it to the active voice pool without stopping existing voices. */
+  addContinuousNote(midi: number, velocity: number) {
+    if (!this.ctx) this.init();
+    if (!this.ctx) return;
+    const voice = this.createContinuousVoice(midi, velocity, this.ctx.currentTime);
+    if (voice) this.activeVoices.push(voice);
+  }
+
   stopContinuousNote() {
     if (this.activeVoices.length === 0 || !this.ctx) return;
 
