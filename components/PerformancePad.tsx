@@ -496,6 +496,7 @@ const PerformancePad: React.FC = () => {
             }
 
             if (e.key === 'k') {
+                if (e.repeat) return;
                 e.preventDefault();
                 playRandomNoteFromCurrentStep();
                 return;
