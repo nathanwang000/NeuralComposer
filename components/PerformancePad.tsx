@@ -631,8 +631,8 @@ const PerformancePad: React.FC = () => {
                 </div>
             )} */}
 
-            {/* Section jump buttons on the pad (touch-friendly) */}
-            {/* {sections.length > 0 && (
+            {/* Section jump buttons on the pad (touch-friendly, fullscreen only) */}
+            {sections.length > 0 && isFullscreen && (
                 <div
                     data-pad-control="true"
                     className="absolute bottom-12 left-3 z-20 flex flex-wrap gap-1"
@@ -655,7 +655,7 @@ const PerformancePad: React.FC = () => {
                         </button>
                     ))}
                 </div>
-            )} */}
+            )}
 
             {/* Grid Lines */}
             <div className="absolute inset-0 grid grid-cols-4 grid-rows-4 pointer-events-none opacity-20">
