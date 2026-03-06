@@ -457,7 +457,28 @@ const PerformancePad: React.FC = () => {
             : currentNoteIndexRef.current % sequence.length;
         const step = sequence[stepIndex];
         const midi = step.notes[Math.floor(Math.random() * step.notes.length)];
+        // not using chordVolumeRef.current because this is a solo note outside the continuous chord voices
         audioEngine.addContinuousNote(midi, 100);
+    }, [chordSequence, isPlaying]);
+
+    /**
+     * Play a note from the current step mapped linearly by keyIndex (0 = min pitch, 3 = max pitch).
+     * Notes in the step are sorted ascending; keyIndex is scaled across them.
+     */
+    const playNoteFromCurrentStepByLinearIndex = useCallback((keyIndex: number) => {
+        const sequence = chordSequence.length > 0 ? chordSequence : [{ notes: [60], strumMs: 0 }];
+        const stepIndex = isPlaying
+            ? (currentNoteIndexRef.current - 1 + sequence.length) % sequence.length
+            : currentNoteIndexRef.current % sequence.length;
+        const step = sequence[stepIndex];
+        const sorted = [...step.notes].sort((a, b) => a - b);
+        if (sorted.length === 0) return;
+        const noteIdx = sorted.length === 1
+            ? 0
+            : Math.round((keyIndex / 3) * (sorted.length - 1));
+
+        // not using chordVolumeRef.current because this is a solo note outside the continuous chord voices
+        audioEngine.addContinuousNote(sorted[Math.min(noteIdx, sorted.length - 1)], 100);
     }, [chordSequence, isPlaying]);
 
     const jumpToSection = useCallback((sectionIndex: number) => {
@@ -549,11 +570,22 @@ const PerformancePad: React.FC = () => {
                 return;
             }
 
-            if (e.key === 'k' || e.key === 'j') {
-                if (e.repeat || activeKeyboardKeysRef.current.has(e.key.toLowerCase())) return;
+            // V: random note from current step
+            if (e.key === 'v') {
+                if (e.repeat || activeKeyboardKeysRef.current.has('v')) return;
                 e.preventDefault();
-                activeKeyboardKeysRef.current.add(e.key.toLowerCase());
+                activeKeyboardKeysRef.current.add('v');
                 playRandomNoteFromCurrentStep();
+                return;
+            }
+
+            // J/K/L/;: linear chord notes (min → max pitch across the chord)
+            const chordKeyMap: Record<string, number> = { j: 0, k: 1, l: 2, ';': 3 };
+            if (e.key in chordKeyMap) {
+                if (e.repeat || activeKeyboardKeysRef.current.has(e.key)) return;
+                e.preventDefault();
+                activeKeyboardKeysRef.current.add(e.key);
+                playNoteFromCurrentStepByLinearIndex(chordKeyMap[e.key]);
                 return;
             }
 
@@ -568,9 +600,13 @@ const PerformancePad: React.FC = () => {
 
         const onKeyUp = (e: KeyboardEvent) => {
             const key = e.key.toLowerCase();
-            if (!['d', 'f', 'j', 'k'].includes(key)) return;
+            const tracked = ['d', 'f', 'j', 'k', 'l', ';', 'v'];
+            // ';' does not lowercase-transform, so also handle it by raw key
+            const raw = e.key;
+            if (!tracked.includes(key) && !tracked.includes(raw)) return;
 
             activeKeyboardKeysRef.current.delete(key);
+            activeKeyboardKeysRef.current.delete(raw);
             stopTriggerIfIdle();
         };
 
@@ -581,7 +617,7 @@ const PerformancePad: React.FC = () => {
             window.removeEventListener('keydown', onKeyDown);
             window.removeEventListener('keyup', onKeyUp);
         };
-    }, [startTrigger, stopTriggerIfIdle, jumpToSection, playRandomNoteFromCurrentStep]);
+    }, [startTrigger, stopTriggerIfIdle, jumpToSection, playRandomNoteFromCurrentStep, playNoteFromCurrentStepByLinearIndex]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
         const target = e.target as HTMLElement;
@@ -749,7 +785,7 @@ const PerformancePad: React.FC = () => {
                Y: {yTargets.join(', ') || 'None'}
             </div>
                 <div className="absolute bottom-4 left-4 text-[10px] font-black text-slate-700 pointer-events-none select-none uppercase tracking-widest hidden md:block">
-                    D/F: Play · ←→: Semitone · ↑↓: Octave · ⇧←→: Chord Vol · ⇧↑↓: Strum×÷1.5 · R: Random · ⇧R: Reverse · S: Sort · J/K: Rand Note · Space: Reset · 1-9: Section
+                    D/F: Play · ←→: Semitone · ↑↓: Octave · ⇧←→: Chord Vol · ⇧↑↓: Strum×÷1.5 · R: Random Chord Appegio · ⇧R: Reverse Chord Appegio · S: Sort · J/K/L/;: Chord Keys (lo→hi) · V: Rand Note · Space: Reset · 1-9: Section
                 </div>
 
             {/* Active Cursor/Visualizer */}
@@ -890,15 +926,28 @@ const PerformancePad: React.FC = () => {
                         >
                             Reset
                         </button>
+                        {(['j', 'k', 'l', ';'] as const).map((key, i) => (
+                            <button
+                                key={key}
+                                title={`Play chord note ${i + 1}/4 (${i === 0 ? 'lowest' : i === 3 ? 'highest' : `mid-${i}`} pitch) (${key.toUpperCase()})`}
+                                onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); playNoteFromCurrentStepByLinearIndex(i); }}
+                                onPointerUp={() => stopTriggerIfIdle()}
+                                onPointerLeave={() => stopTriggerIfIdle()}
+                                onPointerCancel={() => stopTriggerIfIdle()}
+                                className="text-[10px] bg-white/5 hover:bg-violet-500/20 hover:text-violet-300 px-2 py-1 rounded text-slate-400 uppercase font-bold select-none"
+                            >
+                                {key === ';' ? '; (hi)' : key === 'j' ? 'j (lo)' : key}
+                            </button>
+                        ))}
                         <button
-                            title="Play one random note from the current step (no step advance) (J / K)"
+                            title="Play one random note from the current step (V)"
                             onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); playRandomNoteFromCurrentStep(); }}
                             onPointerUp={() => stopTriggerIfIdle()}
                             onPointerLeave={() => stopTriggerIfIdle()}
                             onPointerCancel={() => stopTriggerIfIdle()}
-                            className="text-[10px] bg-white/5 hover:bg-violet-500/20 hover:text-violet-300 px-2 py-1 rounded text-slate-400 uppercase font-bold select-none"
+                            className="text-[10px] bg-white/5 hover:bg-fuchsia-500/20 hover:text-fuchsia-300 px-2 py-1 rounded text-slate-400 uppercase font-bold select-none"
                         >
-                            Rand Note
+                            v (rand)
                         </button>
                     </div>
                     {sections.length > 0 && (
