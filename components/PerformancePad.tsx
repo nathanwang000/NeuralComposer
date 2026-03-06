@@ -716,7 +716,7 @@ const PerformancePad: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-none h-auto">
             {/* Sequence Input */}
             <div className="bg-slate-950/50 rounded-2xl border border-white/5 p-4 overflow-y-auto max-h-64">
-                <div className="flex items-center gap-2 mb-3 text-slate-500 font-black uppercase text-xs">
+                <div className="sticky top-0 z-10 flex items-center gap-2 mb-3 text-slate-500 font-black uppercase text-xs bg-slate-950/90 backdrop-blur-sm py-1 -mx-4 px-4 -mt-1">
                     <Music size={14} /> Note Sequence
                 </div>
                 {/* Chord presets */}
