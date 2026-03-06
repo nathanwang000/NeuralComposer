@@ -11,6 +11,11 @@ type ChordStep = {
     strumMs: number;
 };
 
+type Section = {
+    label: string;
+    startStep: number; // 0-based index into chordSequence
+};
+
 // Semitone values for natural notes
 const BASE_SEMITONES: Record<string, number> = {
   C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11,
@@ -72,9 +77,12 @@ function applyToNonComments(sequence: string, transform: (code: string) => strin
   return sequence
     .split('\n')
     .map(line => {
-      const idx = line.indexOf('//');
-      if (idx === -1) return transform(line);
-      return transform(line.slice(0, idx)) + line.slice(idx);
+      const commentIdx = line.indexOf('//');
+      const codePart = commentIdx === -1 ? line : line.slice(0, commentIdx);
+      // Preserve section marker lines ([label] or [label]:) unchanged
+      if (/^\s*\[[^\]]+\]:?\s*$/.test(codePart)) return line;
+      if (commentIdx === -1) return transform(line);
+      return transform(line.slice(0, commentIdx)) + line.slice(commentIdx);
     })
     .join('\n');
 }
@@ -190,6 +198,7 @@ const PerformancePad: React.FC = () => {
     // Sequence
     const [sequenceInput, setSequenceInput] = useState("C4+E4+G4+B5+C5+E6+G6+E5+C5+B4@200ms, D4+E4+G4+B5+C5+E6+G6+E5+C5+B4@200ms,F4+C5+A5,F4+C5+A5,F4+C5+G5,F4+C5+F5,E4+C5+G5");
     const [chordSequence, setChordSequence] = useState<ChordStep[]>([]);
+    const [sections, setSections] = useState<Section[]>([]);
     const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
     const currentNoteIndexRef = useRef(0);
 
@@ -198,32 +207,43 @@ const PerformancePad: React.FC = () => {
     const [yTargets, setYTargets] = useState<ModulationTarget[]>(['resonance']);
 
     useEffect(() => {
-        const parsedChords = stripComments(sequenceInput)
-            .split(',')
-            .map(step => step.trim())
-            .filter(Boolean)
-            .map((step): ChordStep | null => {
-                const match = step.match(/^(.*?)(?:@\s*(\d+(?:\.\d+)?)\s*ms?)?$/i);
-                const notesPart = (match?.[1] ?? step).trim();
+        // Parse line-by-line so [label]: markers can live alongside chord steps.
+        const rawLines = sequenceInput.split('\n');
+        const parsedSteps: ChordStep[] = [];
+        const parsedSections: Section[] = [];
+
+        for (const rawLine of rawLines) {
+            const commentIdx = rawLine.indexOf('//');
+            const codePart = commentIdx === -1 ? rawLine : rawLine.slice(0, commentIdx);
+            const trimmed = codePart.trim();
+            if (!trimmed) continue;
+
+            // Section marker: [label] or [label]:
+            const sectionMatch = trimmed.match(/^\[([^\]]+)\]:?\s*$/);
+            if (sectionMatch) {
+                parsedSections.push({ label: sectionMatch[1].trim(), startStep: parsedSteps.length });
+                continue;
+            }
+
+            // Chord steps — comma-separated within this line
+            for (const token of trimmed.split(',')) {
+                const t = token.trim();
+                if (!t) continue;
+                const match = t.match(/^(.*?)(?:@\s*(\d+(?:\.\d+)?)\s*ms?)?$/i);
+                const notesPart = (match?.[1] ?? t).trim();
                 const rawStrum = match?.[2];
                 const parsedStrum = rawStrum !== undefined ? Number(rawStrum) : 0;
                 const strumMs = Number.isFinite(parsedStrum) ? Math.max(0, parsedStrum) : 0;
+                const notes = notesPart.split('+').map(n => n.trim()).filter(Boolean).map(n => noteToMidi(n));
+                if (notes.length === 0) continue;
+                parsedSteps.push({ notes, strumMs });
+            }
+        }
 
-                const notes = notesPart
-                    .split('+')
-                    .map(n => n.trim())
-                    .filter(Boolean)
-                    .map(n => noteToMidi(n));
-
-                if (notes.length === 0) return null;
-                return { notes, strumMs };
-            })
-            .filter((step): step is ChordStep => step !== null);
-
-        const newSequence = parsedChords.length > 0 ? parsedChords : [{ notes: [60], strumMs: 0 }];
+        const newSequence = parsedSteps.length > 0 ? parsedSteps : [{ notes: [60], strumMs: 0 }];
         setChordSequence(newSequence);
-        // Only reset the step counter when the number of steps changes (e.g. editing the
-        // sequence structure), not when notes are merely transposed in place.
+        setSections(parsedSections);
+        // Only reset the step counter when the sequence shrinks past the current position.
         setCurrentNoteIndex(prev => {
             const reset = prev >= newSequence.length;
             if (reset) currentNoteIndexRef.current = 0;
@@ -388,6 +408,13 @@ const PerformancePad: React.FC = () => {
         isMouseInPadRef.current = false;
     };
 
+    const jumpToSection = useCallback((sectionIndex: number) => {
+        if (sectionIndex < 0 || sectionIndex >= sections.length) return;
+        const step = sections[sectionIndex].startStep;
+        currentNoteIndexRef.current = step;
+        setCurrentNoteIndex(step);
+    }, [sections]);
+
     useEffect(() => {
         const isTypingElement = (target: EventTarget | null) => {
             const el = target as HTMLElement | null;
@@ -405,6 +432,13 @@ const PerformancePad: React.FC = () => {
                 e.preventDefault();
                 setCurrentNoteIndex(0);
                 currentNoteIndexRef.current = 0;
+                return;
+            }
+
+            // Digit 1-9: jump to section
+            if (/^[1-9]$/.test(e.key)) {
+                e.preventDefault();
+                jumpToSection(parseInt(e.key) - 1);
                 return;
             }
 
@@ -470,7 +504,7 @@ const PerformancePad: React.FC = () => {
             window.removeEventListener('keydown', onKeyDown);
             window.removeEventListener('keyup', onKeyUp);
         };
-    }, [startTrigger, stopTriggerIfIdle]);
+    }, [startTrigger, stopTriggerIfIdle, jumpToSection]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
         const target = e.target as HTMLElement;
@@ -535,6 +569,11 @@ const PerformancePad: React.FC = () => {
       });
   };
 
+    // Derive the active section: last section whose startStep <= currentNoteIndex
+    const currentSection = sections.length > 0
+        ? [...sections].reverse().find(s => s.startStep <= currentNoteIndex) ?? null
+        : null;
+
     const padElement = (
         <div
             ref={padRef}
@@ -585,6 +624,39 @@ const PerformancePad: React.FC = () => {
                 {isFullscreen ? 'Exit' : 'Full'}
             </button>
 
+            {/* Current section badge */}
+            {/* {currentSection && (
+                <div className="absolute top-3 left-3 z-20 px-3 py-1.5 rounded-lg bg-black/60 border border-indigo-500/30 text-indigo-300 text-[10px] font-black uppercase tracking-widest pointer-events-none">
+                    ▶ {currentSection.label}
+                </div>
+            )} */}
+
+            {/* Section jump buttons on the pad (touch-friendly) */}
+            {/* {sections.length > 0 && (
+                <div
+                    data-pad-control="true"
+                    className="absolute bottom-12 left-3 z-20 flex flex-wrap gap-1"
+                    onPointerDown={(e) => e.stopPropagation()}
+                >
+                    {sections.map((s, i) => (
+                        <button
+                            key={s.label}
+                            type="button"
+                            data-pad-control="true"
+                            title={`Jump to [${s.label}] — step ${s.startStep + 1}`}
+                            onClick={(e) => { e.stopPropagation(); jumpToSection(i); }}
+                            className={`px-2 py-1 rounded text-[9px] font-black uppercase border transition-all ${
+                                currentSection?.label === s.label
+                                    ? 'bg-indigo-600/80 border-indigo-400 text-white'
+                                    : 'bg-black/60 border-white/10 text-slate-400 hover:text-indigo-300 hover:border-indigo-500/30'
+                            }`}
+                        >
+                            {i + 1}: {s.label}
+                        </button>
+                    ))}
+                </div>
+            )} */}
+
             {/* Grid Lines */}
             <div className="absolute inset-0 grid grid-cols-4 grid-rows-4 pointer-events-none opacity-20">
                  {Array.from({length: 16}).map((_, i) => (
@@ -600,7 +672,7 @@ const PerformancePad: React.FC = () => {
                Y: {yTargets.join(', ') || 'None'}
             </div>
                 <div className="absolute bottom-4 left-4 text-[10px] font-black text-slate-700 pointer-events-none select-none uppercase tracking-widest hidden md:block">
-                    D/F: Play · ←→: Semitone · ↑↓: Octave · ⇧↑↓: Strum×÷1.5 · R: Random · ⇧R: Reverse · S: Sort · Space: Reset
+                    D/F: Play · ←→: Semitone · ↑↓: Octave · ⇧↑↓: Strum×÷1.5 · R: Random · ⇧R: Reverse · S: Sort · Space: Reset · 1-9: Section
                 </div>
 
             {/* Active Cursor/Visualizer */}
@@ -664,7 +736,7 @@ const PerformancePad: React.FC = () => {
                     className="w-full bg-black/40 border border-white/5 rounded-xl p-3 text-xs font-mono text-indigo-300 focus:outline-none focus:border-indigo-500/50 h-24 resize-none"
                     value={sequenceInput}
                     onChange={(e) => setSequenceInput(e.target.value)}
-                    placeholder="e.g. C4+E4+G4@12ms, // tonic&#10;D4+F#4+A4 // use // for comments"
+                    placeholder="e.g. [verse]:\nC4+E4+G4@12ms, // tonic\n[chorus]:\nG3+B3+D4@30ms"
                 />
                 <div className="flex flex-col gap-1.5 mt-2">
                     <div className="flex items-center gap-1 flex-wrap">
@@ -704,6 +776,25 @@ const PerformancePad: React.FC = () => {
                             Reset
                         </button>
                     </div>
+                    {sections.length > 0 && (
+                        <div className="flex items-center gap-1 flex-wrap">
+                            <span className="text-[9px] text-slate-700 font-black uppercase w-16 shrink-0">Sections</span>
+                            {sections.map((s, i) => (
+                                <button
+                                    key={s.label}
+                                    title={`Jump to [${s.label}] — step ${s.startStep + 1} · Key ${i + 1}`}
+                                    onClick={() => jumpToSection(i)}
+                                    className={`text-[9px] px-2 py-1 rounded font-bold uppercase border transition-all ${
+                                        currentSection?.label === s.label
+                                            ? 'bg-indigo-600 border-indigo-500 text-white'
+                                            : 'bg-white/5 hover:bg-indigo-500/20 hover:text-indigo-300 border-white/5 text-slate-500'
+                                    }`}
+                                >
+                                    {i + 1}: {s.label}
+                                </button>
+                            ))}
+                        </div>
+                    )}
                     <div className="flex items-center gap-1 flex-wrap">
                         <span className="text-[9px] text-slate-700 font-black uppercase w-16 shrink-0">Order</span>
                         <button
