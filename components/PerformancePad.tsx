@@ -289,6 +289,7 @@ const PerformancePad: React.FC = () => {
 
     useEffect(() => {
         chordVolumeRef.current = chordVolume;
+        audioEngine.setActiveVoicesVelocity(Math.round(chordVolume * 100));
     }, [chordVolume]);
 
     useEffect(() => {

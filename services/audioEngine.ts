@@ -263,6 +263,20 @@ class AudioEngine {
     this.startContinuousNotes([midi], velocity);
   }
 
+  /** Update the gain of all currently-playing continuous voices to reflect a new velocity value.
+   *  Call this whenever the chord volume changes while notes are sounding. */
+  setActiveVoicesVelocity(velocity: number) {
+    if (this.activeVoices.length === 0 || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const rampTime = 0.05;
+    const waveCorrection = this.config.waveType === 'sine' ? 1.1 : (this.config.waveType === 'sawtooth' ? 0.9 : 1.0);
+    this.activeVoices.forEach(voice => {
+      voice.levelPerDrive = (velocity / 127) * 0.4 * waveCorrection;
+      const sustainLevel = Math.max(0.001, voice.levelPerDrive * this.config.drive * this.config.sustain);
+      voice.env.gain.setTargetAtTime(sustainLevel, now, rampTime);
+    });
+  }
+
   /** Start a note and add it to the active voice pool without stopping existing voices. */
   addContinuousNote(midi: number, velocity: number) {
     if (!this.ctx) this.init();
