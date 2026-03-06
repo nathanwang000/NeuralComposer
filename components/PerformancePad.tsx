@@ -140,6 +140,36 @@ const AVAILABLE_TARGETS: { label: string; value: ModulationTarget }[] = [
   { label: 'Sustain', value: 'sustain' },
 ];
 
+// ---------------------------------------------------------------------------
+// pad_samples/*.txt — loaded at build time via Vite glob import.
+// Each file's content is used verbatim as a note-sequence preset.
+// The first line starting with "//" (if any) is treated as the description;
+// all remaining non-empty, non-comment lines form the sequence.
+// ---------------------------------------------------------------------------
+const _padSampleRaw = import.meta.glob('../pad_samples/*.txt', { query: '?raw', eager: true, import: 'default' }) as Record<string, string>;
+
+function parsePadSampleFile(path: string, content: string): { label: string; description: string; sequence: string } | null {
+    const filename = path.split('/').pop()?.replace(/\.txt$/i, '') ?? path;
+    const lines = content.split('\n');
+    let description = '';
+    const sequenceLines: string[] = [];
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('//')) {
+            if (!description) description = trimmed.replace(/^\/\/+\s*/, '');
+        } else if (trimmed) {
+            sequenceLines.push(line);
+        }
+    }
+    const sequence = sequenceLines.join('\n').trim();
+    if (!sequence) return null; // skip empty files
+    return { label: filename, description: description || filename, sequence };
+}
+
+const PAD_SAMPLE_PRESETS: { label: string; description: string; sequence: string }[] = Object.entries(_padSampleRaw)
+    .map(([path, content]) => parsePadSampleFile(path, content))
+    .filter((p): p is NonNullable<typeof p> => p !== null);
+
 const CHORD_PRESETS: { label: string; description: string; sequence: string }[] = [
   {
     label: 'Jazz ii-V-I',
@@ -753,6 +783,21 @@ const PerformancePad: React.FC = () => {
                             {preset.label}
                         </button>
                     ))}
+                    {PAD_SAMPLE_PRESETS.length > 0 && (
+                        <>
+                            <span className="text-[9px] text-slate-700 font-black uppercase self-center px-1">·</span>
+                            {PAD_SAMPLE_PRESETS.map(preset => (
+                                <button
+                                    key={preset.label}
+                                    title={preset.description}
+                                    onClick={() => setSequenceInput(preset.sequence)}
+                                    className="px-2 py-1 rounded-lg text-[9px] font-bold uppercase border border-teal-900/60 bg-slate-900 text-teal-600 hover:text-teal-300 hover:border-teal-500/40 transition-all"
+                                >
+                                    {preset.label}
+                                </button>
+                            ))}
+                        </>
+                    )}
                 </div>
                 <textarea
                     className="w-full bg-black/40 border border-white/5 rounded-xl p-3 text-xs font-mono text-indigo-300 focus:outline-none focus:border-indigo-500/50 h-24 resize-none"
