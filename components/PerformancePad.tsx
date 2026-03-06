@@ -525,7 +525,7 @@ const PerformancePad: React.FC = () => {
                 return;
             }
 
-            if (e.key === 'k') {
+            if (e.key === 'k' || e.key === 'j') {
                 if (e.repeat) return;
                 e.preventDefault();
                 playRandomNoteFromCurrentStep();
@@ -724,7 +724,7 @@ const PerformancePad: React.FC = () => {
                Y: {yTargets.join(', ') || 'None'}
             </div>
                 <div className="absolute bottom-4 left-4 text-[10px] font-black text-slate-700 pointer-events-none select-none uppercase tracking-widest hidden md:block">
-                    D/F: Play · ←→: Semitone · ↑↓: Octave · ⇧↑↓: Strum×÷1.5 · R: Random · ⇧R: Reverse · S: Sort · Space: Reset · 1-9: Section
+                    D/F: Play · ←→: Semitone · ↑↓: Octave · ⇧↑↓: Strum×÷1.5 · R: Random · ⇧R: Reverse · S: Sort · J/K: Rand Note · Space: Reset · 1-9: Section
                 </div>
 
             {/* Active Cursor/Visualizer */}
@@ -843,7 +843,7 @@ const PerformancePad: React.FC = () => {
                             Reset
                         </button>
                         <button
-                            title="Play one random note from the current step (no step advance) (K)"
+                            title="Play one random note from the current step (no step advance) (J / K)"
                             onClick={playRandomNoteFromCurrentStep}
                             className="text-[10px] bg-white/5 hover:bg-violet-500/20 hover:text-violet-300 px-2 py-1 rounded text-slate-400 uppercase font-bold"
                         >
