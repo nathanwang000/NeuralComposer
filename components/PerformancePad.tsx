@@ -216,6 +216,37 @@ function applyColoringToStep(
     .join('\n');
 }
 
+/** Apply a MIDI transform to every note-step in a sequence string. */
+function applyVoicingToAllSteps(
+  sequence: string,
+  transform: (midi: number[]) => number[],
+): string {
+  return sequence
+    .split('\n')
+    .map(line => {
+      const commentIdx = line.indexOf('//');
+      const codePart = commentIdx === -1 ? line : line.slice(0, commentIdx);
+      const commentSuffix = commentIdx === -1 ? '' : line.slice(commentIdx);
+      const trimmed = codePart.trim();
+      if (!trimmed || /^\[([^\]]+)\]:?\s*$/.test(trimmed)) return line;
+      const tokens = codePart.split(',');
+      const newTokens = tokens.map(token => {
+        const t = token.trim();
+        if (!t) return token;
+        const m = t.match(/^(.*?)(@\s*\d+(?:\.\d+)?\s*ms?)?$/i);
+        const notesPart = (m?.[1] ?? t).trim();
+        const strumPart = m?.[2] ?? '';
+        const noteStrings = notesPart.split('+').map(n => n.trim()).filter(Boolean);
+        if (noteStrings.length === 0) return token;
+        const transformed = transform(noteStrings.map(n => noteToMidi(n)));
+        const leading = token.match(/^(\s*)/)?.[1] ?? '';
+        return leading + transformed.map(midi => midiToNote(midi)).join('+') + strumPart;
+      });
+      return newTokens.join(',') + commentSuffix;
+    })
+    .join('\n');
+}
+
 /** Ordinal label: 1 → "1st", 2 → "2nd", 3 → "3rd", 4 → "4th", … */
 function ordinal(n: number): string {
   const s = ['th', 'st', 'nd', 'rd'];
@@ -621,8 +652,8 @@ const PerformancePad: React.FC = () => {
     const applyVoicing = useCallback((transform: (midi: number[]) => number[]) => {
         setVoicingBase(prev => prev ?? sequenceInput);
         voicingChangeInProgressRef.current = true;
-        setSequenceInput(prev => applyColoringToStep(prev, currentNoteIndex, transform));
-    }, [sequenceInput, currentNoteIndex]);
+        setSequenceInput(prev => applyVoicingToAllSteps(prev, transform));
+    }, [sequenceInput]);
 
     useEffect(() => {
         const isTypingElement = (target: EventTarget | null) => {
@@ -710,8 +741,9 @@ const PerformancePad: React.FC = () => {
             if (e.key === 'o') {
                 e.preventDefault();
                 if (voicingBase) {
-                    const origMidi = getStepMidi(voicingBase, currentNoteIndex);
-                    if (origMidi) applyVoicing(() => origMidi);
+                    voicingChangeInProgressRef.current = true;
+                    setSequenceInput(voicingBase);
+                    setVoicingBase(null);
                 }
                 return;
             }
@@ -1135,19 +1167,20 @@ const PerformancePad: React.FC = () => {
                     <div className="flex items-center gap-1 flex-wrap">
                         <span className="text-[9px] text-slate-700 font-black uppercase w-16 shrink-0">Voicing</span>
                         <button
-                            title={voicingBase ? 'Restore the voicing this step had before any voicing edits (O)' : 'No voicing changes yet on this step (O)'}
+                            title={voicingBase ? 'Restore original voicing for all steps (O)' : 'No voicing changes yet (O)'}
                             disabled={!voicingBase}
                             onClick={() => {
                                 if (!voicingBase) return;
-                                const origMidi = getStepMidi(voicingBase, currentNoteIndex);
-                                if (origMidi) applyVoicing(() => origMidi);
+                                voicingChangeInProgressRef.current = true;
+                                setSequenceInput(voicingBase);
+                                setVoicingBase(null);
                             }}
                             className={`text-[9px] px-2 py-1 rounded font-bold transition-all ${voicingBase ? 'bg-white/5 hover:bg-orange-500/20 hover:text-orange-300 text-slate-400' : 'opacity-25 cursor-not-allowed bg-white/5 text-slate-600'}`}
                         >
                             Original
                         </button>
                         <button
-                            title="Compress: keep highest note fixed, pull all other notes within one octave below it"
+                            title="Compress all steps: keep highest note fixed, pull all other notes within one octave below it"
                             onClick={() => applyVoicing(compressVoicing)}
                             className="text-[9px] bg-white/5 hover:bg-teal-500/20 hover:text-teal-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
                         >
@@ -1158,7 +1191,7 @@ const PerformancePad: React.FC = () => {
                             return Array.from({ length: Math.max(0, noteCount - 1) }, (_, i) => i + 1).map(n => (
                                 <button
                                     key={`drop-${n}`}
-                                    title={`Drop ${n}: lower the ${ordinal(n)}-highest note by one octave${n === 1 ? ' (⇧I)' : n === 2 ? ' (U)' : ''}`}
+                                    title={`Drop ${n} (all steps): lower the ${ordinal(n)}-highest note by one octave${n === 1 ? ' (⇧I)' : n === 2 ? ' (U)' : ''}`}
                                     onClick={() => applyVoicing(m => dropChord(m, n))}
                                     className="text-[9px] bg-white/5 hover:bg-sky-500/20 hover:text-sky-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
                                 >
@@ -1172,7 +1205,7 @@ const PerformancePad: React.FC = () => {
                             return Array.from({ length: noteCount - 1 }, (_, i) => i + 1).map(k => (
                                 <button
                                     key={`inv-${k}`}
-                                    title={`${ordinal(k)} inversion: raise the bottom ${k} note${k > 1 ? 's' : ''} up one octave${k === 1 ? ' (I)' : ''}`}
+                                    title={`${ordinal(k)} inversion (all steps): raise the bottom ${k} note${k > 1 ? 's' : ''} up one octave${k === 1 ? ' (I)' : ''}`}
                                     onClick={() => applyVoicing(m => invertChord(m, k))}
                                     className="text-[9px] bg-white/5 hover:bg-purple-500/20 hover:text-purple-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
                                 >
