@@ -655,6 +655,20 @@ const PerformancePad: React.FC = () => {
         setSequenceInput(prev => applyVoicingToAllSteps(prev, transform));
     }, [sequenceInput]);
 
+    /**
+     * Transpose all notes by `delta` semitones.
+     * Multiples of 12 (octave shifts) are treated as voicing changes — the voicing
+     * snapshot is preserved so "Original" can restore the previous octave placement.
+     * Non-octave shifts (e.g. ±1) are pitch changes and will clear the snapshot.
+     */
+    const applyTranspose = useCallback((delta: number) => {
+        if (delta % 12 === 0) {
+            setVoicingBase(prev => prev ?? sequenceInput);
+            voicingChangeInProgressRef.current = true;
+        }
+        setSequenceInput(prev => transposeSequence(prev, delta));
+    }, [sequenceInput]);
+
     useEffect(() => {
         const isTypingElement = (target: EventTarget | null) => {
             const el = target as HTMLElement | null;
@@ -715,7 +729,7 @@ const PerformancePad: React.FC = () => {
                     const arrowDelta: Record<string, number> = {
                         ArrowLeft: -1, ArrowRight: 1, ArrowUp: 12, ArrowDown: -12,
                     };
-                    setSequenceInput(prev => transposeSequence(prev, arrowDelta[e.key]));
+                    applyTranspose(arrowDelta[e.key]);
                 }
                 return;
             }
@@ -812,7 +826,7 @@ const PerformancePad: React.FC = () => {
             window.removeEventListener('keydown', onKeyDown);
             window.removeEventListener('keyup', onKeyUp);
         };
-    }, [startTrigger, stopTriggerIfIdle, jumpToSection, playRandomNoteFromCurrentStep, playNoteFromCurrentStepByLinearIndex, applyVoicing, voicingBase, currentNoteIndex]);
+    }, [startTrigger, stopTriggerIfIdle, jumpToSection, playRandomNoteFromCurrentStep, playNoteFromCurrentStepByLinearIndex, applyVoicing, applyTranspose, voicingBase, currentNoteIndex]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
         const target = e.target as HTMLElement;
@@ -1068,7 +1082,7 @@ const PerformancePad: React.FC = () => {
                             <button
                                 key={delta}
                                 title={tooltip}
-                                onClick={() => setSequenceInput(prev => transposeSequence(prev, delta))}
+                                onClick={() => applyTranspose(delta)}
                                 className="text-[9px] bg-white/5 hover:bg-indigo-500/20 hover:text-indigo-300 px-2 py-1 rounded text-slate-400 font-bold tabular-nums transition-all"
                             >
                                 {delta > 0 ? `+${delta}` : delta}
