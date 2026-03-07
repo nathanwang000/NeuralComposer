@@ -223,6 +223,31 @@ function ordinal(n: number): string {
   return n + (s[(v - 20) % 10] ?? s[v] ?? s[0]);
 }
 
+/**
+ * Extract the MIDI notes for a specific 0-based step index from a raw sequence string,
+ * using the same parsing rules as the main sequence parser.
+ */
+function getStepMidi(sequence: string, stepIndex: number): number[] | null {
+  let counter = 0;
+  for (const line of sequence.split('\n')) {
+    const commentIdx = line.indexOf('//');
+    const codePart = commentIdx === -1 ? line : line.slice(0, commentIdx);
+    const trimmed = codePart.trim();
+    if (!trimmed || /^\[([^\]]+)\]:?\s*$/.test(trimmed)) continue;
+    for (const token of codePart.split(',')) {
+      const t = token.trim();
+      if (!t) continue;
+      const m = t.match(/^(.*?)(@\s*\d+(?:\.\d+)?\s*ms?)?$/i);
+      const notesPart = (m?.[1] ?? t).trim();
+      const noteStrings = notesPart.split('+').map(n => n.trim()).filter(Boolean);
+      if (noteStrings.length === 0) continue;
+      if (counter === stepIndex) return noteStrings.map(n => noteToMidi(n));
+      counter++;
+    }
+  }
+  return null;
+}
+
 const AVAILABLE_TARGETS: { label: string; value: ModulationTarget }[] = [
   { label: 'Filter Cutoff', value: 'cutoff' },
   { label: 'Resonance', value: 'resonance' },
@@ -324,11 +349,21 @@ const PerformancePad: React.FC = () => {
     const [chordVolume, setChordVolume] = useState(1.0);
     const chordVolumeRef = useRef(1.0);
 
+    // Voicing snapshot — set on the first voicing edit, cleared on any external sequence change
+    const [voicingBase, setVoicingBase] = useState<string | null>(null);
+    const voicingChangeInProgressRef = useRef(false);
+
     // Mappings
     const [xTargets, setXTargets] = useState<ModulationTarget[]>(['cutoff']);
     const [yTargets, setYTargets] = useState<ModulationTarget[]>(['resonance']);
 
     useEffect(() => {
+        // If this change didn't come from a voicing button, clear the voicing snapshot.
+        if (!voicingChangeInProgressRef.current) {
+            setVoicingBase(null);
+        }
+        voicingChangeInProgressRef.current = false;
+
         // Parse line-by-line so [label]: markers can live alongside chord steps.
         const rawLines = sequenceInput.split('\n');
         const parsedSteps: ChordStep[] = [];
@@ -578,6 +613,17 @@ const PerformancePad: React.FC = () => {
         setCurrentNoteIndex(step);
     }, [sections]);
 
+    /**
+     * Apply a voicing/coloring transform to the current step.
+     * Snapshots the full sequence the first time it's called (so "Original" can restore it),
+     * and marks the change as voicing-originated so the parse effect doesn't clear the snapshot.
+     */
+    const applyVoicing = useCallback((transform: (midi: number[]) => number[]) => {
+        setVoicingBase(prev => prev ?? sequenceInput);
+        voicingChangeInProgressRef.current = true;
+        setSequenceInput(prev => applyColoringToStep(prev, currentNoteIndex, transform));
+    }, [sequenceInput, currentNoteIndex]);
+
     useEffect(() => {
         const isTypingElement = (target: EventTarget | null) => {
             const el = target as HTMLElement | null;
@@ -660,6 +706,33 @@ const PerformancePad: React.FC = () => {
                 return;
             }
 
+            // O: restore original voicing
+            if (e.key === 'o') {
+                e.preventDefault();
+                if (voicingBase) {
+                    const origMidi = getStepMidi(voicingBase, currentNoteIndex);
+                    if (origMidi) applyVoicing(() => origMidi);
+                }
+                return;
+            }
+
+            // I: 1st inversion  |  Shift+I: drop leading tone (Drop 1)  |  U: Drop 2
+            if (e.key === 'i') {
+                e.preventDefault();
+                applyVoicing(m => invertChord(m, 1));
+                return;
+            }
+            if (e.key === 'I') {
+                e.preventDefault();
+                applyVoicing(m => dropChord(m, 1));
+                return;
+            }
+            if (e.key === 'u') {
+                e.preventDefault();
+                applyVoicing(m => dropChord(m, 2));
+                return;
+            }
+
             // V: random note from current step
             if (e.key === 'v') {
                 if (e.repeat || activeKeyboardKeysRef.current.has('v')) return;
@@ -707,7 +780,7 @@ const PerformancePad: React.FC = () => {
             window.removeEventListener('keydown', onKeyDown);
             window.removeEventListener('keyup', onKeyUp);
         };
-    }, [startTrigger, stopTriggerIfIdle, jumpToSection, playRandomNoteFromCurrentStep, playNoteFromCurrentStepByLinearIndex]);
+    }, [startTrigger, stopTriggerIfIdle, jumpToSection, playRandomNoteFromCurrentStep, playNoteFromCurrentStepByLinearIndex, applyVoicing, voicingBase, currentNoteIndex]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
         const target = e.target as HTMLElement;
@@ -875,7 +948,7 @@ const PerformancePad: React.FC = () => {
                Y: {yTargets.join(', ') || 'None'}
             </div>
                 <div className="absolute bottom-4 left-4 text-[10px] font-black text-slate-700 pointer-events-none select-none uppercase tracking-widest hidden md:block">
-                    D/F: Play · ←→: Semitone · ↑↓: Octave · ⇧←→: Chord Vol · ⇧↑↓: Strum×÷1.5 · R: Random Chord Appegio · ⇧R: Reverse Chord Appegio · S: Sort · J/K/L/;: Chord Keys (lo→hi) · V: Rand Note · Space: Reset · 1-9: Section
+                    D/F: Play · ←→: Semitone · ↑↓: Octave · ⇧←→: Vol · ⇧↑↓: Strum · R: Rand · ⇧R: Rev · S: Sort · I: 1st Inv · ⇧I: Drop1 · U: Drop2 · O: Orig Voicing · J/K/L/;: Chord Keys · V: Rand Note · Space: Reset · 1-9: Section
                 </div>
 
             {/* Active Cursor/Visualizer */}
@@ -1062,19 +1135,31 @@ const PerformancePad: React.FC = () => {
                     <div className="flex items-center gap-1 flex-wrap">
                         <span className="text-[9px] text-slate-700 font-black uppercase w-16 shrink-0">Voicing</span>
                         <button
+                            title={voicingBase ? 'Restore the voicing this step had before any voicing edits (O)' : 'No voicing changes yet on this step (O)'}
+                            disabled={!voicingBase}
+                            onClick={() => {
+                                if (!voicingBase) return;
+                                const origMidi = getStepMidi(voicingBase, currentNoteIndex);
+                                if (origMidi) applyVoicing(() => origMidi);
+                            }}
+                            className={`text-[9px] px-2 py-1 rounded font-bold transition-all ${voicingBase ? 'bg-white/5 hover:bg-orange-500/20 hover:text-orange-300 text-slate-400' : 'opacity-25 cursor-not-allowed bg-white/5 text-slate-600'}`}
+                        >
+                            Original
+                        </button>
+                        <button
                             title="Compress: keep highest note fixed, pull all other notes within one octave below it"
-                            onClick={() => setSequenceInput(prev => applyColoringToStep(prev, currentNoteIndex, compressVoicing))}
+                            onClick={() => applyVoicing(compressVoicing)}
                             className="text-[9px] bg-white/5 hover:bg-teal-500/20 hover:text-teal-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
                         >
                             Compress
                         </button>
                         {(() => {
                             const noteCount = chordSequence[currentNoteIndex]?.notes.length ?? 0;
-                            return Array.from({ length: Math.max(0, noteCount - 2) }, (_, i) => i + 2).map(n => (
+                            return Array.from({ length: Math.max(0, noteCount - 1) }, (_, i) => i + 1).map(n => (
                                 <button
                                     key={`drop-${n}`}
-                                    title={`Drop ${n}: lower the ${ordinal(n)}-highest note by one octave`}
-                                    onClick={() => setSequenceInput(prev => applyColoringToStep(prev, currentNoteIndex, m => dropChord(m, n)))}
+                                    title={`Drop ${n}: lower the ${ordinal(n)}-highest note by one octave${n === 1 ? ' (⇧I)' : n === 2 ? ' (U)' : ''}`}
+                                    onClick={() => applyVoicing(m => dropChord(m, n))}
                                     className="text-[9px] bg-white/5 hover:bg-sky-500/20 hover:text-sky-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
                                 >
                                     Drop {n}
@@ -1087,8 +1172,8 @@ const PerformancePad: React.FC = () => {
                             return Array.from({ length: noteCount - 1 }, (_, i) => i + 1).map(k => (
                                 <button
                                     key={`inv-${k}`}
-                                    title={`${ordinal(k)} inversion: raise the bottom ${k} note${k > 1 ? 's' : ''} up one octave`}
-                                    onClick={() => setSequenceInput(prev => applyColoringToStep(prev, currentNoteIndex, m => invertChord(m, k)))}
+                                    title={`${ordinal(k)} inversion: raise the bottom ${k} note${k > 1 ? 's' : ''} up one octave${k === 1 ? ' (I)' : ''}`}
+                                    onClick={() => applyVoicing(m => invertChord(m, k))}
                                     className="text-[9px] bg-white/5 hover:bg-purple-500/20 hover:text-purple-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
                                 >
                                     {ordinal(k)} inv
