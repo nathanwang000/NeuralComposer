@@ -133,6 +133,96 @@ function reorderChordNotes(sequence: string, mode: 'reverse' | 'random' | 'sort'
   );
 }
 
+// ---------------------------------------------------------------------------
+// Voicing / coloring transforms — operate on MIDI note arrays.
+// All preserve the original pitch classes; only octave placement changes.
+// ---------------------------------------------------------------------------
+
+/** k-th inversion (k ≥ 1): sort ascending, raise the bottom k notes by one octave each. */
+function invertChord(midi: number[], k: number): number[] {
+  if (k <= 0 || k >= midi.length) return midi;
+  const s = [...midi].sort((a, b) => a - b);
+  for (let i = 0; i < k; i++) s[i] += 12;
+  return s.sort((a, b) => a - b);
+}
+
+/** Drop-n: sort ascending, drop the nth-highest note down one octave. Identity if midi.length ≤ n. */
+function dropChord(midi: number[], n: number): number[] {
+  if (n < 1 || midi.length <= n) return midi;
+  const s = [...midi].sort((a, b) => a - b);
+  s[s.length - n] -= 12;
+  return s.sort((a, b) => a - b);
+}
+
+/**
+ * Compress voicing: keep the highest note (leading tone) fixed; adjust every other
+ * note by octaves so it falls within the 12-semitone window directly below it
+ * ([top−12, top]). Preserves all pitch classes, produces a close/tight voicing.
+ */
+function compressVoicing(midi: number[]): number[] {
+  if (midi.length < 2) return midi;
+  const s = [...midi].sort((a, b) => a - b);
+  const top = s[s.length - 1];
+  for (let i = 0; i < s.length - 1; i++) {
+    while (s[i] < top - 12) s[i] += 12;
+    while (s[i] > top) s[i] -= 12;
+  }
+  return s.sort((a, b) => a - b);
+}
+
+/**
+ * Apply a MIDI-level transform to a single chord step (0-based stepIndex) inside
+ * the raw sequence string, preserving all other text (comments, strum values,
+ * section markers, whitespace, other steps).
+ */
+function applyColoringToStep(
+  sequence: string,
+  stepIndex: number,
+  transform: (midi: number[]) => number[],
+): string {
+  let counter = 0;
+  return sequence
+    .split('\n')
+    .map(line => {
+      const commentIdx = line.indexOf('//');
+      const codePart = commentIdx === -1 ? line : line.slice(0, commentIdx);
+      const commentSuffix = commentIdx === -1 ? '' : line.slice(commentIdx);
+      const trimmed = codePart.trim();
+
+      // Pass through empty lines and section markers unchanged
+      if (!trimmed || /^\[([^\]]+)\]:?\s*$/.test(trimmed)) return line;
+
+      const tokens = codePart.split(',');
+      const newTokens = tokens.map(token => {
+        const t = token.trim();
+        if (!t) return token;
+        const m = t.match(/^(.*?)(@\s*\d+(?:\.\d+)?\s*ms?)?$/i);
+        const notesPart = (m?.[1] ?? t).trim();
+        const strumPart = m?.[2] ?? '';
+        const noteStrings = notesPart.split('+').map(n => n.trim()).filter(Boolean);
+        if (noteStrings.length === 0) return token;
+
+        const isTarget = counter === stepIndex;
+        counter++;
+        if (!isTarget) return token;
+
+        const transformed = transform(noteStrings.map(n => noteToMidi(n)));
+        const leading = token.match(/^(\s*)/)?.[1] ?? '';
+        return leading + transformed.map(midi => midiToNote(midi)).join('+') + strumPart;
+      });
+
+      return newTokens.join(',') + commentSuffix;
+    })
+    .join('\n');
+}
+
+/** Ordinal label: 1 → "1st", 2 → "2nd", 3 → "3rd", 4 → "4th", … */
+function ordinal(n: number): string {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] ?? s[v] ?? s[0]);
+}
+
 const AVAILABLE_TARGETS: { label: string; value: ModulationTarget }[] = [
   { label: 'Filter Cutoff', value: 'cutoff' },
   { label: 'Resonance', value: 'resonance' },
@@ -969,6 +1059,43 @@ const PerformancePad: React.FC = () => {
                             ))}
                         </div>
                     )}
+                    <div className="flex items-center gap-1 flex-wrap">
+                        <span className="text-[9px] text-slate-700 font-black uppercase w-16 shrink-0">Voicing</span>
+                        <button
+                            title="Compress: keep highest note fixed, pull all other notes within one octave below it"
+                            onClick={() => setSequenceInput(prev => applyColoringToStep(prev, currentNoteIndex, compressVoicing))}
+                            className="text-[9px] bg-white/5 hover:bg-teal-500/20 hover:text-teal-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
+                        >
+                            Compress
+                        </button>
+                        {(() => {
+                            const noteCount = chordSequence[currentNoteIndex]?.notes.length ?? 0;
+                            return Array.from({ length: Math.max(0, noteCount - 2) }, (_, i) => i + 2).map(n => (
+                                <button
+                                    key={`drop-${n}`}
+                                    title={`Drop ${n}: lower the ${ordinal(n)}-highest note by one octave`}
+                                    onClick={() => setSequenceInput(prev => applyColoringToStep(prev, currentNoteIndex, m => dropChord(m, n)))}
+                                    className="text-[9px] bg-white/5 hover:bg-sky-500/20 hover:text-sky-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
+                                >
+                                    Drop {n}
+                                </button>
+                            ));
+                        })()}
+                        {(() => {
+                            const noteCount = chordSequence[currentNoteIndex]?.notes.length ?? 0;
+                            if (noteCount < 2) return null;
+                            return Array.from({ length: noteCount - 1 }, (_, i) => i + 1).map(k => (
+                                <button
+                                    key={`inv-${k}`}
+                                    title={`${ordinal(k)} inversion: raise the bottom ${k} note${k > 1 ? 's' : ''} up one octave`}
+                                    onClick={() => setSequenceInput(prev => applyColoringToStep(prev, currentNoteIndex, m => invertChord(m, k)))}
+                                    className="text-[9px] bg-white/5 hover:bg-purple-500/20 hover:text-purple-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
+                                >
+                                    {ordinal(k)} inv
+                                </button>
+                            ));
+                        })()}
+                    </div>
                     <div className="flex items-center gap-1 flex-wrap">
                         <span className="text-[9px] text-slate-700 font-black uppercase w-16 shrink-0">Order</span>
                         <button

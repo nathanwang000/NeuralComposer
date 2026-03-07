@@ -1,0 +1,6 @@
+// intro
+B4+C#5+D5+E5+F#5@50ms,
+G5+F#5+E5+D5@1ms,
+C5+D5+E5+G5@1ms,
+F#5+E5+D5+C5@1ms,
+B4
