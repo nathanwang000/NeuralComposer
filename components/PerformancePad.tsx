@@ -155,19 +155,37 @@ function dropChord(midi: number[], n: number): number[] {
 }
 
 /**
- * Compress voicing: keep the highest note (leading tone) fixed; adjust every other
- * note by octaves so it falls within the 12-semitone window directly below it
- * ([top−12, top]). Preserves all pitch classes, produces a close/tight voicing.
+ * Compress voicing: keep the highest note (leading tone) fixed; pull every other
+ * note by octaves so it sits within the 12-semitone window directly below it.
+ *
+ * Notes that share a pitch class (i.e. differ only by octave) are spread out
+ * rather than collapsed: the highest occurrence of each pitch class lands as
+ * close to the leading tone as possible (within [top−12, top]), and each
+ * additional duplicate is placed one octave below the previous one.
  */
 function compressVoicing(midi: number[]): number[] {
   if (midi.length < 2) return midi;
-  const s = [...midi].sort((a, b) => a - b);
-  const top = s[s.length - 1];
-  for (let i = 0; i < s.length - 1; i++) {
-    while (s[i] < top - 12) s[i] += 12;
-    while (s[i] > top) s[i] -= 12;
+  const top = Math.max(...midi);
+
+  // Group by pitch class (0–11)
+  const byClass = new Map<number, number>();  // pc → count
+  for (const m of midi) {
+    const pc = ((m % 12) + 12) % 12;
+    byClass.set(pc, (byClass.get(pc) ?? 0) + 1);
   }
-  return s.sort((a, b) => a - b);
+
+  const result: number[] = [];
+  for (const [pc, count] of byClass) {
+    // Highest instance of this pitch class that is ≤ top (always in (top−12, top]).
+    // Add 12 (one octave) before % to keep the operand non-negative: min(top − pc) = −11.
+    const highest = top - ((top - pc + 12) % 12);
+    for (let i = 0; i < count; i++) {
+      const note = highest - 12 * i;
+      if (note >= 0 && note <= 127) result.push(note); // skip if out of MIDI range
+    }
+  }
+
+  return result.sort((a, b) => a - b);
 }
 
 /**
@@ -778,6 +796,11 @@ const PerformancePad: React.FC = () => {
                 applyVoicing(m => dropChord(m, 2));
                 return;
             }
+            if (e.key === 'c') {
+                e.preventDefault();
+                applyVoicing(compressVoicing);
+                return;
+            }
 
             // V: random note from current step
             if (e.key === 'v') {
@@ -994,7 +1017,7 @@ const PerformancePad: React.FC = () => {
                Y: {yTargets.join(', ') || 'None'}
             </div>
                 <div className="absolute bottom-4 left-4 text-[10px] font-black text-slate-700 pointer-events-none select-none uppercase tracking-widest hidden md:block">
-                    D/F: Play · ←→: Semitone · ↑↓: Octave · ⇧←→: Vol · ⇧↑↓: Strum · R: Rand · ⇧R: Rev · S: Sort · I: 1st Inv · ⇧I: Drop1 · U: Drop2 · O: Orig Voicing · J/K/L/;: Chord Keys · V: Rand Note · Space: Reset · 1-9: Section
+                    D/F: Play · ←→: Semitone · ↑↓: Octave · ⇧←→: Vol · ⇧↑↓: Strum · R: Rand · ⇧R: Rev · S: Sort · I: 1st Inv · ⇧I: Drop1 · U: Drop2 · C: Compress · O: Orig Voicing · J/K/L/;: Chord Keys · V: Rand Note · Space: Reset · 1-9: Section
                 </div>
 
             {/* Active Cursor/Visualizer */}
@@ -1194,7 +1217,7 @@ const PerformancePad: React.FC = () => {
                             Original
                         </button>
                         <button
-                            title="Compress all steps: keep highest note fixed, pull all other notes within one octave below it"
+                            title="Compress all steps: pull each note into the octave below the leading tone; duplicate pitch classes are spread one octave apart (C)"
                             onClick={() => applyVoicing(compressVoicing)}
                             className="text-[9px] bg-white/5 hover:bg-teal-500/20 hover:text-teal-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
                         >
