@@ -515,8 +515,10 @@ function placeCanonicalVoices(
 /**
  * SMOOTH VOICING — core algorithm.
  *
- * Revoices all steps to minimise voice-leading movement around a cyclic loop,
- * keeping the anchor step (current step when the user presses Smooth) fixed.
+ * Revoices every step in the loop to minimise total voice-leading movement,
+ * keeping the anchor step (the one active when the user triggers Smooth) fixed.
+ * The result is a set of voicings that feel connected when played in sequence,
+ * without changing any chord's pitch content — only register/octave placement.
  *
  * ─── TWO-OBJECTIVE COST ──────────────────────────────────────────────────────
  * For every non-anchor step t, we balance:
@@ -536,19 +538,36 @@ function placeCanonicalVoices(
  *   d = D  → λ = 0  → only care about transition continuity  (opposite the anchor)
  *   between → linear interpolation
  *
- * This ensures the steps immediately adjacent to the anchor connect back cleanly
- * without any extra user parameters.
+ * This ensures steps adjacent to the anchor connect back cleanly without any
+ * extra user parameters.
  *
  * ─── CANONICAL-FIRST STRATEGY ───────────────────────────────────────────────
  * Only one representative per pitch class (the highest note = canonical) drives
  * the optimisation. Lower octave duplicates are reattached afterward at their
- * original offset from their canonical, minimising their own travel implicitly.
+ * original offset from their canonical, so they move implicitly with their leader.
  *
- * ─── PLACEMENT STRATEGY — O(N) per step ───────────────────────────────────
- * Pitch classes are fixed per step; only octave placement changes. Since
- * identities are fixed, there is no matching/permutation problem — each pc maps
- * deterministically to the blend of its prev and anchor counterparts.
- * `placeCanonicalVoices` handles this in O(N) with structural role enforcement.
+ * ─── ROLE-AWARE VOICE MATCHING ───────────────────────────────────────────────
+ * Before placing any note in octave-space, `placeCanonicalVoices` determines
+ * which pitch class in the new chord (B) corresponds to the melody, bass, and
+ * inner voices of the previous chord (A) by greedy mod-12 distance matching in
+ * priority order: melody first, bass second, inner voices third.
+ *
+ *   • |B| == |A|: bijection — every role is matched exactly once.
+ *   • |B|  < |A|: the highest-priority roles are matched; excess A roles drop.
+ *   • |B|  > |A|: all A roles are matched first; remaining B pitch classes
+ *                 inherit the last inner-voice reference register.
+ *
+ * Roles are then placed structurally: melody unconstrained, bass clamped below
+ * melody, inner voices clamped between them with collision nudging.
+ *
+ * ─── COMPLEXITY ─────────────────────────────────────────────────────────────
+ * O(N · V²) where N = number of steps, V = max voices (notes) per step.
+ *
+ * The outer traversal visits each of the N steps once. Per step, the greedy
+ * role-assignment in placeCanonicalVoices scans all unassigned B pcs for each
+ * A role: at most V roles × V candidates = V² comparisons. The subsequent
+ * octave-placement and collision nudging are O(V). Since V ≤ 6 in practice
+ * (V² ≤ 36), the function is effectively O(N) for real sequences.
  *
  * ─── TRAVERSAL ORDER ────────────────────────────────────────────────────────
  * Steps are solved in forward order anchor+1, anchor+2, … wrapping around back
@@ -596,8 +615,15 @@ function smoothVoicingSteps(steps: number[][], anchorIdx: number): number[][] {
  *
  * Parses all note steps (preserving comments, section markers, strum times and
  * whitespace), computes smooth voicings via smoothVoicingSteps, then rewrites
- * each step's notes in-place. The anchor is the 0-based step index that should
- * stay unchanged (typically the currently playing step).
+ * each step's notes in-place.
+ *
+ * The anchor (0-based step index) is held fixed; every other step is revoiced
+ * to minimise voice-leading movement around the loop while preserving pitch
+ * content. Melody, bass and inner voices are matched across chord changes by
+ * role-aware greedy assignment before octave placement — see smoothVoicingSteps.
+ *
+ * Typically called with the currently active step as the anchor so the chord
+ * that is currently sounding does not change register.
  */
 function applySmoothVoicingToSequence(sequence: string, anchorStepIndex: number): string {
   // ── Phase 1: parse all MIDI arrays in order ──────────────────────────────
@@ -1152,7 +1178,14 @@ const PerformancePad: React.FC = () => {
     }, [sequenceInput]);
 
     /**
-     * Apply smooth voicing to the full sequence, anchored to the current step.
+     * Revoice all steps for smooth voice-leading (key: N).
+     *
+     * Anchors to the current step (its voicing stays unchanged) and adjusts
+     * every other step's register to minimise semitone movement between
+     * consecutive chords around the loop. Melody, bass and inner voices are
+     * matched by role across chord changes (not by fixed index), so the
+     * smoothing adapts correctly even when chords have different note counts.
+     *
      * Snapshots voicingBase first so the user can restore the original with O.
      */
     const applySmooth = useCallback(() => {
@@ -1506,7 +1539,7 @@ const PerformancePad: React.FC = () => {
                Y: {yTargets.join(', ') || 'None'}
             </div>
                 <div className="absolute bottom-4 left-4 text-[10px] font-black text-slate-700 pointer-events-none select-none uppercase tracking-widest hidden md:block">
-                    D/F: Play · ←→: Semitone · ↑↓: Octave · ⇧←→: Vol · ⇧↑↓: Strum · R: Rand · ⇧R: Rev · S: Sort · I: 1st Inv · ⇧I: Drop1 · U: Drop2 · C: Compress · N: Smooth · O: Orig · J/K/L/;: Chord Keys · V: Rand Note · Space: Reset · 1-9: Section
+                    D/F: Play · ←→: Semitone · ↑↓: Octave · ⇧←→: Vol · ⇧↑↓: Strum · R: Rand · ⇧R: Rev · S: Sort · I: 1st Inv · ⇧I: Drop1 · U: Drop2 · C: Compress · N: Smooth · O: Orig · J/K/L/;: Chord Keys · V: Rand Note · B: Back Step · Space: Reset · 1-9: Section
                 </div>
 
             {/* Active Cursor/Visualizer */}
@@ -1713,7 +1746,7 @@ const PerformancePad: React.FC = () => {
                             Compress
                         </button>
                         <button
-                            title="Smooth all steps (N): revoice each step for minimal voice-leading movement around the loop, anchored to the current step. Melody and bass are preserved; inner voices move as little as possible."
+                            title="Smooth (N): revoice every step so voices move as little as possible between chords. Anchored to the current step (its voicing is unchanged). Melody, bass and inner voices are matched by role across chord changes — not by fixed position — so chords with different note counts smooth correctly."
                             onClick={applySmooth}
                             className="text-[9px] bg-white/5 hover:bg-cyan-500/20 hover:text-cyan-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
                         >
