@@ -146,11 +146,23 @@ function invertChord(midi: number[], k: number): number[] {
   return s.sort((a, b) => a - b);
 }
 
-/** Drop-n: sort ascending, drop the nth-highest note down one octave. Identity if midi.length ≤ n. */
+/**
+ * Drop-n: sort ascending, drop the nth-highest note down one octave.
+ * If the result duplicates another note in the chord, keeps dropping by
+ * additional octaves until unique or until going below MIDI 0.
+ * Identity if midi.length ≤ n.
+ */
 function dropChord(midi: number[], n: number): number[] {
   if (n < 1 || midi.length <= n) return midi;
   const s = [...midi].sort((a, b) => a - b);
-  s[s.length - n] -= 12;
+  const idx = s.length - n;
+  s[idx] -= 12;
+  // Keep dropping while there's a duplicate and we're still in MIDI range
+  while (s[idx] >= 0 && s.some((v, i) => i !== idx && v === s[idx])) {
+    s[idx] -= 12;
+  }
+  // If we went below 0, revert to one step above (closest valid position)
+  if (s[idx] < 0) s[idx] += 12;
   return s.sort((a, b) => a - b);
 }
 
