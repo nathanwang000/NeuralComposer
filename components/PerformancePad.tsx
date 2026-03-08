@@ -1113,8 +1113,9 @@ const PerformancePad: React.FC = () => {
      * Plays one random note from the current step without advancing the step counter.
      * If the pad/key is held (isPlaying), the "current" step is the one already sounding
      * (one behind the advanced pointer). Otherwise it is the next-to-play step.
+     * octaveShift: semitones to add (+12 = up one octave, -12 = down one octave).
      */
-    const playRandomNoteFromCurrentStep = useCallback(() => {
+    const playRandomNoteFromCurrentStep = useCallback((octaveShift = 0) => {
         const sequence = chordSequence.length > 0 ? chordSequence : [{ notes: [60], strumMs: 0 }];
         const stepIndex = isPlaying
             ? (currentNoteIndexRef.current - 1 + sequence.length) % sequence.length
@@ -1122,14 +1123,15 @@ const PerformancePad: React.FC = () => {
         const step = sequence[stepIndex];
         const midi = step.notes[Math.floor(Math.random() * step.notes.length)];
         // not using chordVolumeRef.current because this is a solo note outside the continuous chord voices
-        audioEngine.addContinuousNote(midi, 100);
+        audioEngine.addContinuousNote(Math.max(0, Math.min(127, midi + octaveShift)), 100);
     }, [chordSequence, isPlaying]);
 
     /**
      * Play a note from the current step mapped linearly by keyIndex (0 = min pitch, 3 = max pitch).
      * Notes in the step are sorted ascending; keyIndex is scaled across them.
+     * octaveShift: semitones to add (+12 = up one octave, -12 = down one octave).
      */
-    const playNoteFromCurrentStepByLinearIndex = useCallback((keyIndex: number) => {
+    const playNoteFromCurrentStepByLinearIndex = useCallback((keyIndex: number, octaveShift = 0) => {
         const sequence = chordSequence.length > 0 ? chordSequence : [{ notes: [60], strumMs: 0 }];
         const stepIndex = isPlaying
             ? (currentNoteIndexRef.current - 1 + sequence.length) % sequence.length
@@ -1142,7 +1144,8 @@ const PerformancePad: React.FC = () => {
             : Math.round((keyIndex / 3) * (sorted.length - 1));
 
         // not using chordVolumeRef.current because this is a solo note outside the continuous chord voices
-        audioEngine.addContinuousNote(sorted[Math.min(noteIdx, sorted.length - 1)], 100);
+        const midi = sorted[Math.min(noteIdx, sorted.length - 1)];
+        audioEngine.addContinuousNote(Math.max(0, Math.min(127, midi + octaveShift)), 100);
     }, [chordSequence, isPlaying]);
 
     const jumpToSection = useCallback((sectionIndex: number) => {
@@ -1324,25 +1327,32 @@ const PerformancePad: React.FC = () => {
                 return;
             }
 
-            // V: random note from current step
-            if (e.key === 'v') {
+            /* solo controls section */
+            // V / Shift+V (+octave) / Ctrl+V (−octave): random note from current step
+            if (e.key.toLowerCase() === 'v') {
                 if (e.repeat || activeKeyboardKeysRef.current.has('v')) return;
                 e.preventDefault();
                 activeKeyboardKeysRef.current.add('v');
-                playRandomNoteFromCurrentStep();
+                const octaveShift = e.shiftKey ? 12 : e.ctrlKey ? -12 : 0;
+                playRandomNoteFromCurrentStep(octaveShift);
                 return;
             }
 
-            // J/K/L/;: linear chord notes (min → max pitch across the chord)
-            const chordKeyMap: Record<string, number> = { j: 0, k: 1, l: 2, ';': 3 };
-            if (e.key in chordKeyMap) {
-                if (e.repeat || activeKeyboardKeysRef.current.has(e.key)) return;
+            // J/K/L/; (+ Shift = +octave, Ctrl = −octave): linear chord notes (min → max pitch across the chord)
+            // Shift+; produces ':' on US keyboards — normalise back to ';'.
+            const chordKeyMap: Record<string, number> = { j: 0, k: 1, l: 2, ';': 3, ':': 3 };
+            const chordKeyNorm = e.key.toLowerCase() === ':' ? ':' : e.key.toLowerCase();
+            if (chordKeyNorm in chordKeyMap) {
+                const trackKey = chordKeyNorm === ':' ? ';' : chordKeyNorm;
+                if (e.repeat || activeKeyboardKeysRef.current.has(trackKey)) return;
                 e.preventDefault();
-                activeKeyboardKeysRef.current.add(e.key);
-                playNoteFromCurrentStepByLinearIndex(chordKeyMap[e.key]);
+                activeKeyboardKeysRef.current.add(trackKey);
+                const octaveShift = e.shiftKey ? 12 : e.ctrlKey ? -12 : 0;
+                playNoteFromCurrentStepByLinearIndex(chordKeyMap[chordKeyNorm], octaveShift);
                 return;
             }
 
+            /* chord controls section */
             const key = e.key.toLowerCase();
             if (key !== 'd' && key !== 'f') return;
             if (e.repeat || activeKeyboardKeysRef.current.has(key)) return;
@@ -1539,7 +1549,7 @@ const PerformancePad: React.FC = () => {
                Y: {yTargets.join(', ') || 'None'}
             </div>
                 <div className="absolute bottom-4 left-4 text-[10px] font-black text-slate-700 pointer-events-none select-none uppercase tracking-widest hidden md:block">
-                    D/F: Play · ←→: Semitone · ↑↓: Octave · ⇧←→: Vol · ⇧↑↓: Strum · R: Rand · ⇧R: Rev · S: Sort · I: 1st Inv · ⇧I: Drop1 · U: Drop2 · C: Compress · N: Smooth · O: Orig · J/K/L/;: Chord Keys · V: Rand Note · B: Back Step · Space: Reset · 1-9: Section
+                    D/F: Play · ←→: Semitone · ↑↓: Octave · ⇧←→: Vol · ⇧↑↓: Strum · R: Rand · ⇧R: Rev · S: Sort · I: 1st Inv · ⇧I: Drop1 · U: Drop2 · C: Compress · N: Smooth · O: Orig · J/K/L/;: Chord Keys (⇧=+oct, ⌃=−oct) · V: Rand Note (⇧=+oct, ⌃=−oct) · B: Back Step · Space: Reset · 1-9: Section
                 </div>
 
             {/* Active Cursor/Visualizer */}
