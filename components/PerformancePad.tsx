@@ -1288,7 +1288,7 @@ const PerformancePad: React.FC = () => {
                             return Array.from({ length: Math.max(0, noteCount - 1) }, (_, i) => i + 1).map(n => (
                                 <button
                                     key={`drop-${n}`}
-                                    title={`Drop ${n} (all steps): lower the ${ordinal(n)}-highest note by one octave${n === 1 ? ' (⇧I)' : n === 2 ? ' (U)' : ''}`}
+                                    title={`Drop ${n} (all steps): lower the ${ordinal(n)}-highest note by octaves until it no longer duplicates another note${n === 1 ? ' (⇧I)' : n === 2 ? ' (U)' : ''}`}
                                     onClick={() => applyVoicing(m => dropChord(m, n))}
                                     className="text-[9px] bg-white/5 hover:bg-sky-500/20 hover:text-sky-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
                                 >
@@ -1302,7 +1302,7 @@ const PerformancePad: React.FC = () => {
                             return Array.from({ length: noteCount - 1 }, (_, i) => i + 1).map(k => (
                                 <button
                                     key={`inv-${k}`}
-                                    title={`${ordinal(k)} inversion (all steps): raise the bottom ${k} note${k > 1 ? 's' : ''} up one octave${k === 1 ? ' (I)' : ''}`}
+                                    title={`${ordinal(k)} inversion (all steps): rotate the ${k} lowest pitch class${k > 1 ? 'es' : ''} above the top — octave doublings stay in place${k === 1 ? ' (I)' : ''}`}
                                     onClick={() => applyVoicing(m => invertChord(m, k))}
                                     className="text-[9px] bg-white/5 hover:bg-purple-500/20 hover:text-purple-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
                                 >
