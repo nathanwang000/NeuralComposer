@@ -1364,12 +1364,13 @@ const PerformancePad: React.FC = () => {
 
         const onKeyUp = (e: KeyboardEvent) => {
             const key = e.key.toLowerCase();
-            const tracked = ['d', 'f', 'j', 'k', 'l', ';', 'v'];
-            // ';' does not lowercase-transform, so also handle it by raw key
+            // ':' is Shift+; on US keyboards — normalise to ';' so the tracked key is removed correctly.
+            const normalised = key === ':' ? ';' : key;
             const raw = e.key;
-            if (!tracked.includes(key) && !tracked.includes(raw)) return;
+            const tracked = ['d', 'f', 'j', 'k', 'l', ';', 'v'];
+            if (!tracked.includes(normalised) && !tracked.includes(raw)) return;
 
-            activeKeyboardKeysRef.current.delete(key);
+            activeKeyboardKeysRef.current.delete(normalised);
             activeKeyboardKeysRef.current.delete(raw);
             stopTriggerIfIdle();
         };
