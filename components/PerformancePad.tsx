@@ -1181,6 +1181,16 @@ const PerformancePad: React.FC = () => {
                 return;
             }
 
+            // B: go back one step
+            if (e.key === 'b') {
+                e.preventDefault();
+                const seqLen = chordSequence.length > 0 ? chordSequence.length : 1;
+                const prev = (currentNoteIndexRef.current - 1 + seqLen) % seqLen;
+                currentNoteIndexRef.current = prev;
+                setCurrentNoteIndex(prev);
+                return;
+            }
+
             // Digit 1-9: jump to section
             if (/^[1-9]$/.test(e.key)) {
                 e.preventDefault();
@@ -1328,7 +1338,7 @@ const PerformancePad: React.FC = () => {
             window.removeEventListener('keydown', onKeyDown);
             window.removeEventListener('keyup', onKeyUp);
         };
-    }, [startTrigger, stopTriggerIfIdle, jumpToSection, playRandomNoteFromCurrentStep, playNoteFromCurrentStepByLinearIndex, applyVoicing, applyTranspose, applySmooth, voicingBase, currentNoteIndex]);
+    }, [startTrigger, stopTriggerIfIdle, jumpToSection, playRandomNoteFromCurrentStep, playNoteFromCurrentStepByLinearIndex, applyVoicing, applyTranspose, applySmooth, voicingBase, currentNoteIndex, chordSequence]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
         const target = e.target as HTMLElement;
