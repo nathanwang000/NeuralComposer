@@ -248,6 +248,328 @@ function compressVoicing(midi: number[]): number[] {
   return result.sort((a, b) => a - b);
 }
 
+// ---------------------------------------------------------------------------
+// Smooth voicing — canonical + greedy + anchor-regularised loop smoothing
+// ---------------------------------------------------------------------------
+
+/**
+ * Split a MIDI chord into canonical voices and octave-duplicate followers.
+ *
+ * Canonical voice: the HIGHEST note for each pitch class present.
+ * Duplicate: any note whose pitch class already has a higher canonical;
+ *   stored as { pc, offset } where offset is the signed semitone delta from
+ *   its canonical (always a negative multiple of 12).
+ *
+ * Duplicates are stored so they can be reattached after canonical voices are
+ * rearranged, preserving their relative register without influencing the
+ * voice-leading optimisation.
+ */
+function splitCanonical(midi: number[]): {
+  canonical: number[];
+  duplicates: { pc: number; offset: number }[];
+} {
+  const highestByPc = new Map<number, number>();
+  for (const m of midi) {
+    const pc = ((m % 12) + 12) % 12;
+    if (!highestByPc.has(pc) || m > highestByPc.get(pc)!) highestByPc.set(pc, m);
+  }
+  const canonical = [...highestByPc.values()].sort((a, b) => a - b);
+  // Walk notes descending so the first hit of each pc is the canonical (highest)
+  const consumedPcs = new Set<number>();
+  const duplicates: { pc: number; offset: number }[] = [];
+  for (const m of [...midi].sort((a, b) => b - a)) {
+    const pc = ((m % 12) + 12) % 12;
+    if (!consumedPcs.has(pc)) {
+      consumedPcs.add(pc); // canonical — skip
+    } else {
+      duplicates.push({ pc, offset: m - highestByPc.get(pc)! }); // offset ≤ -12
+    }
+  }
+  return { canonical, duplicates };
+}
+
+/**
+ * Reattach duplicates to a rearranged canonical set.
+ *
+ * Each duplicate finds the canonical representative of its pitch class and
+ * is placed at canonicalNote + originalOffset, clamped to [0, 127] by
+ * octave-shifting without changing pitch class.
+ */
+function reattachDuplicates(
+  canonical: number[],
+  duplicates: { pc: number; offset: number }[],
+): number[] {
+  const canonByPc = new Map<number, number>();
+  for (const m of canonical) canonByPc.set(((m % 12) + 12) % 12, m);
+  const result = [...canonical];
+  for (const { pc, offset } of duplicates) {
+    const base = canonByPc.get(pc);
+    if (base === undefined) continue; // pitch class dropped — skip duplicate too
+    let note = base + offset;
+    while (note < 0)   note += 12;
+    while (note > 127) note -= 12;
+    result.push(note);
+  }
+  return result.sort((a, b) => a - b);
+}
+
+/**
+ * Enumerate candidate octave placements for a set of pitch classes.
+ *
+ * For each pc, generates up to three MIDI candidates (previous, -12, +12)
+ * centred on the nearest note in `reference` that shares that pitch class.
+ * This keeps the search space at 3^N (≤ 729 for N=6) while still covering
+ * the musically relevant register range.
+ *
+ * Results are filtered to the MIDI range [0, 127] and deduplicated per pc.
+ */
+/**
+ * Enumerate candidate octave placements for a set of pitch classes.
+ *
+ * Strategy: for each pc, find the MIDI note with that pc closest to the
+ * centroid of the reference chord. Use that as a pivot and also offer
+ * pivot±12, giving up to 3 candidates per note and ≤ 3^N total combinations
+ * (≤ 729 for N=6).
+ *
+ * The centroid approach is robust to any reference chord size and register.
+ */
+function candidatePlacements(
+  pcs: number[],
+  reference: number[],
+): number[][] {
+  const centroid = reference.length > 0
+    ? reference.reduce((s, v) => s + v, 0) / reference.length
+    : 60; // fallback: middle C
+
+  const options: number[][] = pcs.map(pc => {
+    // Find the MIDI note with this pc nearest to the centroid
+    let pivot = pc; // start at octave -1 (pc 0-11)
+    while (pivot + 12 <= centroid) pivot += 12; // climb until at or just above centroid
+    // pivot is now the first pc-note >= centroid -- check whether pivot-12 is closer
+    if (pivot - 12 >= 0 && Math.abs(pivot - centroid) > Math.abs(pivot - 12 - centroid)) {
+      pivot -= 12;
+    }
+    // Candidates: pivot-12, pivot, pivot+12 -- filter to valid MIDI range
+    const set = new Set<number>();
+    for (const c of [pivot - 12, pivot, pivot + 12]) {
+      if (c >= 0 && c <= 127) set.add(c);
+    }
+    return [...set];
+  });
+
+  // Cross-product of all per-pc options
+  let combinations: number[][] = [[]];
+  for (const opts of options) {
+    const next: number[][] = [];
+    for (const combo of combinations)
+      for (const o of opts)
+        next.push([...combo, o]);
+    combinations = next;
+  }
+  return combinations;
+}
+
+/**
+ * Voice-leading cost between two sorted canonical MIDI arrays.
+ *
+ * ROLE-AWARE MATCHING:
+ *   top voice (highest) ↔ top voice     — melody continuity, weighted ×2
+ *   bass voice (lowest) ↔ bass voice    — bass continuity, weighted ×1.5
+ *   inner voices         ↔ inner voices  — greedy nearest-neighbour match
+ *
+ * UNMATCHED NOTES (size mismatch):
+ *   - Inner voices added/dropped: +12 per note
+ *   - Bass added/dropped:         +18 per note
+ *   - Melody added/dropped:       +24 per note
+ *
+ * VOICE-CROSSING PENALTY: +15 per pair that crosses.
+ *
+ * Both arrays must be sorted ascending.
+ */
+function voiceLeadingCost(a: number[], b: number[]): number {
+  if (a.length === 0 || b.length === 0) return 0;
+  let cost = 0;
+
+  // Melody: top ↔ top
+  cost += 2 * Math.abs(a[a.length - 1] - b[b.length - 1]);
+  // Bass: bottom ↔ bottom
+  cost += 1.5 * Math.abs(a[0] - b[0]);
+
+  // Inner voices
+  const aInner = a.slice(1, -1);
+  const bInner = b.slice(1, -1);
+  const used = new Set<number>();
+  for (const av of aInner) {
+    let best = Infinity, bestIdx = -1;
+    for (let i = 0; i < bInner.length; i++) {
+      if (used.has(i)) continue;
+      const d = Math.abs(av - bInner[i]);
+      if (d < best) { best = d; bestIdx = i; }
+    }
+    if (bestIdx >= 0) { used.add(bestIdx); cost += best; }
+    else cost += 12; // dropped inner voice
+  }
+  for (let i = 0; i < bInner.length; i++)
+    if (!used.has(i)) cost += 12; // new inner voice
+
+  // Voice-crossing penalty on b itself
+  const bs = [...b].sort((x, y) => x - y);
+  if (b.some((v, i) => v !== bs[i])) cost += 15;
+
+  return cost;
+}
+
+/**
+ * SMOOTH VOICING — core algorithm.
+ *
+ * Revoices all steps to minimise voice-leading movement around a cyclic loop,
+ * keeping the anchor step (current step when the user presses Smooth) fixed.
+ *
+ * ─── TWO-OBJECTIVE COST ──────────────────────────────────────────────────────
+ * For every non-anchor step t, we balance:
+ *   (a) Continuity  – stay close to the previously solved step  [transitionCost]
+ *   (b) Loop closure – stay close to the fixed anchor step       [anchorCost]
+ *
+ *   total_cost(t) = (1 − λ(t)) · transitionCost + λ(t) · anchorCost
+ *
+ * ─── ANCHOR-REGULARISATION SCHEDULE ────────────────────────────────────────
+ * No user-facing lambda is needed. The weight is derived from cyclic distance:
+ *
+ *   d(t)    = min(|t − anchor|, N − |t − anchor|)   ∈ [1, floor(N/2)]
+ *   D       = floor(N / 2)                            max cyclic distance
+ *   λ(t)    = 1 − (d(t) − 1) / max(1, D − 1)        ∈ [0, 1]
+ *
+ *   d = 1  → λ = 1  → only care about matching the anchor   (immediate neighbours)
+ *   d = D  → λ = 0  → only care about transition continuity  (opposite the anchor)
+ *   between → linear interpolation
+ *
+ * This ensures the steps immediately adjacent to the anchor connect back cleanly
+ * without any extra user parameters.
+ *
+ * ─── CANONICAL-FIRST STRATEGY ───────────────────────────────────────────────
+ * Only one representative per pitch class (the highest note = canonical) drives
+ * the optimisation. Lower octave duplicates are reattached afterward at their
+ * original offset from their canonical, minimising their own travel implicitly.
+ *
+ * ─── CANDIDATE GENERATION ───────────────────────────────────────────────────
+ * For each non-anchor step, the pitch classes are fixed (we only change octaves).
+ * We generate ≤ 3 octave candidates per note centred on the reference register
+ * (previous solved step), giving ≤ 3^N total candidates (≤ 729 for N=6).
+ * This keeps the search fast while covering the musically relevant register.
+ *
+ * ─── TRAVERSAL ORDER ────────────────────────────────────────────────────────
+ * Steps are solved in forward order anchor+1, anchor+2, … wrapping around back
+ * to anchor−1. Each step sees the already-solved previous step as its transition
+ * reference, so cost (a) is always well-defined.
+ */
+function smoothVoicingSteps(steps: number[][], anchorIdx: number): number[][] {
+  const N = steps.length;
+  if (N < 2) return steps;
+
+  const anchorMidi = steps[anchorIdx];
+  const { canonical: anchorCanon } = splitCanonical(anchorMidi);
+
+  // Precompute anchor-regularisation weight for each step
+  const D = Math.floor(N / 2);
+  const lambdaForStep = (t: number): number => {
+    const rel = ((t - anchorIdx) + N) % N;
+    const d   = Math.min(rel, N - rel);
+    if (d === 0) return 1;
+    if (D <= 1)  return 1;
+    return Math.max(0, Math.min(1, 1 - (d - 1) / (D - 1)));
+  };
+
+  const result: number[][] = [...steps]; // anchor slot stays unchanged
+
+  // Forward traversal from anchor+1 around the loop
+  for (let i = 1; i < N; i++) {
+    const t       = (anchorIdx + i) % N;
+    const prevIdx = (t - 1 + N) % N;
+    const { canonical: prevCanon }       = splitCanonical(result[prevIdx]);
+    const { canonical: rawCanon, duplicates } = splitCanonical(steps[t]);
+    const pcs = rawCanon.map(m => ((m % 12) + 12) % 12);
+
+    const lam        = lambdaForStep(t);
+    const candidates = candidatePlacements(pcs, prevCanon);
+
+    let bestCost = Infinity;
+    let bestCandidate = rawCanon;
+
+    for (const candidate of candidates) {
+      const sorted = [...candidate].sort((a, b) => a - b);
+      const tc   = voiceLeadingCost(prevCanon,   sorted);
+      const ac   = voiceLeadingCost(anchorCanon, sorted);
+      const cost = (1 - lam) * tc + lam * ac;
+      if (cost < bestCost) { bestCost = cost; bestCandidate = sorted; }
+    }
+
+    result[t] = reattachDuplicates(bestCandidate, duplicates);
+  }
+
+  return result;
+}
+
+/**
+ * Apply smooth voicing to a raw sequence string.
+ *
+ * Parses all note steps (preserving comments, section markers, strum times and
+ * whitespace), computes smooth voicings via smoothVoicingSteps, then rewrites
+ * each step's notes in-place. The anchor is the 0-based step index that should
+ * stay unchanged (typically the currently playing step).
+ */
+function applySmoothVoicingToSequence(sequence: string, anchorStepIndex: number): string {
+  // ── Phase 1: parse all MIDI arrays in order ──────────────────────────────
+  const midiSteps: number[][] = [];
+  for (const line of sequence.split('\n')) {
+    const commentIdx = line.indexOf('//');
+    const codePart   = commentIdx === -1 ? line : line.slice(0, commentIdx);
+    const trimmed    = codePart.trim();
+    if (!trimmed || /^\[([^\]]+)\]:?\s*$/.test(trimmed)) continue;
+    for (const token of codePart.split(',')) {
+      const t = token.trim();
+      if (!t) continue;
+      const m = t.match(/^(.*?)(@\s*\d+(?:\.\d+)?\s*ms?)?$/i);
+      const notesPart  = (m?.[1] ?? t).trim();
+      const noteStrings = notesPart.split('+').map(n => n.trim()).filter(Boolean);
+      if (noteStrings.length === 0) continue;
+      midiSteps.push(noteStrings.map(n => noteToMidi(n)));
+    }
+  }
+  if (midiSteps.length < 2) return sequence;
+
+  // ── Phase 2: compute smoothed voicings ───────────────────────────────────
+  const smoothed = smoothVoicingSteps(
+    midiSteps,
+    Math.min(anchorStepIndex, midiSteps.length - 1),
+  );
+
+  // ── Phase 3: rewrite the string (same structure, only note names change) ──
+  let stepIdx = 0;
+  return sequence
+    .split('\n')
+    .map(line => {
+      const commentIdx  = line.indexOf('//');
+      const codePart    = commentIdx === -1 ? line : line.slice(0, commentIdx);
+      const commentSuffix = commentIdx === -1 ? '' : line.slice(commentIdx);
+      const trimmed     = codePart.trim();
+      if (!trimmed || /^\[([^\]]+)\]:?\s*$/.test(trimmed)) return line;
+      const newTokens = codePart.split(',').map(token => {
+        const t = token.trim();
+        if (!t) return token;
+        const m = t.match(/^(.*?)(@\s*\d+(?:\.\d+)?\s*ms?)?$/i);
+        const notesPart   = (m?.[1] ?? t).trim();
+        const strumPart   = m?.[2] ?? '';
+        const noteStrings = notesPart.split('+').map(n => n.trim()).filter(Boolean);
+        if (noteStrings.length === 0) return token;
+        const leading = token.match(/^(\s*)/)?.[1] ?? '';
+        const notes   = smoothed[stepIdx++] ?? noteStrings.map(n => noteToMidi(n));
+        return leading + notes.map(midi => midiToNote(midi)).join('+') + strumPart;
+      });
+      return newTokens.join(',') + commentSuffix;
+    })
+    .join('\n');
+}
+
 /**
  * Apply a MIDI-level transform to a single chord step (0-based stepIndex) inside
  * the raw sequence string, preserving all other text (comments, strum values,
@@ -747,6 +1069,16 @@ const PerformancePad: React.FC = () => {
         setSequenceInput(prev => transposeSequence(prev, delta));
     }, [sequenceInput]);
 
+    /**
+     * Apply smooth voicing to the full sequence, anchored to the current step.
+     * Snapshots voicingBase first so the user can restore the original with O.
+     */
+    const applySmooth = useCallback(() => {
+        setVoicingBase(prev => prev ?? sequenceInput);
+        voicingChangeInProgressRef.current = true;
+        setSequenceInput(prev => applySmoothVoicingToSequence(prev, currentNoteIndex));
+    }, [sequenceInput, currentNoteIndex]);
+
     useEffect(() => {
         const isTypingElement = (target: EventTarget | null) => {
             const el = target as HTMLElement | null;
@@ -861,6 +1193,11 @@ const PerformancePad: React.FC = () => {
                 applyVoicing(compressVoicing);
                 return;
             }
+            if (e.key === 'n') {
+                e.preventDefault();
+                applySmooth();
+                return;
+            }
 
             // V: random note from current step
             if (e.key === 'v') {
@@ -909,7 +1246,7 @@ const PerformancePad: React.FC = () => {
             window.removeEventListener('keydown', onKeyDown);
             window.removeEventListener('keyup', onKeyUp);
         };
-    }, [startTrigger, stopTriggerIfIdle, jumpToSection, playRandomNoteFromCurrentStep, playNoteFromCurrentStepByLinearIndex, applyVoicing, applyTranspose, voicingBase, currentNoteIndex]);
+    }, [startTrigger, stopTriggerIfIdle, jumpToSection, playRandomNoteFromCurrentStep, playNoteFromCurrentStepByLinearIndex, applyVoicing, applyTranspose, applySmooth, voicingBase, currentNoteIndex]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
         const target = e.target as HTMLElement;
@@ -1077,7 +1414,7 @@ const PerformancePad: React.FC = () => {
                Y: {yTargets.join(', ') || 'None'}
             </div>
                 <div className="absolute bottom-4 left-4 text-[10px] font-black text-slate-700 pointer-events-none select-none uppercase tracking-widest hidden md:block">
-                    D/F: Play · ←→: Semitone · ↑↓: Octave · ⇧←→: Vol · ⇧↑↓: Strum · R: Rand · ⇧R: Rev · S: Sort · I: 1st Inv · ⇧I: Drop1 · U: Drop2 · C: Compress · O: Orig Voicing · J/K/L/;: Chord Keys · V: Rand Note · Space: Reset · 1-9: Section
+                    D/F: Play · ←→: Semitone · ↑↓: Octave · ⇧←→: Vol · ⇧↑↓: Strum · R: Rand · ⇧R: Rev · S: Sort · I: 1st Inv · ⇧I: Drop1 · U: Drop2 · C: Compress · N: Smooth · O: Orig · J/K/L/;: Chord Keys · V: Rand Note · Space: Reset · 1-9: Section
                 </div>
 
             {/* Active Cursor/Visualizer */}
@@ -1282,6 +1619,13 @@ const PerformancePad: React.FC = () => {
                             className="text-[9px] bg-white/5 hover:bg-teal-500/20 hover:text-teal-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
                         >
                             Compress
+                        </button>
+                        <button
+                            title="Smooth all steps (N): revoice each step for minimal voice-leading movement around the loop, anchored to the current step. Melody and bass are preserved; inner voices move as little as possible."
+                            onClick={applySmooth}
+                            className="text-[9px] bg-white/5 hover:bg-cyan-500/20 hover:text-cyan-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
+                        >
+                            Smooth
                         </button>
                         {(() => {
                             const noteCount = chordSequence[currentNoteIndex]?.notes.length ?? 0;
