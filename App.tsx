@@ -68,7 +68,7 @@ const App: React.FC = () => {
     legatoMode: false
   });
 
-  const [synthConfig, setSynthConfig] = useState<SynthConfig>(SYNTH_PRESETS["Deep Bass"]);
+  const [synthConfig, setSynthConfig] = useState<SynthConfig>(SYNTH_PRESETS["Grand Piano"]);
 
   const [playbackBeat, setPlaybackBeat] = useState(0);
   const [isPaused, setIsPaused] = useState(true);
@@ -78,7 +78,7 @@ const App: React.FC = () => {
   const [userInput, setUserInput] = useState("");
   const [creativeDirection, setCreativeDirection] = useState("");
   const [rightPanelTab, setRightPanelTab] = useState<'session' | 'synth'>('session');
-  const [mainTab, setMainTab] = useState<'sequencer' | 'performance'>('sequencer');
+  const [mainTab, setMainTab] = useState<'sequencer' | 'performance'>('performance');
 
   const [tempBpm, setTempBpm] = useState("124");
   const [testNote, setTestNote] = useState<MidiEvent>({ p: 60, v: 100, t: 0, d: 0.5 });
