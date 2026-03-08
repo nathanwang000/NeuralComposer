@@ -324,99 +324,192 @@ function reattachDuplicates(
  * Results are filtered to the MIDI range [0, 127] and deduplicated per pc.
  */
 /**
- * Enumerate candidate octave placements for a set of pitch classes.
- *
- * Strategy: for each pc, find the MIDI note with that pc closest to the
- * centroid of the reference chord. Use that as a pivot and also offer
- * pivot±12, giving up to 3 candidates per note and ≤ 3^N total combinations
- * (≤ 729 for N=6).
- *
- * The centroid approach is robust to any reference chord size and register.
+ * Return the MIDI note with pitch class `pc` nearest to `target` by absolute
+ * semitone distance. Searches across the full MIDI range [0, 127].
  */
-function candidatePlacements(
-  pcs: number[],
-  reference: number[],
-): number[][] {
-  const centroid = reference.length > 0
-    ? reference.reduce((s, v) => s + v, 0) / reference.length
-    : 60; // fallback: middle C
-
-  const options: number[][] = pcs.map(pc => {
-    // Find the MIDI note with this pc nearest to the centroid
-    let pivot = pc; // start at octave -1 (pc 0-11)
-    while (pivot + 12 <= centroid) pivot += 12; // climb until at or just above centroid
-    // pivot is now the first pc-note >= centroid -- check whether pivot-12 is closer
-    if (pivot - 12 >= 0 && Math.abs(pivot - centroid) > Math.abs(pivot - 12 - centroid)) {
-      pivot -= 12;
-    }
-    // Candidates: pivot-12, pivot, pivot+12 -- filter to valid MIDI range
-    const set = new Set<number>();
-    for (const c of [pivot - 12, pivot, pivot + 12]) {
-      if (c >= 0 && c <= 127) set.add(c);
-    }
-    return [...set];
-  });
-
-  // Cross-product of all per-pc options
-  let combinations: number[][] = [[]];
-  for (const opts of options) {
-    const next: number[][] = [];
-    for (const combo of combinations)
-      for (const o of opts)
-        next.push([...combo, o]);
-    combinations = next;
-  }
-  return combinations;
+function nearestOctave(pc: number, target: number): number {
+  let note = pc;
+  while (note + 12 <= target) note += 12;
+  // note is now the largest pc-note ≤ target; note+12 is the smallest pc-note > target.
+  // note-12 is always further from target (it's below note which is already ≤ target),
+  // so only check whether note+12 is closer.
+  if (note + 12 <= 127 && Math.abs(note + 12 - target) < Math.abs(note - target)) note += 12;
+  return Math.max(0, Math.min(127, note));
 }
 
 /**
- * Voice-leading cost between two sorted canonical MIDI arrays.
+ * ROLE-AWARE CANONICAL VOICE PLACEMENT.
  *
- * ROLE-AWARE MATCHING:
- *   top voice (highest) ↔ top voice     — melody continuity, weighted ×2
- *   bass voice (lowest) ↔ bass voice    — bass continuity, weighted ×1.5
- *   inner voices         ↔ inner voices  — greedy nearest-neighbour match
+ * Places each pitch class in `pcs` (chord B) at the octave that minimises a
+ * weighted blend of two reference chords (prev = chord A, anchor):
  *
- * UNMATCHED NOTES (size mismatch):
- *   - Inner voices added/dropped: +12 per note
- *   - Bass added/dropped:         +18 per note
- *   - Melody added/dropped:       +24 per note
+ *   target(pc) = (1 − λ) · prevRef(pc)  +  λ · anchorRef(pc)
  *
- * VOICE-CROSSING PENALTY: +15 per pair that crosses.
+ * ── ROLE ASSIGNMENT (done first, before any octave placement) ────────────
  *
- * Both arrays must be sorted ascending.
+ *   Roles are inherited from A = prevCanon (highest = melody, lowest = bass,
+ *   middle = inner voices) and matched to B's pitch classes in priority order:
+ *
+ *     1. Melody  — A's melody pc matched to the closest unassigned B pc
+ *     2. Bass    — A's bass pc matched to the closest remaining B pc
+ *     3. Inner   — each A inner pc matched to the closest remaining B pc
+ *
+ *   Matching uses mod-12 pitch-class distance (greedy, one role at a time).
+ *
+ *   • len(B) == len(A): bijection — every B note gets exactly one A role.
+ *   • len(B) <  len(A): melody matched first, then bass, then inner voices;
+ *     leftover A roles are simply dropped (B doesn't have enough notes).
+ *   • len(B) >  len(A): after all A roles are assigned, excess B pcs each
+ *     inherit the reference of the last-assigned inner voice (or the
+ *     bass/melody midpoint when no inner voice exists).
+ *
+ * ── PLACEMENT ────────────────────────────────────────────────────────────
+ *
+ *   1. Melody pc: placed near its blended MIDI target, unconstrained.
+ *   2. Bass pc:   placed near its blended MIDI target, clamped below melody.
+ *   3. Inner pcs: each clamped inside (bass, melody); collisions resolved
+ *                 by octave-nudging.
  */
-function voiceLeadingCost(a: number[], b: number[]): number {
-  if (a.length === 0 || b.length === 0) return 0;
-  let cost = 0;
+function placeCanonicalVoices(
+  pcs: number[],
+  prevCanon: number[],
+  anchorCanon: number[],
+  lambda: number,
+): number[] {
+  if (pcs.length === 0) return [];
 
-  // Melody: top ↔ top
-  cost += 2 * Math.abs(a[a.length - 1] - b[b.length - 1]);
-  // Bass: bottom ↔ bottom
-  cost += 1.5 * Math.abs(a[0] - b[0]);
+  const pcOf      = (m: number): number => ((m % 12) + 12) % 12;
+  const mod12dist = (a: number, b: number): number =>
+    Math.min(((a - b + 12) % 12), ((b - a + 12) % 12));
 
-  // Inner voices
-  const aInner = a.slice(1, -1);
-  const bInner = b.slice(1, -1);
-  const used = new Set<number>();
-  for (const av of aInner) {
-    let best = Infinity, bestIdx = -1;
-    for (let i = 0; i < bInner.length; i++) {
-      if (used.has(i)) continue;
-      const d = Math.abs(av - bInner[i]);
-      if (d < best) { best = d; bestIdx = i; }
-    }
-    if (bestIdx >= 0) { used.add(bestIdx); cost += best; }
-    else cost += 12; // dropped inner voice
+  // Fall back to the other array if one is empty.
+  const refPrev   = prevCanon.length   > 0 ? prevCanon   : anchorCanon;
+  const refAnchor = anchorCanon.length > 0 ? anchorCanon : prevCanon;
+
+  // ── BUILD PRIORITY-ORDERED A-ROLE LIST ───────────────────────────────────
+  // roleIdx 0 = melody, 1 = bass, 2+ = inner voices (ascending).
+  type ARole = { prevMidi: number; anchorMidi: number };
+  const aRoles: ARole[] = [];
+
+  if (refPrev.length >= 1) {
+    // Melody = highest note
+    aRoles.push({
+      prevMidi:   refPrev[refPrev.length - 1],
+      anchorMidi: refAnchor[refAnchor.length - 1],
+    });
   }
-  for (let i = 0; i < bInner.length; i++)
-    if (!used.has(i)) cost += 12; // new inner voice
+  if (refPrev.length >= 2) {
+    // Bass = lowest note
+    aRoles.push({
+      prevMidi:   refPrev[0],
+      anchorMidi: refAnchor[0],
+    });
+    // Inner voices: indices 1 … refPrev.length-2 (ascending order)
+    for (let i = 1; i < refPrev.length - 1; i++) {
+      const innerIdx      = i - 1; // 0-based inner index
+      const anchorInnerN  = refAnchor.length - 2; // number of inner voices in anchor
+      const anchorMidi    = anchorInnerN > 0 && innerIdx < anchorInnerN
+        ? refAnchor[innerIdx + 1]
+        : refAnchor[Math.floor(refAnchor.length / 2)];
+      aRoles.push({ prevMidi: refPrev[i], anchorMidi });
+    }
+  }
 
-  // Voice-crossing penalty on b itself
-  const bs = [...b].sort((x, y) => x - y);
-  if (b.some((v, i) => v !== bs[i])) cost += 15;
+  // ── GREEDY ROLE ASSIGNMENT ────────────────────────────────────────────────
+  // For each A-role (in priority order) pick the closest unassigned B pc.
+  type BEntry = { pc: number; prevMidi: number; anchorMidi: number; roleIdx: number };
+  const assigned: BEntry[] = [];
+  const unassigned = new Set<number>(pcs.map((_, i) => i)); // indices into pcs
 
-  return cost;
+  for (let ri = 0; ri < aRoles.length && unassigned.size > 0; ri++) {
+    const { prevMidi, anchorMidi } = aRoles[ri];
+    const rolePc = pcOf(prevMidi);
+    let bestI = -1, bestDist = Infinity;
+    for (const idx of unassigned) {
+      const d = mod12dist(pcs[idx], rolePc);
+      if (d < bestDist) { bestDist = d; bestI = idx; }
+    }
+    unassigned.delete(bestI);
+    assigned.push({ pc: pcs[bestI], prevMidi, anchorMidi, roleIdx: ri });
+  }
+
+  // Extra B pcs (len(B) > len(A)): inherit the last inner-voice reference.
+  if (unassigned.size > 0) {
+    const lastInner   = [...assigned].reverse().find(a => a.roleIdx >= 2);
+    const fallbackPrev =
+      lastInner          ? lastInner.prevMidi :
+      assigned.length >= 2 ? (assigned[0].prevMidi + assigned[1].prevMidi) / 2 :
+      refPrev[Math.floor(refPrev.length / 2)] ?? 60;
+    const fallbackAnchor =
+      lastInner          ? lastInner.anchorMidi :
+      assigned.length >= 2 ? (assigned[0].anchorMidi + assigned[1].anchorMidi) / 2 :
+      refAnchor[Math.floor(refAnchor.length / 2)] ?? 60;
+    for (const idx of unassigned) {
+      assigned.push({
+        pc: pcs[idx],
+        prevMidi:   fallbackPrev,
+        anchorMidi: fallbackAnchor,
+        roleIdx: aRoles.length + idx,
+      });
+    }
+  }
+
+  // Single-note shortcut (no melody/bass split needed).
+  if (pcs.length === 1) {
+    const e = assigned[0];
+    return [nearestOctave(e.pc, (1 - lambda) * e.prevMidi + lambda * e.anchorMidi)];
+  }
+
+  // ── PLACEMENT ─────────────────────────────────────────────────────────────
+  const melodyEntry  = assigned.find(a => a.roleIdx === 0)!;
+  const bassEntry    = assigned.find(a => a.roleIdx === 1)!;
+  const innerEntries = assigned.filter(a => a.roleIdx !== 0 && a.roleIdx !== 1);
+
+  // 1. Melody — unconstrained
+  const melodyNote = nearestOctave(
+    melodyEntry.pc,
+    (1 - lambda) * melodyEntry.prevMidi + lambda * melodyEntry.anchorMidi,
+  );
+
+  // 2. Bass — must sit strictly below melody
+  let bassNote = nearestOctave(
+    bassEntry.pc,
+    (1 - lambda) * bassEntry.prevMidi + lambda * bassEntry.anchorMidi,
+  );
+  while (bassNote >= melodyNote) bassNote -= 12;
+  if (bassNote < 0) bassNote += 12; // best-effort at MIDI floor
+
+  if (innerEntries.length === 0) {
+    return [bassNote, melodyNote].sort((a, b) => a - b);
+  }
+
+  // 3. Inner voices — clamped to (bass, melody), collisions resolved
+  const placed: number[] = [];
+  for (const entry of innerEntries) {
+    let note = nearestOctave(
+      entry.pc,
+      (1 - lambda) * entry.prevMidi + lambda * entry.anchorMidi,
+    );
+    while (note <= bassNote)   note += 12;
+    while (note >= melodyNote) note -= 12;
+    if (note <= bassNote || note >= melodyNote) {
+      note = nearestOctave(entry.pc, (bassNote + melodyNote) / 2);
+    }
+    const collides = () => placed.some(p => p === note);
+    let tries = 0;
+    while (collides() && tries++ < 4) {
+      const up = note + 12, down = note - 12;
+      const upOk = up < melodyNote, downOk = down > bassNote;
+      const mid  = (bassNote + melodyNote) / 2;
+      if (upOk && (!downOk || Math.abs(up - mid) <= Math.abs(down - mid))) note = up;
+      else if (downOk) note = down;
+      else break;
+    }
+    placed.push(note);
+  }
+
+  placed.sort((a, b) => a - b);
+  return [bassNote, ...placed, melodyNote].sort((a, b) => a - b);
 }
 
 /**
@@ -451,16 +544,16 @@ function voiceLeadingCost(a: number[], b: number[]): number {
  * the optimisation. Lower octave duplicates are reattached afterward at their
  * original offset from their canonical, minimising their own travel implicitly.
  *
- * ─── CANDIDATE GENERATION ───────────────────────────────────────────────────
- * For each non-anchor step, the pitch classes are fixed (we only change octaves).
- * We generate ≤ 3 octave candidates per note centred on the reference register
- * (previous solved step), giving ≤ 3^N total candidates (≤ 729 for N=6).
- * This keeps the search fast while covering the musically relevant register.
+ * ─── PLACEMENT STRATEGY — O(N) per step ───────────────────────────────────
+ * Pitch classes are fixed per step; only octave placement changes. Since
+ * identities are fixed, there is no matching/permutation problem — each pc maps
+ * deterministically to the blend of its prev and anchor counterparts.
+ * `placeCanonicalVoices` handles this in O(N) with structural role enforcement.
  *
  * ─── TRAVERSAL ORDER ────────────────────────────────────────────────────────
  * Steps are solved in forward order anchor+1, anchor+2, … wrapping around back
  * to anchor−1. Each step sees the already-solved previous step as its transition
- * reference, so cost (a) is always well-defined.
+ * reference, so continuity cost is always well-defined.
  */
 function smoothVoicingSteps(steps: number[][], anchorIdx: number): number[][] {
   const N = steps.length;
@@ -489,21 +582,10 @@ function smoothVoicingSteps(steps: number[][], anchorIdx: number): number[][] {
     const { canonical: rawCanon, duplicates } = splitCanonical(steps[t]);
     const pcs = rawCanon.map(m => ((m % 12) + 12) % 12);
 
-    const lam        = lambdaForStep(t);
-    const candidates = candidatePlacements(pcs, prevCanon);
+    const lam           = lambdaForStep(t);
+    const bestCandidate = placeCanonicalVoices(pcs, prevCanon, anchorCanon, lam);
 
-    let bestCost = Infinity;
-    let bestCandidate = rawCanon;
-
-    for (const candidate of candidates) {
-      const sorted = [...candidate].sort((a, b) => a - b);
-      const tc   = voiceLeadingCost(prevCanon,   sorted);
-      const ac   = voiceLeadingCost(anchorCanon, sorted);
-      const cost = (1 - lam) * tc + lam * ac;
-      if (cost < bestCost) { bestCost = cost; bestCandidate = sorted; }
-    }
-
-    result[t] = reattachDuplicates(bestCandidate, duplicates);
+    result[t] = reattachDuplicates(bestCandidate.sort((a, b) => a - b), duplicates);
   }
 
   return result;
