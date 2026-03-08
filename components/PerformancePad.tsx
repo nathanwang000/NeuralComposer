@@ -138,12 +138,60 @@ function reorderChordNotes(sequence: string, mode: 'reverse' | 'random' | 'sort'
 // All preserve the original pitch classes; only octave placement changes.
 // ---------------------------------------------------------------------------
 
-/** k-th inversion (k ≥ 1): sort ascending, raise the bottom k notes by one octave each. */
+/**
+ * k-th inversion (k ≥ 1).
+ *
+ * Only the "canonical" notes participate in the rotation — for each pitch class,
+ * the highest instance is canonical; lower octave duplicates are spectators and
+ * never move.
+ *
+ * One inversion step: take the lowest canonical note, raise it by the minimum
+ * number of octaves needed to land strictly above the current canonical top.
+ * k-th inversion = 1st inversion applied k times.
+ *
+ * Example: [C3, C4, E4, G4]
+ *   canonical: [C4, E4, G4]  spectators: [C3]
+ *   1st inv → canonical [E4, G4, C5]  → full [C3, E4, G4, C5]
+ *   2nd inv → canonical [G4, C5, E5]  → full [C3, G4, C5, E5]
+ */
 function invertChord(midi: number[], k: number): number[] {
-  if (k <= 0 || k >= midi.length) return midi;
-  const s = [...midi].sort((a, b) => a - b);
-  for (let i = 0; i < k; i++) s[i] += 12;
-  return s.sort((a, b) => a - b);
+  if (k <= 0 || midi.length < 2) return midi;
+
+  // Build canonical set: highest note per pitch class
+  const highestByPc = new Map<number, number>();
+  for (const m of midi) {
+    const pc = ((m % 12) + 12) % 12;
+    if (!highestByPc.has(pc) || m > highestByPc.get(pc)!) highestByPc.set(pc, m);
+  }
+
+  // Spectators: all notes that are NOT the canonical representative of their class
+  const usedCanonical = new Set(highestByPc.values());
+  const spectators: number[] = [];
+  const canonicalCounts = new Map<number, number>();
+  for (const m of midi) {
+    if (usedCanonical.has(m) && !canonicalCounts.has(m)) {
+      canonicalCounts.set(m, 1); // first occurrence is canonical, consume it
+    } else {
+      spectators.push(m);
+    }
+  }
+
+  // Canonical set as a sorted mutable array
+  let canonical = [...highestByPc.values()].sort((a, b) => a - b);
+
+  // Apply 1st inversion k times
+  const clampedK = k % canonical.length; // full rotations cancel out
+  for (let step = 0; step < clampedK; step++) {
+    const top = canonical[canonical.length - 1];
+    let note = canonical[0];
+    // Raise by minimum octaves to clear the current top
+    while (note <= top) note += 12;
+    // Clamp to MIDI range
+    while (note > 127) note -= 12;
+    canonical = [...canonical.slice(1), note].sort((a, b) => a - b);
+  }
+
+  return [...canonical, ...spectators].sort((a, b) => a - b);
 }
 
 /**
