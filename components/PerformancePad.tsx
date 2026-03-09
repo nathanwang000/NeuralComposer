@@ -1260,10 +1260,10 @@ const PerformancePad: React.FC = () => {
      * Non-octave shifts (e.g. ±1) are pitch changes and will clear the snapshot.
      */
     const applyTranspose = useCallback((delta: number) => {
-        if (delta % 12 === 0) {
-            setVoicingBase(prev => prev ?? sequenceInput);
-            voicingChangeInProgressRef.current = true;
-        }
+        // Snapshots voicingBase first so the user can restore the original with O.
+        setVoicingBase(prev => prev ?? sequenceInput);
+        // Mark this change as voicing-originated so the parse effect doesn't clear the snapshot.
+        voicingChangeInProgressRef.current = true;
         setSequenceInput(prev => transposeSequence(prev, delta));
     }, [sequenceInput]);
 
@@ -1321,46 +1321,64 @@ const PerformancePad: React.FC = () => {
                 return;
             }
 
-            // Arrow keys
-            if (([KB.SEMITONE_DN.key, KB.SEMITONE_UP.key, KB.OCTAVE_UP.key, KB.OCTAVE_DN.key] as string[]).includes(e.key)) {
-                e.preventDefault();
-                if (e.shiftKey) {
-                    // KB.VOL_DN / KB.VOL_UP: chord volume −/+ 0.1
-                    if (e.key === KB.VOL_DN.key) {
-                        setChordVolume(prev => {
-                            const v = Math.max(0, Math.round((prev - 0.1) * 10) / 10);
-                            chordVolumeRef.current = v;
-                            return v;
-                        });
-                        return;
-                    }
-                    if (e.key === KB.VOL_UP.key) {
-                        setChordVolume(prev => {
-                            const v = Math.min(1, Math.round((prev + 0.1) * 10) / 10);
-                            chordVolumeRef.current = v;
-                            return v;
-                        });
-                        return;
-                    }
-                    // KB.STRUM_UP / KB.STRUM_DN: scale strum speed
-                    const strumFactor: Record<string, number> = {
-                        [KB.STRUM_UP.key]: 1.5,
-                        [KB.STRUM_DN.key]: 1 / 1.5,
-                    };
-                    if (strumFactor[e.key] !== undefined) {
-                        setSequenceInput(prev => scaleStrumSpeed(prev, strumFactor[e.key]));
-                    }
-                } else {
-                    // KB.SEMITONE_* / KB.OCTAVE_*: transpose
-                    const arrowDelta: Record<string, number> = {
-                        [KB.SEMITONE_DN.key]: -1,
-                        [KB.SEMITONE_UP.key]:  1,
-                        [KB.OCTAVE_UP.key]:   12,
-                        [KB.OCTAVE_DN.key]:  -12,
-                    };
-                    applyTranspose(arrowDelta[e.key]);
+            // Keyboard shortcuts with an optional shift modifier — each KB entry is
+            // matched independently using its own key + shift fields, so remapping
+            // any entry in KB is sufficient to change behaviour here.
+            {
+                // Returns true when the event matches a KB entry exactly:
+                //   • kb.shift === true  → key matches AND Shift is held
+                //   • kb.shift falsy     → key matches AND Shift is NOT held
+                const kb = (entry: { key: string; shift?: boolean }) =>
+                    e.key === entry.key && (entry.shift ? e.shiftKey : !e.shiftKey);
+
+                if (kb(KB.VOL_DN)) {
+                    e.preventDefault();
+                    setChordVolume(prev => {
+                        const v = Math.max(0, Math.round((prev - 0.1) * 10) / 10);
+                        chordVolumeRef.current = v;
+                        return v;
+                    });
+                    return;
                 }
-                return;
+                if (kb(KB.VOL_UP)) {
+                    e.preventDefault();
+                    setChordVolume(prev => {
+                        const v = Math.min(1, Math.round((prev + 0.1) * 10) / 10);
+                        chordVolumeRef.current = v;
+                        return v;
+                    });
+                    return;
+                }
+                if (kb(KB.STRUM_UP)) {
+                    e.preventDefault();
+                    setSequenceInput(prev => scaleStrumSpeed(prev, 1.5));
+                    return;
+                }
+                if (kb(KB.STRUM_DN)) {
+                    e.preventDefault();
+                    setSequenceInput(prev => scaleStrumSpeed(prev, 1 / 1.5));
+                    return;
+                }
+                if (kb(KB.SEMITONE_DN)) {
+                    e.preventDefault();
+                    applyTranspose(-1);
+                    return;
+                }
+                if (kb(KB.SEMITONE_UP)) {
+                    e.preventDefault();
+                    applyTranspose(1);
+                    return;
+                }
+                if (kb(KB.OCTAVE_UP)) {
+                    e.preventDefault();
+                    applyTranspose(12);
+                    return;
+                }
+                if (kb(KB.OCTAVE_DN)) {
+                    e.preventDefault();
+                    applyTranspose(-12);
+                    return;
+                }
             }
 
             // KB.ORDER_RAND / KB.ORDER_REV / KB.ORDER_SORT: reorder chord notes
