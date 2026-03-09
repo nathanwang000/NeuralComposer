@@ -913,12 +913,15 @@ const KB = {
     ORDER_SORT:     { key: 's',                  display: 'S',      hint: 'Sort order'                 },
 
     // ── Voicing ───────────────────────────────────────────────────────────
-    ORIGINAL:       { key: 'o',                  display: 'O',      hint: 'Orig voicing'               },
-    INVERT_1:       { key: 'i',                  display: 'I',      hint: '1st inv'                    },
-    DROP_1:         { key: 'I' /* Shift+i */,    display: '⇧I',     hint: 'Drop 1'                     },
-    DROP_2:         { key: 'u',                  display: 'U',      hint: 'Drop 2'                     },
+    // A = Authentic (as-written), E = Exchange (invert up / drop down are
+    // counterparts on the same key), C/⇧C = Compress / Widen (opposites),
+    // G = Glide (smooth voice-leading).
+    ORIGINAL:       { key: 'a',                  display: 'A',      hint: 'Authentic voicing'          },
+    SMOOTH:         { key: 'g',                  display: 'G',      hint: 'Glide (smooth)'             },
+    INVERT_1:       { key: 'e',                  display: 'E',      hint: '1st inv (exchange up)'      },
+    DROP_1:         { key: 'E' /* Shift+e */,    display: '⇧E',     hint: 'Drop 1 (exchange down)'     },
+    DROP_2:         { key: 'C' /* Shift+c */,    display: '⇧C',     hint: 'Drop 2 (widen)'             },
     COMPRESS:       { key: 'c',                  display: 'C',      hint: 'Compress'                   },
-    SMOOTH:         { key: 'n',                  display: 'N',      hint: 'Smooth'                     },
 
     // ── Solo / chord-note keys (hold; Shift=+oct, Ctrl=−oct) ─────────────
     RAND_NOTE:      { key: 'v',                  display: 'V',      hint: 'Rand note (⇧=+oct ⌃=−oct)' },
