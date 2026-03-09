@@ -1850,7 +1850,7 @@ const PerformancePad: React.FC = () => {
                     <div className="flex items-center gap-1 flex-wrap">
                         <span className="text-[9px] text-slate-700 font-black uppercase w-16 shrink-0">Voicing</span>
                         <button
-                            title={voicingBase ? 'Restore original voicing for all steps (O)' : 'No voicing changes yet (O)'}
+                            title={voicingBase ? `Restore original voicing for all steps (${KB.ORIGINAL.display})` : `No voicing changes yet (${KB.ORIGINAL.display})`}
                             disabled={!voicingBase}
                             onClick={() => {
                                 if (!voicingBase) return;
@@ -1863,14 +1863,14 @@ const PerformancePad: React.FC = () => {
                             Original
                         </button>
                         <button
-                            title="Compress all steps: pull each note into the octave below the leading tone; duplicate pitch classes are spread one octave apart (C)"
+                            title={`Compress all steps: pull each note into the octave below the leading tone; duplicate pitch classes are spread one octave apart (${KB.COMPRESS.display})`}
                             onClick={() => applyVoicing(compressVoicing)}
                             className="text-[9px] bg-white/5 hover:bg-teal-500/20 hover:text-teal-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
                         >
                             Compress
                         </button>
                         <button
-                            title="Smooth (N): revoice every step so voices move as little as possible between chords. Anchored to the current step (its voicing is unchanged). Melody, bass and inner voices are matched by role across chord changes — not by fixed position — so chords with different note counts smooth correctly."
+                            title={`Smooth (${KB.SMOOTH.display}): revoice every step so voices move as little as possible between chords. Anchored to the current step (its voicing is unchanged). Melody, bass and inner voices are matched by role across chord changes — not by fixed position — so chords with different note counts smooth correctly.`}
                             onClick={applySmooth}
                             className="text-[9px] bg-white/5 hover:bg-cyan-500/20 hover:text-cyan-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
                         >
@@ -1881,7 +1881,7 @@ const PerformancePad: React.FC = () => {
                             return Array.from({ length: Math.max(0, noteCount - 1) }, (_, i) => i + 1).map(n => (
                                 <button
                                     key={`drop-${n}`}
-                                    title={`Drop ${n} (all steps): lower the ${ordinal(n)}-highest note by octaves until it no longer duplicates another note${n === 1 ? ' (⇧I)' : n === 2 ? ' (U)' : ''}`}
+                                    title={`Drop ${n} (all steps): lower the ${ordinal(n)}-highest note by octaves until it no longer duplicates another note${n === 1 ? ` (${KB.DROP_1.display})` : n === 2 ? ` (${KB.DROP_2.display})` : ''}`}
                                     onClick={() => applyVoicing(m => dropChord(m, n))}
                                     className="text-[9px] bg-white/5 hover:bg-sky-500/20 hover:text-sky-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
                                 >
@@ -1895,7 +1895,7 @@ const PerformancePad: React.FC = () => {
                             return Array.from({ length: noteCount - 1 }, (_, i) => i + 1).map(k => (
                                 <button
                                     key={`inv-${k}`}
-                                    title={`${ordinal(k)} inversion (all steps): rotate the ${k} lowest pitch class${k > 1 ? 'es' : ''} above the top — octave doublings stay in place${k === 1 ? ' (I)' : ''}`}
+                                    title={`${ordinal(k)} inversion (all steps): rotate the ${k} lowest pitch class${k > 1 ? 'es' : ''} above the top — octave doublings stay in place${k === 1 ? ` (${KB.INVERT_1.display})` : ''}`}
                                     onClick={() => applyVoicing(m => invertChord(m, k))}
                                     className="text-[9px] bg-white/5 hover:bg-purple-500/20 hover:text-purple-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
                                 >
@@ -1907,21 +1907,21 @@ const PerformancePad: React.FC = () => {
                     <div className="flex items-center gap-1 flex-wrap">
                         <span className="text-[9px] text-slate-700 font-black uppercase w-16 shrink-0">Order</span>
                         <button
-                            title="Reverse note order within each chord (e.g. C4+E4+G4 → G4+E4+C4) (⇧R)"
+                            title={`Reverse note order within each chord (e.g. C4+E4+G4 → G4+E4+C4) (${KB.ORDER_REV.display})`}
                             onClick={() => setSequenceInput(prev => reorderChordNotes(prev, 'reverse'))}
                             className="text-[9px] bg-white/5 hover:bg-amber-500/20 hover:text-amber-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
                         >
                             Reverse
                         </button>
                         <button
-                            title="Randomise note order within each chord (R)"
+                            title={`Randomise note order within each chord (${KB.ORDER_RAND.display})`}
                             onClick={() => setSequenceInput(prev => reorderChordNotes(prev, 'random'))}
                             className="text-[9px] bg-white/5 hover:bg-amber-500/20 hover:text-amber-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
                         >
                             Random
                         </button>
                         <button
-                            title="Sort notes by pitch low→high within each chord (S)"
+                            title={`Sort notes by pitch low→high within each chord (${KB.ORDER_SORT.display})`}
                             onClick={() => setSequenceInput(prev => reorderChordNotes(prev, 'sort'))}
                             className="text-[9px] bg-white/5 hover:bg-amber-500/20 hover:text-amber-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
                         >
