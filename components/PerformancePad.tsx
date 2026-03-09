@@ -925,34 +925,12 @@ const KB = {
 
     // ── Solo / chord-note keys (hold; Shift=+oct, Ctrl=−oct) ─────────────
     RAND_NOTE:      { key: 'v',                  display: 'V',      hint: 'Rand note (⇧=+oct ⌃=−oct)' },
-    CHORD_0:        { key: 'j',                  display: 'J',      hint: 'Note lo (⇧=+oct ⌃=−oct)'   },
-    CHORD_1:        { key: 'k',                  display: 'K',      hint: 'Note 2  (⇧=+oct ⌃=−oct)'   },
-    CHORD_2:        { key: 'l',                  display: 'L',      hint: 'Note 3  (⇧=+oct ⌃=−oct)'   },
-    CHORD_3:        { key: ';', shiftAlias: ':' /* Shift+; on US keyboards */, display: ';', hint: 'Note hi (⇧=+oct ⌃=−oct)' },
 } as const;
 
 /** Hint bar text shown at the bottom of the pad — auto-generated from KB. */
 const KEY_HINT = (Object.values(KB) as { display: string; hint: string }[])
     .map(b => `${b.display}: ${b.hint}`)
     .join(' · ');
-
-/**
- * Alias → canonical key map, built from every KB entry that declares a
- * `shiftAlias` (e.g. CHORD_3: key ';', shiftAlias ':').
- * Extend any KB entry with `shiftAlias` to register it here automatically.
- */
-const KEY_ALIAS_MAP: Record<string, string> = (
-    Object.values(KB) as { key: unknown; shiftAlias?: string }[]
-).reduce((acc, entry) => {
-    if (entry.shiftAlias) acc[entry.shiftAlias] = entry.key as string;
-    return acc;
-}, {} as Record<string, string>);
-
-/** Resolve a raw e.key to its canonical KB key, handling any shiftAlias. */
-function resolveKbKey(raw: string): string {
-    const lower = raw.toLowerCase();
-    return KEY_ALIAS_MAP[lower] ?? lower;
-}
 
 /**
  * Map from shifted e.key values back to their unshifted physical key.
@@ -973,9 +951,6 @@ const UNSHIFTED_KEY: Record<string, string> = {
 function physicalKeyOf(key: string): string {
     return UNSHIFTED_KEY[key] ?? key.toLowerCase();
 }
-
-/** The four chord-note hold keys in linear-index order (lo → hi). */
-const CHORD_KEYS = [KB.CHORD_0, KB.CHORD_1, KB.CHORD_2, KB.CHORD_3] as const;
 
 // ---------------------------------------------------------------------------
 // Solo key layout system
@@ -2014,17 +1989,17 @@ const PerformancePad: React.FC = () => {
                         >
                             Reset
                         </button>
-                        {([KB.CHORD_0, KB.CHORD_1, KB.CHORD_2, KB.CHORD_3] as const).map((kb, i) => (
+                        {(['lo', '2nd', '3rd', 'hi'] as const).map((label, i) => (
                             <button
-                                key={kb.key}
-                                title={`${kb.hint} (${kb.display})`}
+                                key={label}
+                                title={`Play chord note ${label} — touch/click to hold`}
                                 onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); playNoteFromCurrentStepByLinearIndex(i); }}
                                 onPointerUp={() => stopTriggerIfIdle()}
                                 onPointerLeave={() => stopTriggerIfIdle()}
                                 onPointerCancel={() => stopTriggerIfIdle()}
                                 className="text-[10px] bg-white/5 hover:bg-violet-500/20 hover:text-violet-300 px-2 py-1 rounded text-slate-400 uppercase font-bold select-none"
                             >
-                                {kb.display}{i === 0 ? ' (lo)' : i === 3 ? ' (hi)' : ''}
+                                ♩ {label}
                             </button>
                         ))}
                         <button
