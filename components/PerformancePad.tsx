@@ -925,13 +925,34 @@ const KB = {
     CHORD_0:        { key: 'j',                  display: 'J',      hint: 'Note lo (⇧=+oct ⌃=−oct)'   },
     CHORD_1:        { key: 'k',                  display: 'K',      hint: 'Note 2  (⇧=+oct ⌃=−oct)'   },
     CHORD_2:        { key: 'l',                  display: 'L',      hint: 'Note 3  (⇧=+oct ⌃=−oct)'   },
-    CHORD_3:        { key: ';' /* ⇧; = : */,     display: ';',      hint: 'Note hi (⇧=+oct ⌃=−oct)'   },
+    CHORD_3:        { key: ';', shiftAlias: ':' /* Shift+; on US keyboards */, display: ';', hint: 'Note hi (⇧=+oct ⌃=−oct)' },
 } as const;
 
 /** Hint bar text shown at the bottom of the pad — auto-generated from KB. */
 const KEY_HINT = (Object.values(KB) as { display: string; hint: string }[])
     .map(b => `${b.display}: ${b.hint}`)
     .join(' · ');
+
+/**
+ * Alias → canonical key map, built from every KB entry that declares a
+ * `shiftAlias` (e.g. CHORD_3: key ';', shiftAlias ':').
+ * Extend any KB entry with `shiftAlias` to register it here automatically.
+ */
+const KEY_ALIAS_MAP: Record<string, string> = (
+    Object.values(KB) as { key: unknown; shiftAlias?: string }[]
+).reduce((acc, entry) => {
+    if (entry.shiftAlias) acc[entry.shiftAlias] = entry.key as string;
+    return acc;
+}, {} as Record<string, string>);
+
+/** Resolve a raw e.key to its canonical KB key, handling any shiftAlias. */
+function resolveKbKey(raw: string): string {
+    const lower = raw.toLowerCase();
+    return KEY_ALIAS_MAP[lower] ?? lower;
+}
+
+/** The four chord-note hold keys in linear-index order (lo → hi). */
+const CHORD_KEYS = [KB.CHORD_0, KB.CHORD_1, KB.CHORD_2, KB.CHORD_3] as const;
 
 const PerformancePad: React.FC = () => {
     const padRef = useRef<HTMLDivElement>(null);
@@ -1407,21 +1428,20 @@ const PerformancePad: React.FC = () => {
                 return;
             }
 
-            // KB.CHORD_0/1/2/3: chord note keys (hold; Shift=+oct, Ctrl=−oct)
-            // ':' is Shift+; on US keyboards — normalised to KB.CHORD_3.key
-            const chordKeyMap: Record<string, number> = {
-                [KB.CHORD_0.key]: 0,
-                [KB.CHORD_1.key]: 1,
-                [KB.CHORD_2.key]: 2,
-                [KB.CHORD_3.key]: 3,
-                ':':              3,  // Shift+; alias (when KB.CHORD_3.key is ';')
-            };
-            const chordKeyNorm = e.key.toLowerCase() === ':' ? ':' : e.key.toLowerCase();
+            // CHORD_KEYS: chord note keys (hold; Shift=+oct, Ctrl=−oct)
+            // resolveKbKey normalises any shiftAlias to the canonical key automatically.
+            const chordKeyMap: Record<string, number> = Object.fromEntries(
+                CHORD_KEYS.flatMap((kb, i) => {
+                    const entries: [string, number][] = [[kb.key, i]];
+                    if ('shiftAlias' in kb && kb.shiftAlias) entries.push([kb.shiftAlias, i]);
+                    return entries;
+                })
+            );
+            const chordKeyNorm = resolveKbKey(e.key);
             if (chordKeyNorm in chordKeyMap) {
-                const trackKey = chordKeyNorm === ':' ? KB.CHORD_3.key : chordKeyNorm;
-                if (e.repeat || activeKeyboardKeysRef.current.has(trackKey)) return;
+                if (e.repeat || activeKeyboardKeysRef.current.has(chordKeyNorm)) return;
                 e.preventDefault();
-                activeKeyboardKeysRef.current.add(trackKey);
+                activeKeyboardKeysRef.current.add(chordKeyNorm);
                 const octaveShift = e.shiftKey ? 12 : e.ctrlKey ? -12 : 0;
                 playNoteFromCurrentStepByLinearIndex(chordKeyMap[chordKeyNorm], octaveShift);
                 return;
@@ -1438,15 +1458,12 @@ const PerformancePad: React.FC = () => {
         };
 
         const onKeyUp = (e: KeyboardEvent) => {
-            const key = e.key.toLowerCase();
-            // ':' is Shift+; on US keyboards — normalise to KB.CHORD_SEMI.key
-            const normalised = key === ':' ? KB.CHORD_3.key : key;
-            const raw = e.key;
-            const tracked: string[] = [...KB.PLAY.key, KB.CHORD_0.key, KB.CHORD_1.key, KB.CHORD_2.key, KB.CHORD_3.key, KB.RAND_NOTE.key];
-            if (!tracked.includes(normalised) && !tracked.includes(raw)) return;
+            // resolveKbKey handles any shiftAlias across all KB entries.
+            const normalised = resolveKbKey(e.key);
+            const tracked: string[] = [...KB.PLAY.key, ...CHORD_KEYS.map(kb => kb.key), KB.RAND_NOTE.key];
+            if (!tracked.includes(normalised) && !tracked.includes(e.key)) return;
 
             activeKeyboardKeysRef.current.delete(normalised);
-            activeKeyboardKeysRef.current.delete(raw);
             stopTriggerIfIdle();
         };
 
