@@ -922,10 +922,10 @@ const KB = {
 
     // ── Solo / chord-note keys (hold; Shift=+oct, Ctrl=−oct) ─────────────
     RAND_NOTE:      { key: 'v',                  display: 'V',      hint: 'Rand note (⇧=+oct ⌃=−oct)' },
-    CHORD_J:        { key: 'j',                  display: 'J',      hint: 'Note lo (⇧=+oct ⌃=−oct)'   },
-    CHORD_K:        { key: 'k',                  display: 'K',      hint: 'Note 2  (⇧=+oct ⌃=−oct)'   },
-    CHORD_L:        { key: 'l',                  display: 'L',      hint: 'Note 3  (⇧=+oct ⌃=−oct)'   },
-    CHORD_SEMI:     { key: ';' /* ⇧; = : */,     display: ';',      hint: 'Note hi (⇧=+oct ⌃=−oct)'   },
+    CHORD_0:        { key: 'j',                  display: 'J',      hint: 'Note lo (⇧=+oct ⌃=−oct)'   },
+    CHORD_1:        { key: 'k',                  display: 'K',      hint: 'Note 2  (⇧=+oct ⌃=−oct)'   },
+    CHORD_2:        { key: 'l',                  display: 'L',      hint: 'Note 3  (⇧=+oct ⌃=−oct)'   },
+    CHORD_3:        { key: ';' /* ⇧; = : */,     display: ';',      hint: 'Note hi (⇧=+oct ⌃=−oct)'   },
 } as const;
 
 /** Hint bar text shown at the bottom of the pad — auto-generated from KB. */
@@ -1407,18 +1407,18 @@ const PerformancePad: React.FC = () => {
                 return;
             }
 
-            // KB.CHORD_J/K/L/SEMI: chord note keys (hold; Shift=+oct, Ctrl=−oct)
-            // ':' is Shift+; on US keyboards — normalised to KB.CHORD_SEMI.key
+            // KB.CHORD_0/1/2/3: chord note keys (hold; Shift=+oct, Ctrl=−oct)
+            // ':' is Shift+; on US keyboards — normalised to KB.CHORD_3.key
             const chordKeyMap: Record<string, number> = {
-                [KB.CHORD_J.key]:    0,
-                [KB.CHORD_K.key]:    1,
-                [KB.CHORD_L.key]:    2,
-                [KB.CHORD_SEMI.key]: 3,
-                ':':                 3,  // Shift+; alias
+                [KB.CHORD_0.key]: 0,
+                [KB.CHORD_1.key]: 1,
+                [KB.CHORD_2.key]: 2,
+                [KB.CHORD_3.key]: 3,
+                ':':              3,  // Shift+; alias (when KB.CHORD_3.key is ';')
             };
             const chordKeyNorm = e.key.toLowerCase() === ':' ? ':' : e.key.toLowerCase();
             if (chordKeyNorm in chordKeyMap) {
-                const trackKey = chordKeyNorm === ':' ? KB.CHORD_SEMI.key : chordKeyNorm;
+                const trackKey = chordKeyNorm === ':' ? KB.CHORD_3.key : chordKeyNorm;
                 if (e.repeat || activeKeyboardKeysRef.current.has(trackKey)) return;
                 e.preventDefault();
                 activeKeyboardKeysRef.current.add(trackKey);
@@ -1440,9 +1440,9 @@ const PerformancePad: React.FC = () => {
         const onKeyUp = (e: KeyboardEvent) => {
             const key = e.key.toLowerCase();
             // ':' is Shift+; on US keyboards — normalise to KB.CHORD_SEMI.key
-            const normalised = key === ':' ? KB.CHORD_SEMI.key : key;
+            const normalised = key === ':' ? KB.CHORD_3.key : key;
             const raw = e.key;
-            const tracked: string[] = [...KB.PLAY.key, KB.CHORD_J.key, KB.CHORD_K.key, KB.CHORD_L.key, KB.CHORD_SEMI.key, KB.RAND_NOTE.key];
+            const tracked: string[] = [...KB.PLAY.key, KB.CHORD_0.key, KB.CHORD_1.key, KB.CHORD_2.key, KB.CHORD_3.key, KB.RAND_NOTE.key];
             if (!tracked.includes(normalised) && !tracked.includes(raw)) return;
 
             activeKeyboardKeysRef.current.delete(normalised);
@@ -1766,28 +1766,28 @@ const PerformancePad: React.FC = () => {
                         >
                             Reset
                         </button>
-                        {(['j', 'k', 'l', ';'] as const).map((key, i) => (
+                        {([KB.CHORD_0, KB.CHORD_1, KB.CHORD_2, KB.CHORD_3] as const).map((kb, i) => (
                             <button
-                                key={key}
-                                title={`Play chord note ${i + 1}/4 (${i === 0 ? 'lowest' : i === 3 ? 'highest' : `mid-${i}`} pitch) (${key.toUpperCase()})`}
+                                key={kb.key}
+                                title={`${kb.hint} (${kb.display})`}
                                 onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); playNoteFromCurrentStepByLinearIndex(i); }}
                                 onPointerUp={() => stopTriggerIfIdle()}
                                 onPointerLeave={() => stopTriggerIfIdle()}
                                 onPointerCancel={() => stopTriggerIfIdle()}
                                 className="text-[10px] bg-white/5 hover:bg-violet-500/20 hover:text-violet-300 px-2 py-1 rounded text-slate-400 uppercase font-bold select-none"
                             >
-                                {key === ';' ? '; (hi)' : key === 'j' ? 'j (lo)' : key}
+                                {kb.display}{i === 0 ? ' (lo)' : i === 3 ? ' (hi)' : ''}
                             </button>
                         ))}
                         <button
-                            title="Play one random note from the current step (V)"
+                            title={`${KB.RAND_NOTE.hint} (${KB.RAND_NOTE.display})`}
                             onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); playRandomNoteFromCurrentStep(); }}
                             onPointerUp={() => stopTriggerIfIdle()}
                             onPointerLeave={() => stopTriggerIfIdle()}
                             onPointerCancel={() => stopTriggerIfIdle()}
                             className="text-[10px] bg-white/5 hover:bg-fuchsia-500/20 hover:text-fuchsia-300 px-2 py-1 rounded text-slate-400 uppercase font-bold select-none"
                         >
-                            v (rand)
+                            {KB.RAND_NOTE.display} (rand)
                         </button>
                     </div>
                     {sections.length > 0 && (
