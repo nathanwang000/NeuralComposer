@@ -957,6 +957,162 @@ function resolveKbKey(raw: string): string {
 /** The four chord-note hold keys in linear-index order (lo → hi). */
 const CHORD_KEYS = [KB.CHORD_0, KB.CHORD_1, KB.CHORD_2, KB.CHORD_3] as const;
 
+// ---------------------------------------------------------------------------
+// Solo key layout system
+//
+// NoteAddress — two addressing modes:
+//   interval:  play bass + N semitones (root-relative, independent of chord content)
+//   chordTone: play the Nth note of the chord sorted ascending
+//              negative index counts from the top (-1 = highest note)
+//
+// KeyLayout — maps a physical key string to a NoteAddress.
+//   Keys not present in the layout map are silently ignored.
+//
+// SOLO_LAYOUTS — named presets. The default ('chordTones') reproduces the
+//   original J/K/L/; behaviour exactly so nothing changes on first load.
+// ---------------------------------------------------------------------------
+type NoteAddress =
+    | { mode: 'interval';  semitones: number }
+    | { mode: 'chordTone'; index: number };
+
+type KeyLayout = Record<string, NoteAddress>;
+
+type SoloLayoutName = 'chordTones' | 'diatonic' | 'chromatic' | 'chordBiased';
+
+/**
+ * Resolve a NoteAddress to a MIDI note number.
+ * @param address  - the address from the active layout
+ * @param chordMidi - the current step's notes (unsorted)
+ * @param octaveShift - semitones from Shift/Ctrl modifier
+ */
+function resolveNoteAddress(
+    address: NoteAddress,
+    chordMidi: number[],
+    octaveShift: number,
+): number {
+    const sorted = [...chordMidi].sort((a, b) => a - b);
+    const bass = sorted[0] ?? 60;
+
+    if (address.mode === 'interval') {
+        return bass + address.semitones + octaveShift;
+    }
+
+    // chordTone mode: negative index counts from the top
+    const rawIdx = address.index < 0 ? sorted.length + address.index : address.index;
+    const idx = Math.max(0, Math.min(sorted.length - 1, rawIdx));
+    return sorted[idx] + octaveShift;
+}
+
+const SOLO_LAYOUTS: Record<SoloLayoutName, { label: string; description: string; layout: KeyLayout }> = {
+    // ── Default: reproduces original J/K/L/; chord-tone behaviour exactly ─
+    chordTones: {
+        label: 'Chord Tones',
+        description: 'J K L ; → chord notes lo→hi (linear scale)',
+        layout: {
+            'j': { mode: 'chordTone', index: 0  },
+            'k': { mode: 'chordTone', index: 1  },
+            'l': { mode: 'chordTone', index: 2  },
+            ';': { mode: 'chordTone', index: 3  },
+        },
+    },
+
+    // ── Diatonic: home row = white keys (major scale), top row = accidentals ─
+    // All intervals relative to bass note (semitone 0).
+    // Home row H J K L ; '  → 0  2  4  5  7  9   (C D E F G A in C major)
+    // Top row  Y U I O P [  → 1  3  6  8  10 11  (Db Eb F# Ab Bb B)
+    // Bot row  N M , . /    → -1 -3 -5 -7 -8     (B  A  G  F  E below)
+    diatonic: {
+        label: 'Diatonic',
+        description: 'Home row = scale tones, top row = accidentals, bottom row = lower approach',
+        layout: {
+            // home row
+            'h': { mode: 'interval', semitones: 0  },
+            'j': { mode: 'interval', semitones: 2  },
+            'k': { mode: 'interval', semitones: 4  },
+            'l': { mode: 'interval', semitones: 5  },
+            ';': { mode: 'interval', semitones: 7  },
+            "'": { mode: 'interval', semitones: 9  },
+            // top row — accidentals
+            'y': { mode: 'interval', semitones: 1  },
+            'u': { mode: 'interval', semitones: 3  },
+            'i': { mode: 'interval', semitones: 6  },
+            'o': { mode: 'interval', semitones: 8  },
+            'p': { mode: 'interval', semitones: 10 },
+            '[': { mode: 'interval', semitones: 11 },
+            // bottom row — lower chromatic approaches
+            'n': { mode: 'interval', semitones: -1 },
+            'm': { mode: 'interval', semitones: -3 },
+            ',': { mode: 'interval', semitones: -5 },
+            '.': { mode: 'interval', semitones: -7 },
+            '/': { mode: 'interval', semitones: -8 },
+        },
+    },
+
+    // ── Chromatic: fully linear, one semitone per key left→right ──────────
+    // Top row Y U I O P [ ]  → 0  1  2  3  4  5  6
+    // Home row H J K L ; '   → 7  8  9  10 11 12
+    // Bottom row N M , . /   → -5 -4 -3 -2 -1
+    chromatic: {
+        label: 'Chromatic',
+        description: 'Fully chromatic: each key = 1 semitone; top row starts at bass, home row +7',
+        layout: {
+            // top row: semitones 0–6
+            'y': { mode: 'interval', semitones: 0  },
+            'u': { mode: 'interval', semitones: 1  },
+            'i': { mode: 'interval', semitones: 2  },
+            'o': { mode: 'interval', semitones: 3  },
+            'p': { mode: 'interval', semitones: 4  },
+            '[': { mode: 'interval', semitones: 5  },
+            ']': { mode: 'interval', semitones: 6  },
+            // home row: semitones 7–12
+            'h': { mode: 'interval', semitones: 7  },
+            'j': { mode: 'interval', semitones: 8  },
+            'k': { mode: 'interval', semitones: 9  },
+            'l': { mode: 'interval', semitones: 10 },
+            ';': { mode: 'interval', semitones: 11 },
+            "'": { mode: 'interval', semitones: 12 },
+            // bottom row: lower chromatic
+            'n': { mode: 'interval', semitones: -5 },
+            'm': { mode: 'interval', semitones: -4 },
+            ',': { mode: 'interval', semitones: -3 },
+            '.': { mode: 'interval', semitones: -2 },
+            '/': { mode: 'interval', semitones: -1 },
+        },
+    },
+
+    // ── Chord-biased: home row = chord tones, rows = chromatic neighbors ──
+    // Home row J K L ;    → chord tones 0–3 (same as default)
+    // Home row H          → chordTone -1 (top note, melody ceiling)
+    // Top row  Y U   O P  → upper chromatic neighbors of each chord tone
+    // Top row  I          → tritone / b5 above bass
+    // Bot row  N M , . /  → lower chromatic approach notes
+    chordBiased: {
+        label: 'Chord-Biased',
+        description: 'Home row = chord tones; reach up/down for chromatic approach notes',
+        layout: {
+            // home row — chord tones
+            'h': { mode: 'chordTone', index: -1 },  // top note (melody ceiling)
+            'j': { mode: 'chordTone', index: 0  },
+            'k': { mode: 'chordTone', index: 1  },
+            'l': { mode: 'chordTone', index: 2  },
+            ';': { mode: 'chordTone', index: 3  },
+            // top row — upper chromatic / color tones relative to bass
+            'y': { mode: 'interval', semitones: 1  },  // b9
+            'u': { mode: 'interval', semitones: 3  },  // #9 / b3
+            'i': { mode: 'interval', semitones: 6  },  // b5 / #11
+            'o': { mode: 'interval', semitones: 8  },  // b13 / #5
+            'p': { mode: 'interval', semitones: 10 },  // b7
+            '[': { mode: 'interval', semitones: 11 },  // maj7
+            // bottom row — lower chromatic approach notes
+            'n': { mode: 'interval', semitones: -1 },  // leading tone below
+            'm': { mode: 'interval', semitones: -2 },  // b7 below
+            ',': { mode: 'interval', semitones: -4 },  // b6 below
+            '.': { mode: 'interval', semitones: -5 },  // 4th below
+            '/': { mode: 'interval', semitones: -7 },  // 5th below
+        },
+    },
+};
+
 const PerformancePad: React.FC = () => {
     const padRef = useRef<HTMLDivElement>(null);
     const activePointerIdsRef = useRef<Set<number>>(new Set());
@@ -981,6 +1137,11 @@ const PerformancePad: React.FC = () => {
     // Voicing snapshot — set on the first voicing edit, cleared on any external sequence change
     const [voicingBase, setVoicingBase] = useState<string | null>(null);
     const voicingChangeInProgressRef = useRef(false);
+
+    // Solo key layout
+    const [currentLayout, setCurrentLayout] = useState<SoloLayoutName>('chordTones');
+    const currentLayoutRef = useRef<SoloLayoutName>('chordTones');
+    useEffect(() => { currentLayoutRef.current = currentLayout; }, [currentLayout]);
 
     // Mappings
     const [xTargets, setXTargets] = useState<ModulationTarget[]>(['cutoff']);
@@ -1220,6 +1381,7 @@ const PerformancePad: React.FC = () => {
      * Play a note from the current step mapped linearly by keyIndex (0 = min pitch, 3 = max pitch).
      * Notes in the step are sorted ascending; keyIndex is scaled across them.
      * octaveShift: semitones to add (+12 = up one octave, -12 = down one octave).
+     * Used by the UI buttons which don't go through the layout system.
      */
     const playNoteFromCurrentStepByLinearIndex = useCallback((keyIndex: number, octaveShift = 0) => {
         const sequence = chordSequence.length > 0 ? chordSequence : [{ notes: [60], strumMs: 0 }];
@@ -1236,6 +1398,29 @@ const PerformancePad: React.FC = () => {
         // not using chordVolumeRef.current because this is a solo note outside the continuous chord voices
         const midi = sorted[Math.min(noteIdx, sorted.length - 1)];
         audioEngine.addContinuousNote(Math.max(0, Math.min(127, midi + octaveShift)), 100);
+    }, [chordSequence, isPlaying]);
+
+    /**
+     * Play a note using the active solo key layout.
+     * Looks up the physical key in the current layout, resolves the NoteAddress
+     * against the current chord step, and plays the result.
+     * Returns true if the key was handled, false if the layout has no mapping for it.
+     */
+    const playSoloKey = useCallback((physicalKey: string, octaveShift = 0): boolean => {
+        const layout = SOLO_LAYOUTS[currentLayoutRef.current].layout;
+        const address = layout[physicalKey];
+        if (!address) return false;
+
+        const sequence = chordSequence.length > 0 ? chordSequence : [{ notes: [60], strumMs: 0 }];
+        const stepIndex = isPlaying
+            ? (currentNoteIndexRef.current - 1 + sequence.length) % sequence.length
+            : currentNoteIndexRef.current % sequence.length;
+        const step = sequence[stepIndex];
+        if (step.notes.length === 0) return false;
+
+        const midi = resolveNoteAddress(address, step.notes, octaveShift);
+        audioEngine.addContinuousNote(Math.max(0, Math.min(127, midi)), 100);
+        return true;
     }, [chordSequence, isPlaying]);
 
     const jumpToSection = useCallback((sectionIndex: number) => {
@@ -1449,23 +1634,19 @@ const PerformancePad: React.FC = () => {
                 return;
             }
 
-            // CHORD_KEYS: chord note keys (hold; Shift=+oct, Ctrl=−oct)
-            // resolveKbKey normalises any shiftAlias to the canonical key automatically.
-            const chordKeyMap: Record<string, number> = Object.fromEntries(
-                CHORD_KEYS.flatMap((kb, i) => {
-                    const entries: [string, number][] = [[kb.key, i]];
-                    if ('shiftAlias' in kb && kb.shiftAlias) entries.push([kb.shiftAlias, i]);
-                    return entries;
-                })
-            );
-            const chordKeyNorm = resolveKbKey(e.key);
-            if (chordKeyNorm in chordKeyMap) {
-                if (e.repeat || activeKeyboardKeysRef.current.has(chordKeyNorm)) return;
-                e.preventDefault();
-                activeKeyboardKeysRef.current.add(chordKeyNorm);
-                const octaveShift = e.shiftKey ? 12 : e.ctrlKey ? -12 : 0;
-                playNoteFromCurrentStepByLinearIndex(chordKeyMap[chordKeyNorm], octaveShift);
-                return;
+            // Solo layout keys — resolved through the active KeyLayout.
+            // Any key present in the current layout is handled here; keys not
+            // in the layout fall through silently to the PLAY handler below.
+            {
+                const physicalKey = e.key;
+                if (!e.repeat && !activeKeyboardKeysRef.current.has(physicalKey)) {
+                    const octaveShift = e.shiftKey ? 12 : e.ctrlKey ? -12 : 0;
+                    if (playSoloKey(physicalKey, octaveShift)) {
+                        e.preventDefault();
+                        activeKeyboardKeysRef.current.add(physicalKey);
+                        return;
+                    }
+                }
             }
 
             // KB.PLAY: play chord (hold)
@@ -1479,12 +1660,18 @@ const PerformancePad: React.FC = () => {
         };
 
         const onKeyUp = (e: KeyboardEvent) => {
-            // resolveKbKey handles any shiftAlias across all KB entries.
-            const normalised = resolveKbKey(e.key);
-            const tracked: string[] = [...KB.PLAY.key, ...CHORD_KEYS.map(kb => kb.key), KB.RAND_NOTE.key];
-            if (!tracked.includes(normalised) && !tracked.includes(e.key)) return;
+            // Release any key that was tracked as a held solo note or play key.
+            // This covers: KB.PLAY keys, KB.RAND_NOTE, and any key in the active layout.
+            const physicalKey = e.key;
+            const playKeys: string[] = [...KB.PLAY.key];
+            const isTracked =
+                playKeys.includes(physicalKey.toLowerCase()) ||
+                physicalKey === KB.RAND_NOTE.key ||
+                activeKeyboardKeysRef.current.has(physicalKey);
+            if (!isTracked) return;
 
-            activeKeyboardKeysRef.current.delete(normalised);
+            activeKeyboardKeysRef.current.delete(physicalKey);
+            activeKeyboardKeysRef.current.delete(physicalKey.toLowerCase());
             stopTriggerIfIdle();
         };
 
@@ -1495,7 +1682,7 @@ const PerformancePad: React.FC = () => {
             window.removeEventListener('keydown', onKeyDown);
             window.removeEventListener('keyup', onKeyUp);
         };
-    }, [startTrigger, stopTriggerIfIdle, jumpToSection, playRandomNoteFromCurrentStep, playNoteFromCurrentStepByLinearIndex, applyVoicing, applyTranspose, applySmooth, voicingBase, currentNoteIndex, chordSequence]);
+    }, [startTrigger, stopTriggerIfIdle, jumpToSection, playRandomNoteFromCurrentStep, playSoloKey, applyVoicing, applyTranspose, applySmooth, voicingBase, currentNoteIndex, chordSequence]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
         const target = e.target as HTMLElement;
@@ -1827,6 +2014,24 @@ const PerformancePad: React.FC = () => {
                         >
                             {KB.RAND_NOTE.display} (rand)
                         </button>
+                    </div>
+                    {/* Solo key layout switcher */}
+                    <div className="flex items-center gap-1 flex-wrap">
+                        <span className="text-[9px] text-slate-700 font-black uppercase w-16 shrink-0">Solo Layout</span>
+                        {(Object.entries(SOLO_LAYOUTS) as [SoloLayoutName, typeof SOLO_LAYOUTS[SoloLayoutName]][]).map(([name, spec]) => (
+                            <button
+                                key={name}
+                                title={spec.description}
+                                onClick={() => { setCurrentLayout(name); currentLayoutRef.current = name; }}
+                                className={`text-[9px] px-2 py-1 rounded font-bold uppercase border transition-all ${
+                                    currentLayout === name
+                                        ? 'bg-violet-600 border-violet-500 text-white'
+                                        : 'bg-white/5 hover:bg-violet-500/20 hover:text-violet-300 border-white/5 text-slate-500'
+                                }`}
+                            >
+                                {spec.label}
+                            </button>
+                        ))}
                     </div>
                     {sections.length > 0 && (
                         <div className="flex items-center gap-1 flex-wrap">
