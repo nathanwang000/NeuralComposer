@@ -954,6 +954,26 @@ function resolveKbKey(raw: string): string {
     return KEY_ALIAS_MAP[lower] ?? lower;
 }
 
+/**
+ * Map from shifted e.key values back to their unshifted physical key.
+ * Alpha keys are handled by .toLowerCase(); only punctuation that changes
+ * shape when Shift is held needs an explicit entry here.
+ */
+const UNSHIFTED_KEY: Record<string, string> = {
+    ':': ';', '"': "'", '{': '[', '}': ']', '<': ',', '>': '.', '?': '/',
+    '~': '`', '!': '1', '@': '2', '#': '3', '$': '4', '%': '5',
+    '^': '6', '&': '7', '*': '8', '(': '9', ')': '0', '_': '-', '+': '=',
+    '|': '\\',
+};
+
+/**
+ * Return the unshifted physical key string from any e.key value.
+ * Shift+J → 'j', Shift+; → ';', Shift+[ → '[', etc.
+ */
+function physicalKeyOf(key: string): string {
+    return UNSHIFTED_KEY[key] ?? key.toLowerCase();
+}
+
 /** The four chord-note hold keys in linear-index order (lo → hi). */
 const CHORD_KEYS = [KB.CHORD_0, KB.CHORD_1, KB.CHORD_2, KB.CHORD_3] as const;
 
@@ -1637,8 +1657,10 @@ const PerformancePad: React.FC = () => {
             // Solo layout keys — resolved through the active KeyLayout.
             // Any key present in the current layout is handled here; keys not
             // in the layout fall through silently to the PLAY handler below.
+            // physicalKeyOf() strips the Shift modifier from e.key so that
+            // e.g. Shift+J → 'j' and Shift+; → ';' look up correctly.
             {
-                const physicalKey = e.key;
+                const physicalKey = physicalKeyOf(e.key);
                 if (!e.repeat && !activeKeyboardKeysRef.current.has(physicalKey)) {
                     const octaveShift = e.shiftKey ? 12 : e.ctrlKey ? -12 : 0;
                     if (playSoloKey(physicalKey, octaveShift)) {
@@ -1662,16 +1684,17 @@ const PerformancePad: React.FC = () => {
         const onKeyUp = (e: KeyboardEvent) => {
             // Release any key that was tracked as a held solo note or play key.
             // This covers: KB.PLAY keys, KB.RAND_NOTE, and any key in the active layout.
-            const physicalKey = e.key;
+            // Normalise via physicalKeyOf so releasing Shift before the key
+            // (which flips e.key from 'J' back to 'j') still finds the entry.
+            const physicalKey = physicalKeyOf(e.key);
             const playKeys: string[] = [...KB.PLAY.key];
             const isTracked =
-                playKeys.includes(physicalKey.toLowerCase()) ||
+                playKeys.includes(physicalKey) ||
                 physicalKey === KB.RAND_NOTE.key ||
                 activeKeyboardKeysRef.current.has(physicalKey);
             if (!isTracked) return;
 
             activeKeyboardKeysRef.current.delete(physicalKey);
-            activeKeyboardKeysRef.current.delete(physicalKey.toLowerCase());
             stopTriggerIfIdle();
         };
 
