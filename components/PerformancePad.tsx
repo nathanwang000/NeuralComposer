@@ -867,6 +867,72 @@ const CHORD_PRESETS: { label: string; description: string; sequence: string }[] 
   },
 ];
 
+// ---------------------------------------------------------------------------
+// KB — single source of truth for every keyboard shortcut.
+//
+// key:     the exact e.key value(s) matched in onKeyDown.
+//          For regex-matched keys (digits 1-9), this is a display string only;
+//          the comment marks the entry accordingly.
+// shift:   if true, the shortcut fires only when e.shiftKey is true.
+// display: label rendered in the pad hint bar.
+// hint:    short description rendered in the pad hint bar.
+//
+// To remap a shortcut:
+//   1. Change `key` here.
+//   2. Search the onKeyDown handler for the matching KB.<NAME>.key reference
+//      and update it if the new key requires different matching logic.
+//
+// The hint bar text is generated automatically — no manual update needed.
+// ---------------------------------------------------------------------------
+const KB = {
+    // ── Chord playback (hold) ─────────────────────────────────────────────
+    PLAY:           { key: ['d', 'f'] as const,  display: 'D/F',    hint: 'Play'                       },
+
+    // ── Step navigation ───────────────────────────────────────────────────
+    RESET:          { key: ' ',                  display: 'Space',  hint: 'Reset step'                 },
+    BACK:           { key: 'b',                  display: 'B',      hint: 'Back step'                  },
+    SECTIONS:       { key: '1-9' /* regex */,    display: '1-9',    hint: 'Jump section'               },
+
+    // ── Transpose (plain arrows) ──────────────────────────────────────────
+    SEMITONE_DN:    { key: 'ArrowLeft',           display: '←',      hint: 'Semitone −1'               },
+    SEMITONE_UP:    { key: 'ArrowRight',          display: '→',      hint: 'Semitone +1'               },
+    OCTAVE_UP:      { key: 'ArrowUp',             display: '↑',      hint: 'Octave +1'                 },
+    OCTAVE_DN:      { key: 'ArrowDown',           display: '↓',      hint: 'Octave −1'                 },
+
+    // ── Chord volume (Shift + arrow) ──────────────────────────────────────
+    VOL_DN:         { key: 'ArrowLeft',  shift: true, display: '⇧←', hint: 'Vol −0.1'                 },
+    VOL_UP:         { key: 'ArrowRight', shift: true, display: '⇧→', hint: 'Vol +0.1'                 },
+
+    // ── Strum speed (Shift + arrow) ───────────────────────────────────────
+    STRUM_UP:       { key: 'ArrowUp',    shift: true, display: '⇧↑', hint: 'Strum ×1.5'               },
+    STRUM_DN:       { key: 'ArrowDown',  shift: true, display: '⇧↓', hint: 'Strum ÷1.5'               },
+
+    // ── Note order ────────────────────────────────────────────────────────
+    ORDER_RAND:     { key: 'r',                  display: 'R',      hint: 'Rand order'                 },
+    ORDER_REV:      { key: 'R' /* Shift+r */,    display: '⇧R',     hint: 'Rev order'                  },
+    ORDER_SORT:     { key: 's',                  display: 'S',      hint: 'Sort order'                 },
+
+    // ── Voicing ───────────────────────────────────────────────────────────
+    ORIGINAL:       { key: 'o',                  display: 'O',      hint: 'Orig voicing'               },
+    INVERT_1:       { key: 'i',                  display: 'I',      hint: '1st inv'                    },
+    DROP_1:         { key: 'I' /* Shift+i */,    display: '⇧I',     hint: 'Drop 1'                     },
+    DROP_2:         { key: 'u',                  display: 'U',      hint: 'Drop 2'                     },
+    COMPRESS:       { key: 'c',                  display: 'C',      hint: 'Compress'                   },
+    SMOOTH:         { key: 'n',                  display: 'N',      hint: 'Smooth'                     },
+
+    // ── Solo / chord-note keys (hold; Shift=+oct, Ctrl=−oct) ─────────────
+    RAND_NOTE:      { key: 'v',                  display: 'V',      hint: 'Rand note (⇧=+oct ⌃=−oct)' },
+    CHORD_J:        { key: 'j',                  display: 'J',      hint: 'Note lo (⇧=+oct ⌃=−oct)'   },
+    CHORD_K:        { key: 'k',                  display: 'K',      hint: 'Note 2  (⇧=+oct ⌃=−oct)'   },
+    CHORD_L:        { key: 'l',                  display: 'L',      hint: 'Note 3  (⇧=+oct ⌃=−oct)'   },
+    CHORD_SEMI:     { key: ';' /* ⇧; = : */,     display: ';',      hint: 'Note hi (⇧=+oct ⌃=−oct)'   },
+} as const;
+
+/** Hint bar text shown at the bottom of the pad — auto-generated from KB. */
+const KEY_HINT = (Object.values(KB) as { display: string; hint: string }[])
+    .map(b => `${b.display}: ${b.hint}`)
+    .join(' · ');
+
 const PerformancePad: React.FC = () => {
     const padRef = useRef<HTMLDivElement>(null);
     const activePointerIdsRef = useRef<Set<number>>(new Set());
@@ -1209,16 +1275,16 @@ const PerformancePad: React.FC = () => {
             if (!isMouseInPadRef.current) return;
             if (isTypingElement(e.target)) return;
 
-            // Space: reset step counter
-            if (e.key === ' ') {
+            // KB.RESET: reset step counter
+            if (e.key === KB.RESET.key) {
                 e.preventDefault();
                 setCurrentNoteIndex(0);
                 currentNoteIndexRef.current = 0;
                 return;
             }
 
-            // B: go back one step
-            if (e.key === 'b') {
+            // KB.BACK: go back one step
+            if (e.key === KB.BACK.key) {
                 e.preventDefault();
                 const seqLen = chordSequence.length > 0 ? chordSequence.length : 1;
                 const prev = (currentNoteIndexRef.current - 1 + seqLen) % seqLen;
@@ -1227,7 +1293,7 @@ const PerformancePad: React.FC = () => {
                 return;
             }
 
-            // Digit 1-9: jump to section
+            // KB.SECTIONS: jump to section (digits 1-9, matched via /^[1-9]$/ regex)
             if (/^[1-9]$/.test(e.key)) {
                 e.preventDefault();
                 jumpToSection(parseInt(e.key) - 1);
@@ -1235,11 +1301,11 @@ const PerformancePad: React.FC = () => {
             }
 
             // Arrow keys
-            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+            if (([KB.SEMITONE_DN.key, KB.SEMITONE_UP.key, KB.OCTAVE_UP.key, KB.OCTAVE_DN.key] as string[]).includes(e.key)) {
                 e.preventDefault();
                 if (e.shiftKey) {
-                    // Shift+Left/Right: chord volume −/+ 0.1
-                    if (e.key === 'ArrowLeft') {
+                    // KB.VOL_DN / KB.VOL_UP: chord volume −/+ 0.1
+                    if (e.key === KB.VOL_DN.key) {
                         setChordVolume(prev => {
                             const v = Math.max(0, Math.round((prev - 0.1) * 10) / 10);
                             chordVolumeRef.current = v;
@@ -1247,7 +1313,7 @@ const PerformancePad: React.FC = () => {
                         });
                         return;
                     }
-                    if (e.key === 'ArrowRight') {
+                    if (e.key === KB.VOL_UP.key) {
                         setChordVolume(prev => {
                             const v = Math.min(1, Math.round((prev + 0.1) * 10) / 10);
                             chordVolumeRef.current = v;
@@ -1255,42 +1321,46 @@ const PerformancePad: React.FC = () => {
                         });
                         return;
                     }
-                    // Shift+Up/Down: scale strum speed ×/÷1.5
+                    // KB.STRUM_UP / KB.STRUM_DN: scale strum speed
                     const strumFactor: Record<string, number> = {
-                        ArrowUp: 1.5, ArrowDown: 1 / 1.5,
+                        [KB.STRUM_UP.key]: 1.5,
+                        [KB.STRUM_DN.key]: 1 / 1.5,
                     };
                     if (strumFactor[e.key] !== undefined) {
                         setSequenceInput(prev => scaleStrumSpeed(prev, strumFactor[e.key]));
                     }
                 } else {
-                    // Arrow: transpose semitones / octaves
+                    // KB.SEMITONE_* / KB.OCTAVE_*: transpose
                     const arrowDelta: Record<string, number> = {
-                        ArrowLeft: -1, ArrowRight: 1, ArrowUp: 12, ArrowDown: -12,
+                        [KB.SEMITONE_DN.key]: -1,
+                        [KB.SEMITONE_UP.key]:  1,
+                        [KB.OCTAVE_UP.key]:   12,
+                        [KB.OCTAVE_DN.key]:  -12,
                     };
                     applyTranspose(arrowDelta[e.key]);
                 }
                 return;
             }
 
-            // R / Shift+R / S: reorder chord notes
-            if (e.key === 'r') {
+            // KB.ORDER_RAND / KB.ORDER_REV / KB.ORDER_SORT: reorder chord notes
+            if (e.key === KB.ORDER_RAND.key) {
                 e.preventDefault();
                 setSequenceInput(prev => reorderChordNotes(prev, 'random'));
                 return;
             }
-            if (e.key === 'R') {
+            if (e.key === KB.ORDER_REV.key) {
                 e.preventDefault();
                 setSequenceInput(prev => reorderChordNotes(prev, 'reverse'));
                 return;
             }
-            if (e.key === 's') {
+            if (e.key === KB.ORDER_SORT.key) {
                 e.preventDefault();
                 setSequenceInput(prev => reorderChordNotes(prev, 'sort'));
                 return;
             }
 
-            // O: restore original voicing
-            if (e.key === 'o') {
+            // KB.ORIGINAL: restore original voicing
+            if (e.key === KB.ORIGINAL.key) {
                 e.preventDefault();
                 if (voicingBase) {
                     voicingChangeInProgressRef.current = true;
@@ -1300,50 +1370,55 @@ const PerformancePad: React.FC = () => {
                 return;
             }
 
-            // I: 1st inversion  |  Shift+I: drop leading tone (Drop 1)  |  U: Drop 2
-            if (e.key === 'i') {
+            // KB.INVERT_1 / KB.DROP_1 / KB.DROP_2 / KB.COMPRESS / KB.SMOOTH: voicing
+            if (e.key === KB.INVERT_1.key) {
                 e.preventDefault();
                 applyVoicing(m => invertChord(m, 1));
                 return;
             }
-            if (e.key === 'I') {
+            if (e.key === KB.DROP_1.key) {
                 e.preventDefault();
                 applyVoicing(m => dropChord(m, 1));
                 return;
             }
-            if (e.key === 'u') {
+            if (e.key === KB.DROP_2.key) {
                 e.preventDefault();
                 applyVoicing(m => dropChord(m, 2));
                 return;
             }
-            if (e.key === 'c') {
+            if (e.key === KB.COMPRESS.key) {
                 e.preventDefault();
                 applyVoicing(compressVoicing);
                 return;
             }
-            if (e.key === 'n') {
+            if (e.key === KB.SMOOTH.key) {
                 e.preventDefault();
                 applySmooth();
                 return;
             }
 
-            /* solo controls section */
-            // V / Shift+V (+octave) / Ctrl+V (−octave): random note from current step
-            if (e.key.toLowerCase() === 'v') {
-                if (e.repeat || activeKeyboardKeysRef.current.has('v')) return;
+            // KB.RAND_NOTE: random note from current step (hold; Shift=+oct, Ctrl=−oct)
+            if (e.key.toLowerCase() === KB.RAND_NOTE.key) {
+                if (e.repeat || activeKeyboardKeysRef.current.has(KB.RAND_NOTE.key)) return;
                 e.preventDefault();
-                activeKeyboardKeysRef.current.add('v');
+                activeKeyboardKeysRef.current.add(KB.RAND_NOTE.key);
                 const octaveShift = e.shiftKey ? 12 : e.ctrlKey ? -12 : 0;
                 playRandomNoteFromCurrentStep(octaveShift);
                 return;
             }
 
-            // J/K/L/; (+ Shift = +octave, Ctrl = −octave): linear chord notes (min → max pitch across the chord)
-            // Shift+; produces ':' on US keyboards — normalise back to ';'.
-            const chordKeyMap: Record<string, number> = { j: 0, k: 1, l: 2, ';': 3, ':': 3 };
+            // KB.CHORD_J/K/L/SEMI: chord note keys (hold; Shift=+oct, Ctrl=−oct)
+            // ':' is Shift+; on US keyboards — normalised to KB.CHORD_SEMI.key
+            const chordKeyMap: Record<string, number> = {
+                [KB.CHORD_J.key]:    0,
+                [KB.CHORD_K.key]:    1,
+                [KB.CHORD_L.key]:    2,
+                [KB.CHORD_SEMI.key]: 3,
+                ':':                 3,  // Shift+; alias
+            };
             const chordKeyNorm = e.key.toLowerCase() === ':' ? ':' : e.key.toLowerCase();
             if (chordKeyNorm in chordKeyMap) {
-                const trackKey = chordKeyNorm === ':' ? ';' : chordKeyNorm;
+                const trackKey = chordKeyNorm === ':' ? KB.CHORD_SEMI.key : chordKeyNorm;
                 if (e.repeat || activeKeyboardKeysRef.current.has(trackKey)) return;
                 e.preventDefault();
                 activeKeyboardKeysRef.current.add(trackKey);
@@ -1352,9 +1427,9 @@ const PerformancePad: React.FC = () => {
                 return;
             }
 
-            /* chord controls section */
+            // KB.PLAY: play chord (hold)
             const key = e.key.toLowerCase();
-            if (key !== 'd' && key !== 'f') return;
+            if (!(KB.PLAY.key as readonly string[]).includes(key)) return;
             if (e.repeat || activeKeyboardKeysRef.current.has(key)) return;
 
             activeKeyboardKeysRef.current.add(key);
@@ -1364,10 +1439,10 @@ const PerformancePad: React.FC = () => {
 
         const onKeyUp = (e: KeyboardEvent) => {
             const key = e.key.toLowerCase();
-            // ':' is Shift+; on US keyboards — normalise to ';' so the tracked key is removed correctly.
-            const normalised = key === ':' ? ';' : key;
+            // ':' is Shift+; on US keyboards — normalise to KB.CHORD_SEMI.key
+            const normalised = key === ':' ? KB.CHORD_SEMI.key : key;
             const raw = e.key;
-            const tracked = ['d', 'f', 'j', 'k', 'l', ';', 'v'];
+            const tracked: string[] = [...KB.PLAY.key, KB.CHORD_J.key, KB.CHORD_K.key, KB.CHORD_L.key, KB.CHORD_SEMI.key, KB.RAND_NOTE.key];
             if (!tracked.includes(normalised) && !tracked.includes(raw)) return;
 
             activeKeyboardKeysRef.current.delete(normalised);
@@ -1550,7 +1625,7 @@ const PerformancePad: React.FC = () => {
                Y: {yTargets.join(', ') || 'None'}
             </div>
                 <div className="absolute bottom-4 left-4 text-[10px] font-black text-slate-700 pointer-events-none select-none uppercase tracking-widest hidden md:block">
-                    D/F: Play · ←→: Semitone · ↑↓: Octave · ⇧←→: Vol · ⇧↑↓: Strum · R: Rand · ⇧R: Rev · S: Sort · I: 1st Inv · ⇧I: Drop1 · U: Drop2 · C: Compress · N: Smooth · O: Orig · J/K/L/;: Chord Keys (⇧=+oct, ⌃=−oct) · V: Rand Note (⇧=+oct, ⌃=−oct) · B: Back Step · Space: Reset · 1-9: Section
+                    {KEY_HINT}
                 </div>
 
             {/* Active Cursor/Visualizer */}
