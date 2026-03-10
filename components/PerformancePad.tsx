@@ -1134,6 +1134,15 @@ const SOLO_LAYOUTS: Record<SoloLayoutName, { label: string; description: string;
     },
 };
 
+// Colour palette cycled per simultaneous touch point.
+const TOUCH_COLORS = [
+    { dot: '#818cf8', glow: 'rgba(99,102,241,0.22)',  ring: 'rgba(129,140,248,0.55)' }, // indigo
+    { dot: '#a78bfa', glow: 'rgba(139,92,246,0.22)',  ring: 'rgba(167,139,250,0.55)' }, // violet
+    { dot: '#e879f9', glow: 'rgba(217,70,239,0.22)',  ring: 'rgba(232,121,249,0.55)' }, // fuchsia
+    { dot: '#22d3ee', glow: 'rgba(6,182,212,0.22)',   ring: 'rgba(34,211,238,0.55)'  }, // cyan
+    { dot: '#34d399', glow: 'rgba(16,185,129,0.22)',  ring: 'rgba(52,211,153,0.55)'  }, // emerald
+];
+
 const PerformancePad: React.FC = () => {
     const padRef = useRef<HTMLDivElement>(null);
     const activePointerIdsRef = useRef<Set<number>>(new Set());
@@ -1146,7 +1155,9 @@ const PerformancePad: React.FC = () => {
     const [isPlaying, setIsPlaying] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isFallbackFullscreen, setIsFallbackFullscreen] = useState(false);
-    const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 }); // 0-1 normalized
+    const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 }); // 0-1 normalised
+    // Per-finger positions for multi-touch visualisation.
+    const [touchPoints, setTouchPoints] = useState<{ id: number; x: number; y: number }[]>([]);
 
     // Sequence
     const [sequenceInput, setSequenceInput] = useState("C4+E4+G4+B5+C5+E6+G6+E5+C5+B4@200ms, D4+E4+G4+B5+C5+E6+G6+E5+C5+B4@200ms,F4+C5+A5,F4+C5+A5,F4+C5+G5,F4+C5+F5,E4+C5+G5");
@@ -1745,13 +1756,16 @@ const PerformancePad: React.FC = () => {
             : (currentNoteIndexRef.current - 1 + sequence.length) % sequence.length;
         const step = sequence[stepIndex % sequence.length];
 
-        audioEngine.updateActiveVoiceParams(calculateParams(x, y));
         const groupId = audioEngine.startContinuousNotesGroup(
             step.notes,
             Math.round(chordVolumeRef.current * 100),
             step.strumMs,
+            calculateParams(x, y),  // applied only to this finger's voices
         );
         pointerVoiceGroupRef.current.set(e.pointerId, groupId);
+
+        // Track this finger's position for the visualiser.
+        setTouchPoints(prev => [...prev.filter(p => p.id !== e.pointerId), { id: e.pointerId, x, y }]);
 
         // Only advance the step counter for the first finger.
         if (isFirstFinger) {
@@ -1766,13 +1780,27 @@ const PerformancePad: React.FC = () => {
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-        if (!isPlaying || !padRef.current || controlPointerIdRef.current !== e.pointerId) return;
+        if (!isPlaying || !padRef.current) return;
         e.preventDefault();
 
     const rect = padRef.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     const y = Math.max(0, Math.min(1, 1 - (e.clientY - rect.top) / rect.height));
 
+    if (e.pointerType === 'touch') {
+        if (!activePointerIdsRef.current.has(e.pointerId)) return;
+        // Update this finger's dot position.
+        setTouchPoints(prev => prev.map(p => p.id === e.pointerId ? { ...p, x, y } : p));
+        // Modulate only this finger's voice group — other fingers are unaffected.
+        const groupId = pointerVoiceGroupRef.current.get(e.pointerId);
+        if (groupId !== undefined) {
+            audioEngine.updateVoiceGroup(groupId, calculateParams(x, y));
+        }
+        return;
+    }
+
+    // Mouse / pen
+    if (controlPointerIdRef.current !== e.pointerId) return;
     setCursorPos({ x, y });
     const params = calculateParams(x, y);
     audioEngine.updateActiveVoiceParams(params);
@@ -1795,6 +1823,7 @@ const PerformancePad: React.FC = () => {
                 pointerVoiceGroupRef.current.delete(e.pointerId);
                 audioEngine.stopVoiceGroup(groupId);
             }
+            setTouchPoints(prev => prev.filter(p => p.id !== e.pointerId));
         }
 
         if (controlPointerIdRef.current === e.pointerId) {
@@ -1926,22 +1955,54 @@ const PerformancePad: React.FC = () => {
             {/* Active Cursor/Visualizer */}
             {isPlaying && (
                 <>
-                    <div
-                        className="absolute w-full h-[1px] bg-indigo-500/50 pointer-events-none blur-[1px]"
-                        style={{ bottom: `${cursorPos.y * 100}%` }}
-                    />
-                    <div
-                        className="absolute h-full w-[1px] bg-indigo-500/50 pointer-events-none blur-[1px]"
-                        style={{ left: `${cursorPos.x * 100}%` }}
-                    />
-                    <div
-                        className="absolute w-32 h-32 rounded-full bg-indigo-500/20 blur-xl pointer-events-none -translate-x-1/2 translate-y-1/2 transition-transform duration-75"
-                        style={{ left: `${cursorPos.x * 100}%`, bottom: `${cursorPos.y * 100}%` }}
-                    />
-                     <div
-                        className="absolute w-4 h-4 rounded-full bg-white shadow-[0_0_20px_white] pointer-events-none -translate-x-1/2 translate-y-1/2"
-                        style={{ left: `${cursorPos.x * 100}%`, bottom: `${cursorPos.y * 100}%` }}
-                    />
+                    {touchPoints.length > 0 ? (
+                        // Multi-touch: one visual cluster per finger, coloured distinctly.
+                        touchPoints.map((pt, idx) => {
+                            const c = TOUCH_COLORS[idx % TOUCH_COLORS.length];
+                            return (
+                                <React.Fragment key={pt.id}>
+                                    {/* Crosshairs only when there's a single touch */}
+                                    {touchPoints.length === 1 && (
+                                        <>
+                                            <div className="absolute w-full h-[1px] pointer-events-none blur-[1px]"
+                                                style={{ bottom: `${pt.y * 100}%`, backgroundColor: c.ring }} />
+                                            <div className="absolute h-full w-[1px] pointer-events-none blur-[1px]"
+                                                style={{ left: `${pt.x * 100}%`, backgroundColor: c.ring }} />
+                                        </>
+                                    )}
+                                    {/* Glow blob */}
+                                    <div className="absolute w-36 h-36 rounded-full blur-xl pointer-events-none -translate-x-1/2 translate-y-1/2"
+                                        style={{ left: `${pt.x * 100}%`, bottom: `${pt.y * 100}%`, backgroundColor: c.glow }} />
+                                    {/* Expanding ripple ring */}
+                                    <div className="absolute w-12 h-12 rounded-full border-2 pointer-events-none -translate-x-1/2 translate-y-1/2 animate-ping"
+                                        style={{ left: `${pt.x * 100}%`, bottom: `${pt.y * 100}%`, borderColor: c.ring }} />
+                                    {/* Centre dot */}
+                                    <div className="absolute w-4 h-4 rounded-full pointer-events-none -translate-x-1/2 translate-y-1/2"
+                                        style={{ left: `${pt.x * 100}%`, bottom: `${pt.y * 100}%`, backgroundColor: c.dot, boxShadow: `0 0 18px 4px ${c.dot}` }} />
+                                </React.Fragment>
+                            );
+                        })
+                    ) : (
+                        // Mouse / keyboard: original single crosshair.
+                        <>
+                            <div
+                                className="absolute w-full h-[1px] bg-indigo-500/50 pointer-events-none blur-[1px]"
+                                style={{ bottom: `${cursorPos.y * 100}%` }}
+                            />
+                            <div
+                                className="absolute h-full w-[1px] bg-indigo-500/50 pointer-events-none blur-[1px]"
+                                style={{ left: `${cursorPos.x * 100}%` }}
+                            />
+                            <div
+                                className="absolute w-32 h-32 rounded-full bg-indigo-500/20 blur-xl pointer-events-none -translate-x-1/2 translate-y-1/2 transition-transform duration-75"
+                                style={{ left: `${cursorPos.x * 100}%`, bottom: `${cursorPos.y * 100}%` }}
+                            />
+                            <div
+                                className="absolute w-4 h-4 rounded-full bg-white shadow-[0_0_20px_white] pointer-events-none -translate-x-1/2 translate-y-1/2"
+                                style={{ left: `${cursorPos.x * 100}%`, bottom: `${cursorPos.y * 100}%` }}
+                            />
+                        </>
+                    )}
                 </>
             )}
 

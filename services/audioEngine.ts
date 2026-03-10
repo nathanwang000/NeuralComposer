@@ -185,47 +185,47 @@ class AudioEngine {
     }
   }
 
-  private createContinuousVoice(midi: number, velocity: number, startTime: number): ActiveVoice | null {
+  private createContinuousVoice(midi: number, velocity: number, startTime: number, cfg: SynthConfig = this.config): ActiveVoice | null {
     if (!this.ctx) this.init();
     if (!this.ctx || !this.masterGain) return null;
 
     const now = Math.max(startTime, this.ctx.currentTime);
     const freq = this.midiToFreq(midi);
 
-    const waveCorrection = this.config.waveType === 'sine' ? 1.1 : (this.config.waveType === 'sawtooth' ? 0.9 : 1.0);
+    const waveCorrection = cfg.waveType === 'sine' ? 1.1 : (cfg.waveType === 'sawtooth' ? 0.9 : 1.0);
     const levelPerDrive = (velocity / 127) * 0.4 * waveCorrection;
-    const targetVolume = levelPerDrive * this.config.drive;
+    const targetVolume = levelPerDrive * cfg.drive;
 
     const osc = this.ctx.createOscillator();
     const filter = this.ctx.createBiquadFilter();
     const env = this.ctx.createGain();
 
-    osc.type = this.config.waveType as OscillatorType;
+    osc.type = cfg.waveType as OscillatorType;
     osc.frequency.setValueAtTime(freq, now);
-    osc.detune.setValueAtTime(this.config.detune, now);
+    osc.detune.setValueAtTime(cfg.detune, now);
 
-    const filterEnvAmount = this.config.cutoff * 1.5;
+    const filterEnvAmount = cfg.cutoff * 1.5;
     filter.type = 'lowpass';
-    filter.Q.setValueAtTime(this.config.resonance, now);
+    filter.Q.setValueAtTime(cfg.resonance, now);
 
-    const startCutoff = Math.max(100, this.config.cutoff);
+    const startCutoff = Math.max(100, cfg.cutoff);
     filter.frequency.setValueAtTime(startCutoff, now);
 
     filter.frequency.exponentialRampToValueAtTime(
-        Math.min(20000, Math.max(100, this.config.cutoff + filterEnvAmount)),
-        now + this.config.attack
+        Math.min(20000, Math.max(100, cfg.cutoff + filterEnvAmount)),
+        now + cfg.attack
     );
     filter.frequency.exponentialRampToValueAtTime(
-        Math.max(100, this.config.cutoff),
-        now + this.config.attack + this.config.decay
+        Math.max(100, cfg.cutoff),
+        now + cfg.attack + cfg.decay
     );
 
-    const safeSustain = Math.max(0.001, targetVolume * this.config.sustain);
+    const safeSustain = Math.max(0.001, targetVolume * cfg.sustain);
     const safeVolume = Math.max(0.001, targetVolume);
 
     env.gain.setValueAtTime(0, now);
-    env.gain.linearRampToValueAtTime(safeVolume, now + this.config.attack);
-    env.gain.exponentialRampToValueAtTime(safeSustain, now + this.config.attack + this.config.decay);
+    env.gain.linearRampToValueAtTime(safeVolume, now + cfg.attack);
+    env.gain.exponentialRampToValueAtTime(safeSustain, now + cfg.attack + cfg.decay);
 
     osc.connect(filter);
     filter.connect(env);
@@ -265,24 +265,59 @@ class AudioEngine {
    * Start a chord additively (without stopping existing voices).
    * Returns an opaque group ID that can be passed to stopVoiceGroup() to
    * release only these voices, leaving all others playing.
-   * Used for multi-touch: each finger gets its own group.
+   * params: synth parameter overrides applied ONLY to this group's voices —
+   *   other simultaneously-playing groups are completely unaffected.
+   * Used for multi-touch: each finger gets its own group and its own settings.
    */
-  startContinuousNotesGroup(midis: number[], velocity: number, strumMs: number = 0): number {
+  startContinuousNotesGroup(midis: number[], velocity: number, strumMs: number = 0, params?: Partial<SynthConfig>): number {
     if (!midis || midis.length === 0) return -1;
     if (!this.ctx) this.init();
     if (!this.ctx) return -1;
+
+    // Snapshot a config for this group only — never touches other groups.
+    const groupCfg: SynthConfig = params ? { ...this.config, ...params } : { ...this.config };
 
     const baseStartTime = this.ctx.currentTime;
     const safeStepDelaySeconds = Math.max(0, strumMs) / 1000;
 
     const voices = midis
-      .map((midi, index) => this.createContinuousVoice(midi, velocity, baseStartTime + (index * safeStepDelaySeconds)))
+      .map((midi, index) => this.createContinuousVoice(midi, velocity, baseStartTime + (index * safeStepDelaySeconds), groupCfg))
       .filter((voice): voice is ActiveVoice => voice !== null);
 
     this.activeVoices.push(...voices);
     const id = this.nextGroupId++;
     this.voiceGroups.set(id, voices);
     return id;
+  }
+
+  /**
+   * Update synth params for a single voice group only.
+   * Call this on pointer-move for the corresponding touch finger so each
+   * finger modulates only its own voices.
+   */
+  updateVoiceGroup(groupId: number, params: Partial<SynthConfig>) {
+    const group = this.voiceGroups.get(groupId);
+    if (!group || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const rampTime = 0.05;
+    group.forEach(voice => {
+      const { osc, filter, env } = voice;
+      if (params.cutoff !== undefined) {
+        filter.frequency.setTargetAtTime(params.cutoff, now, rampTime);
+      }
+      if (params.resonance !== undefined) {
+        filter.Q.setTargetAtTime(params.resonance, now, rampTime);
+      }
+      if (params.detune !== undefined) {
+        osc.detune.setTargetAtTime(params.detune, now, rampTime);
+      }
+      if (params.sustain !== undefined || params.drive !== undefined) {
+        const drive = params.drive ?? this.config.drive;
+        const sustain = params.sustain ?? this.config.sustain;
+        const sustainLevel = Math.max(0.001, voice.levelPerDrive * drive * sustain);
+        env.gain.setTargetAtTime(sustainLevel, now, rampTime);
+      }
+    });
   }
 
   /**
