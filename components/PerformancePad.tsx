@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { audioEngine } from '../services/audioEngine';
 import { SynthConfig } from '../types';
 
-type ModulationTarget = keyof SynthConfig;
+type ModulationTarget = keyof SynthConfig | 'detune_octave';
 
 type ChordStep = {
     notes: number[];
@@ -791,6 +791,7 @@ const AVAILABLE_TARGETS: { label: string; value: ModulationTarget }[] = [
   { label: 'Filter Cutoff', value: 'cutoff' },
   { label: 'Resonance', value: 'resonance' },
   { label: 'Detune', value: 'detune' },
+  { label: 'Octave Pitch', value: 'detune_octave' },
   { label: 'Sustain', value: 'sustain' },
 ];
 
@@ -1322,25 +1323,26 @@ const PerformancePad: React.FC = () => {
     // x, y are 0-1
     const updates: Partial<SynthConfig> = {};
 
-    // Helper to map 0-1 to parameter ranges
-    const mapValue = (val: number, target: ModulationTarget) => {
+    // Helper to map 0-1 to parameter ranges; returns [synthConfigKey, value]
+    const mapValue = (val: number, target: ModulationTarget): [keyof SynthConfig, number] => {
         switch (target) {
-            case 'cutoff': return 100 + (val * 8000); // 100Hz - 8100Hz
-            case 'resonance': return val * 20; // 0 - 20
-            case 'detune': return (val - 0.5) * 100; // -50 to +50 cents
-            case 'sustain': return val; // 0 - 1
-            default: return 0;
+            case 'cutoff':        return ['cutoff',    100 + (val * 8000)];  // 100Hz - 8100Hz
+            case 'resonance':     return ['resonance', val * 20];            // 0 - 20
+            case 'detune':        return ['detune',    (val - 0.5) * 100];   // -50 to +50 cents
+            case 'detune_octave': return ['detune',    (val - 0.5) * 2400];  // -1200 to +1200 cents (±1 octave)
+            case 'sustain':       return ['sustain',   val];                 // 0 - 1
+            default:              return [target as keyof SynthConfig, 0];
         }
     };
 
     xTargets.forEach(t => {
-         // @ts-ignore
-        updates[t] = mapValue(x, t);
+        const [key, value] = mapValue(x, t);
+        updates[key] = value as never;
     });
 
     yTargets.forEach(t => {
-         // @ts-ignore
-        updates[t] = mapValue(y, t);
+        const [key, value] = mapValue(y, t);
+        updates[key] = value as never;
     });
 
     return updates;
