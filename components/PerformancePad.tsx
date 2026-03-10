@@ -1641,13 +1641,15 @@ const PerformancePad: React.FC = () => {
             // physicalKeyOf() strips Shift from e.key (J→j, ;→;, [→[, etc.).
             {
                 const physicalKey = physicalKeyOf(e.key);
-                if (!e.repeat && !activeKeyboardKeysRef.current.has(physicalKey)) {
-                    const octaveShift = e.shiftKey ? 12 : e.ctrlKey ? -12 : 0;
-                    if (playSoloKey(physicalKey, octaveShift)) {
-                        e.preventDefault();
+                const isLayoutKey = !!SOLO_LAYOUTS[currentLayoutRef.current].layout[physicalKey];
+                if (isLayoutKey) {
+                    e.preventDefault();
+                    if (!e.repeat && !activeKeyboardKeysRef.current.has(physicalKey)) {
+                        const octaveShift = e.shiftKey ? 12 : e.ctrlKey ? -12 : 0;
+                        playSoloKey(physicalKey, octaveShift);
                         activeKeyboardKeysRef.current.add(physicalKey);
-                        return;
                     }
+                    return;
                 }
             }
 
@@ -2007,7 +2009,6 @@ const PerformancePad: React.FC = () => {
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
             onContextMenu={(e) => e.preventDefault()}
-            onSelectStart={(e) => e.preventDefault()}
         >
             <div
                 className="absolute top-3 right-3 z-20 flex items-center gap-2"
