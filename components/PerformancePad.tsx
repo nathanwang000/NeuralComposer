@@ -1335,14 +1335,18 @@ const PerformancePad: React.FC = () => {
         }
     };
 
+    const accumulate = (key: keyof SynthConfig, value: number) => {
+        updates[key] = ((updates[key] as number | undefined) ?? 0) + value as never;
+    };
+
     xTargets.forEach(t => {
         const [key, value] = mapValue(x, t);
-        updates[key] = value as never;
+        accumulate(key, value);
     });
 
     yTargets.forEach(t => {
         const [key, value] = mapValue(y, t);
-        updates[key] = value as never;
+        accumulate(key, value);
     });
 
     return updates;
