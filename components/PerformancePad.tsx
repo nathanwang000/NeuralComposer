@@ -1014,8 +1014,7 @@ function resolveNoteAddress(
 // ---------------------------------------------------------------------------
 // Key detection for interval-mode solo
 //
-// detectMajorKeyTonic  → major key tonic (0–11) used as bass for interval mode
-// detectDisplayKey     → human-readable label (e.g. "A minor", "C major") for UI
+// detectBestKey         → KeySpec with .label (display) and .relativeMajorTonic (bass)
 //
 // Both use the same exponentially-weighted chord history so recent chords matter
 // more. Ambiguity between relative major/minor is resolved by a tonic-in-chord
@@ -1079,32 +1078,20 @@ function buildChordHistory(chordSequence: ChordStep[], stepIndex: number, maxDep
 }
 
 /**
- * Detect the best-matching major key tonic (pitch class 0–11) from chord history.
- * Used to set the bass for interval-mode solos.
+ * Detect the best-matching key from chord history, scoring all 24 keys.
+ * Returns the full KeySpec so callers can read both `.label` (display) and
+ * `.relativeMajorTonic` (bass pitch class for interval-mode solo) from the
+ * same winner — guaranteeing the two never diverge.
+ *
+ * Scoring: all 24 keys are scored by their relative major key via scoreMajorKey.
+ * Tiebreak: +1.0 when the key's own tonic matches the bass note (lowest MIDI
+ * pitch) of the current chord. This correctly handles e.g.:
+ *   C/E/A  → C major vs A minor tied → bass=C → C major wins
+ *   E/G/B  → C major vs G major tied (both score 5) → bass=E → E minor wins
+ *             (E minor has relativeMajorTonic=G, so bass = G)
  */
-function detectMajorKeyTonic(chordHistory: number[][], lambda = 0.6): number {
-    const scores = new Float32Array(12);
-    for (let i = 0; i < chordHistory.length; i++) {
-        const pcs = new Set(chordHistory[i].map(m => ((m % 12) + 12) % 12));
-        const weight = Math.pow(lambda, i);
-        for (let t = 0; t < 12; t++) {
-            scores[t] += weight * scoreMajorKey(t, pcs);
-        }
-    }
-    let best = 0;
-    for (let t = 1; t < 12; t++) {
-        if (scores[t] > scores[best]) best = t;
-    }
-    return best;
-}
-
-/**
- * Detect the best display-key label (e.g. "A minor", "C major") from chord history,
- * scoring all 24 keys. Relative major/minor ties are broken by checking whether
- * the key's own tonic note appears in the current chord.
- */
-function detectDisplayKey(chordHistory: number[][], lambda = 0.6): string {
-    if (chordHistory.length === 0) return '';
+function detectBestKey(chordHistory: number[][], lambda = 0.6): KeySpec {
+    if (chordHistory.length === 0) return ALL_24_KEYS[0];
     const keyScores = ALL_24_KEYS.map(k => {
         let total = 0;
         for (let i = 0; i < chordHistory.length; i++) {
@@ -1113,20 +1100,17 @@ function detectDisplayKey(chordHistory: number[][], lambda = 0.6): string {
         }
         return total;
     });
-    // Tiebreak: give a larger bonus when the key's own tonic matches the
-    // bass note (lowest MIDI pitch) of the current chord.
-    // This correctly disambiguates e.g. C major vs A minor from a C/E/A chord:
-    // if the bass is A → A minor wins; if the bass is C → C major wins.
+    // Tiebreak: bass note of current chord boosts any key whose tonic matches it
     const currentNotes = chordHistory[0];
     const bassPc = ((Math.min(...currentNotes) % 12) + 12) % 12;
     for (let i = 0; i < ALL_24_KEYS.length; i++) {
         if (ALL_24_KEYS[i].tonic === bassPc) keyScores[i] += 1.0;
     }
     let bestIdx = 0;
-    for (let i = 1; i < keyScores.length; i++) {
+    for (let i = 1; i < ALL_24_KEYS.length; i++) {
         if (keyScores[i] > keyScores[bestIdx]) bestIdx = i;
     }
-    return ALL_24_KEYS[bestIdx].label;
+    return ALL_24_KEYS[bestIdx];
 }
 
 const SOLO_LAYOUTS: Record<SoloLayoutName, { label: string; description: string; layout: KeyLayout }> = {
@@ -1359,12 +1343,17 @@ const PerformancePad: React.FC = () => {
     // Recompute detected key whenever sequence or step changes
     useEffect(() => {
         if (chordSequence.length === 0) { setDetectedKey(''); return; }
-        const stepIdx = currentNoteIndex % chordSequence.length;
-        const history = buildChordHistory(chordSequence, stepIdx);
-        const majorTonic = detectMajorKeyTonic(history);
-        detectedMajorTonicRef.current = majorTonic;
-        setDetectedKey(detectDisplayKey(history));
-    }, [chordSequence, currentNoteIndex]);
+        // Mirror the same isPlaying correction used in playSoloKey:
+        // while the pad is held currentNoteIndex has already advanced, so
+        // the sounding step is one behind.
+        const soundingIdx = isPlaying
+            ? (currentNoteIndex - 1 + chordSequence.length) % chordSequence.length
+            : currentNoteIndex % chordSequence.length;
+        const history = buildChordHistory(chordSequence, soundingIdx);
+        const best = detectBestKey(history);
+        detectedMajorTonicRef.current = best.relativeMajorTonic;
+        setDetectedKey(best.label);
+    }, [chordSequence, currentNoteIndex, isPlaying]);
 
     // Mappings
     const [xTargets, setXTargets] = useState<ModulationTarget[]>(['cutoff']);
@@ -1668,7 +1657,9 @@ const PerformancePad: React.FC = () => {
         const step = sequence[stepIndex];
         if (step.notes.length === 0) return false;
 
-        const tonicOverride = address.mode === 'interval' ? detectedMajorTonicRef.current : undefined;
+        const tonicOverride = address.mode === 'interval'
+            ? detectedMajorTonicRef.current
+            : undefined;
         const midi = resolveNoteAddress(address, step.notes, octaveShift, tonicOverride);
         audioEngine.addContinuousNote(Math.max(0, Math.min(127, midi)), 100);
         return true;
