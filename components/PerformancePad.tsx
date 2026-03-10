@@ -1027,8 +1027,8 @@ const KEY_NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A
 
 type KeySpec = { tonic: number; mode: 'major' | 'minor'; label: string; relativeMajorTonic: number };
 
-/** All 24 diatonic keys (12 major + 12 natural minor). */
-const ALL_24_KEYS: KeySpec[] = (() => {
+/** All registered keys. Extend this array to add modes (Dorian, Phrygian, etc.). */
+const ALL_KEYS: KeySpec[] = (() => {
     const keys: KeySpec[] = [];
     for (let t = 0; t < 12; t++) {
         keys.push({ tonic: t, mode: 'major', label: `${KEY_NOTE_NAMES[t]} major`, relativeMajorTonic: t });
@@ -1078,39 +1078,47 @@ function buildChordHistory(chordSequence: ChordStep[], stepIndex: number, maxDep
 }
 
 /**
- * Detect the best-matching key from chord history, scoring all 24 keys.
+ * Detect the best-matching key from chord history using incremental lookback
+ * with candidate pruning.
  * Returns the full KeySpec so callers can read both `.label` (display) and
  * `.relativeMajorTonic` (bass pitch class for interval-mode solo) from the
  * same winner — guaranteeing the two never diverge.
  *
- * Scoring: all 24 keys are scored by their relative major key via scoreMajorKey.
- * Tiebreak: +1.0 when the key's own tonic matches the bass note (lowest MIDI
- * pitch) of the current chord. This correctly handles e.g.:
- *   C/E/A  → C major vs A minor tied → bass=C → C major wins
- *   E/G/B  → C major vs G major tied (both score 5) → bass=E → E minor wins
- *             (E minor has relativeMajorTonic=G, so bass = G)
+ * Algorithm:
+ *   1. Start with all keys as candidates.
+ *   2. Score each candidate against the current chord (depth 0).
+ *   3. Prune to only the top-scoring candidates — discard the rest permanently.
+ *   4. If exactly one candidate remains → return it.
+ *   5. Otherwise score surviving candidates against the next step back and repeat.
+ *   6. If still tied after full history, apply a bass-note tiebreak and return
+ *      the leader among the surviving candidates.
  */
-function detectBestKey(chordHistory: number[][], lambda = 0.6): KeySpec {
-    if (chordHistory.length === 0) return ALL_24_KEYS[0];
-    const keyScores = ALL_24_KEYS.map(k => {
-        let total = 0;
-        for (let i = 0; i < chordHistory.length; i++) {
-            const pcs = new Set(chordHistory[i].map(m => ((m % 12) + 12) % 12));
-            total += Math.pow(lambda, i) * scoreMajorKey(k.relativeMajorTonic, pcs);
-        }
-        return total;
-    });
-    // Tiebreak: bass note of current chord boosts any key whose tonic matches it
-    const currentNotes = chordHistory[0];
-    const bassPc = ((Math.min(...currentNotes) % 12) + 12) % 12;
-    for (let i = 0; i < ALL_24_KEYS.length; i++) {
-        if (ALL_24_KEYS[i].tonic === bassPc) keyScores[i] += 1.0;
+function detectBestKey(chordHistory: number[][]): KeySpec {
+    if (chordHistory.length === 0) return ALL_KEYS[0];
+
+    // Work with indices so pruning is cheap
+    let candidates = ALL_KEYS.map((_, i) => i);
+    const bassPc = ((Math.min(...chordHistory[0]) % 12) + 12) % 12;
+
+    for (let depth = 0; depth < chordHistory.length; depth++) {
+        const pcs = new Set(chordHistory[depth].map(m => ((m % 12) + 12) % 12));
+
+        // Score only surviving candidates against this depth's chord
+        const depthScores = candidates.map(i =>
+            scoreMajorKey(ALL_KEYS[i].relativeMajorTonic, pcs)
+        );
+
+        // Prune to top scorers only
+        const maxDepthScore = Math.max(...depthScores);
+        candidates = candidates.filter((_, j) => depthScores[j] === maxDepthScore);
+
+        if (candidates.length === 1) return ALL_KEYS[candidates[0]];
     }
-    let bestIdx = 0;
-    for (let i = 1; i < ALL_24_KEYS.length; i++) {
-        if (keyScores[i] > keyScores[bestIdx]) bestIdx = i;
-    }
-    return ALL_24_KEYS[bestIdx];
+
+    // Still tied — apply bass-note tiebreak among survivors
+    const withBass = candidates.filter(i => ALL_KEYS[i].tonic === bassPc);
+    if (withBass.length > 0) return ALL_KEYS[withBass[0]];
+    return ALL_KEYS[candidates[0]];
 }
 
 const SOLO_LAYOUTS: Record<SoloLayoutName, { label: string; description: string; layout: KeyLayout }> = {
