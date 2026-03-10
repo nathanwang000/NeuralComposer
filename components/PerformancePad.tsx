@@ -1280,7 +1280,13 @@ const PerformancePad: React.FC = () => {
         document.documentElement.style.overscrollBehavior = 'none';
         window.scrollTo(0, 0);
 
+        // Prevent iOS Safari's pull-down-to-reveal-address-bar gesture from
+        // "exiting" fallback fullscreen. Must be non-passive to call preventDefault.
+        const lockTouchMove = (e: TouchEvent) => { e.preventDefault(); };
+        document.addEventListener('touchmove', lockTouchMove, { passive: false });
+
         return () => {
+            document.removeEventListener('touchmove', lockTouchMove);
             document.body.style.position = prevBodyPosition;
             document.body.style.top = prevBodyTop;
             document.body.style.left = prevBodyLeft;
@@ -1297,6 +1303,17 @@ const PerformancePad: React.FC = () => {
     const toggleFullscreen = useCallback(async () => {
         const el = padRef.current;
         if (!el) return;
+
+        // On iOS Safari, requestFullscreen is either unsupported or exits on a
+        // swipe-down gesture that cannot be suppressed. Always use the fixed-position
+        // fallback on iOS so we can lock touchmove ourselves.
+        const isIOS = /ipad|iphone|ipod/i.test(navigator.userAgent) ||
+            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+        if (isIOS) {
+            setIsFallbackFullscreen(prev => !prev);
+            return;
+        }
 
         try {
             if (document.fullscreenElement === el) {
@@ -1513,6 +1530,49 @@ const PerformancePad: React.FC = () => {
         voicingChangeInProgressRef.current = true;
         setSequenceInput(prev => applySmoothVoicingToSequence(prev, currentNoteIndex));
     }, [sequenceInput, currentNoteIndex]);
+
+    // Suppress iOS text-editing UI (undo bar, clipboard bubble, "looks like typing" prompt).
+    // Must be a non-passive listener so preventDefault() is actually honoured by iOS Safari.
+    // Skip controls (fullscreen button, etc.) so their taps still register.
+    useEffect(() => {
+        const el = padRef.current;
+        if (!el) return;
+        const suppressiOSTextUI = (e: TouchEvent) => {
+            const target = e.target as HTMLElement | null;
+            // Walk up the DOM: if the touch landed on a pad-control element, let it through
+            // so buttons/sliders inside the pad remain tappable.
+            let node: HTMLElement | null = target;
+            while (node && node !== el) {
+                if (node.dataset.padControl === 'true') return;
+                node = node.parentElement;
+            }
+            e.preventDefault();
+        };
+        el.addEventListener('touchstart', suppressiOSTextUI, { passive: false });
+        return () => el.removeEventListener('touchstart', suppressiOSTextUI);
+    }, []);
+
+    // Block iPadOS undo/redo gestures (3-finger swipe / shortcut bar) from triggering
+    // the system undo popup. We only block these when the textarea is NOT focused,
+    // so intentional undo inside the text field still works.
+    useEffect(() => {
+        const blockUndoRedo = (e: Event) => {
+            const ie = e as InputEvent;
+            if (ie.inputType === 'historyUndo' || ie.inputType === 'historyRedo') {
+                const active = document.activeElement;
+                const isInTextField = active && (
+                    active.tagName === 'INPUT' ||
+                    active.tagName === 'TEXTAREA' ||
+                    (active as HTMLElement).isContentEditable
+                );
+                if (!isInTextField) {
+                    e.preventDefault();
+                }
+            }
+        };
+        document.addEventListener('beforeinput', blockUndoRedo);
+        return () => document.removeEventListener('beforeinput', blockUndoRedo);
+    }, []);
 
     useEffect(() => {
         const isTypingElement = (target: EventTarget | null) => {
@@ -1868,6 +1928,12 @@ const PerformancePad: React.FC = () => {
                             userSelect: 'none',
                             WebkitUserSelect: 'none',
                             WebkitTouchCallout: 'none',
+                            // Explicitly mark as non-editable so iOS won't show
+                            // its undo/clipboard bar or "looks like you're typing" prompt.
+                            WebkitUserModify: 'read-only' as any,
+                            WebkitTapHighlightColor: 'transparent',
+                            // Disable autocorrect-style input inference on iPad
+                            MozUserSelect: 'none' as any,
                             ...(isFallbackFullscreen
                                 ? {
                                         position: 'fixed',
@@ -1893,6 +1959,7 @@ const PerformancePad: React.FC = () => {
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
             onContextMenu={(e) => e.preventDefault()}
+            onSelectStart={(e) => e.preventDefault()}
         >
             <button
                 type="button"
@@ -2066,6 +2133,10 @@ const PerformancePad: React.FC = () => {
                 </div>
                 <textarea
                     className="w-full bg-black/40 border border-white/5 rounded-xl p-3 text-xs font-mono text-indigo-300 focus:outline-none focus:border-indigo-500/50 h-24 resize-none"
+                    style={{ touchAction: 'pan-y' }}
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
                     value={sequenceInput}
                     onChange={(e) => setSequenceInput(e.target.value)}
                     placeholder="e.g. [verse]:\nC4+E4+G4@12ms, // tonic\n[chorus]:\nG3+B3+D4@30ms"
