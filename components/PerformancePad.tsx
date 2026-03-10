@@ -2009,14 +2009,17 @@ const PerformancePad: React.FC = () => {
             onContextMenu={(e) => e.preventDefault()}
             onSelectStart={(e) => e.preventDefault()}
         >
-            <div className="absolute top-3 right-3 z-20 flex items-center gap-2">
+            <div
+                className="absolute top-3 right-3 z-20 flex items-center gap-2"
+                onPointerDown={(e) => e.stopPropagation()}
+                onPointerUp={(e) => e.stopPropagation()}
+            >
                 {isTouchDevice && (
                     <button
                         type="button"
                         data-pad-control="true"
                         onPointerDown={(e) => e.stopPropagation()}
-                        onClick={(e) => {
-                            e.preventDefault();
+                        onPointerUp={(e) => {
                             e.stopPropagation();
                             // Stop and release all ghost touch voice groups
                             pointerVoiceGroupRef.current.forEach((groupId) => {
@@ -2037,8 +2040,7 @@ const PerformancePad: React.FC = () => {
                     type="button"
                     data-pad-control="true"
                     onPointerDown={(e) => e.stopPropagation()}
-                    onClick={(e) => {
-                        e.preventDefault();
+                    onPointerUp={(e) => {
                         e.stopPropagation();
                         toggleFullscreen();
                     }}
@@ -2062,6 +2064,7 @@ const PerformancePad: React.FC = () => {
                     data-pad-control="true"
                     className="absolute bottom-12 left-3 z-20 flex flex-wrap gap-1"
                     onPointerDown={(e) => e.stopPropagation()}
+                    onPointerUp={(e) => e.stopPropagation()}
                 >
                     {sections.map((s, i) => (
                         <button
@@ -2069,7 +2072,8 @@ const PerformancePad: React.FC = () => {
                             type="button"
                             data-pad-control="true"
                             title={`Jump to [${s.label}] — step ${s.startStep + 1}`}
-                            onClick={(e) => { e.stopPropagation(); jumpToSection(i); }}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onPointerUp={(e) => { e.stopPropagation(); jumpToSection(i); }}
                             className={`px-2 py-1 rounded text-[9px] font-black uppercase border transition-all ${
                                 currentSection?.label === s.label
                                     ? 'bg-indigo-600/80 border-indigo-400 text-white'
