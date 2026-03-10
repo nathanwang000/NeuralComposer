@@ -974,7 +974,7 @@ type NoteAddress =
 
 type KeyLayout = Record<string, NoteAddress>;
 
-type SoloLayoutName = 'chordTones' | 'wickiHayden' | 'diatonic' | 'chromatic' | 'chordBiased';
+type SoloLayoutName = 'chordTones' | 'wickiHayden' | 'diatonic' | 'chromatic' | 'chordBiased' | 'fullKBwikiHayden';
 
 /**
  * Resolve a NoteAddress to a MIDI note number.
@@ -1037,6 +1037,49 @@ const SOLO_LAYOUTS: Record<SoloLayoutName, { label: string; description: string;
             ',': { mode: 'interval', semitones: 4 },
             '.': { mode: 'interval', semitones: 6 },
             '/': { mode: 'interval', semitones: 8 },
+        }
+    },
+    fullKBwikiHayden: {
+        label: '2 hands Wicki-Hayden',
+        description: 'Wicki-Hayden layout extended to the bottom row (isomorphic keyboard: translationally equivariant)',
+        layout: {
+            // bottom row
+            'z': { mode: 'interval', semitones: -10 },
+            'x': { mode: 'interval', semitones: -8 },
+            'c': { mode: 'interval', semitones: -6 },
+            'v': { mode: 'interval', semitones: -4 },
+            'b': { mode: 'interval', semitones: -2 },
+            'n': { mode: 'interval', semitones: 0 },
+            'm': { mode: 'interval', semitones: 2 },
+            ',': { mode: 'interval', semitones: 4 },
+            '.': { mode: 'interval', semitones: 6 },
+            '/': { mode: 'interval', semitones: 8 },
+            // home row
+            'a': { mode: 'interval', semitones: -5 },
+            's': { mode: 'interval', semitones: -3 },
+            'd': { mode: 'interval', semitones: -1 },
+            'f': { mode: 'interval', semitones: 1 },
+            'g': { mode: 'interval', semitones: 3 },
+            'h': { mode: 'interval', semitones: 5  },
+            'j': { mode: 'interval', semitones: 7  },
+            'k': { mode: 'interval', semitones: 9  },
+            'l': { mode: 'interval', semitones: 11 },
+            ';': { mode: 'interval', semitones: 13 },
+            "'": { mode: 'interval', semitones: 15 },
+            // top row
+            'q': { mode: 'interval', semitones: 0 },
+            'w': { mode: 'interval', semitones: 2 },
+            'e': { mode: 'interval', semitones: 4 },
+            'r': { mode: 'interval', semitones: 6 },
+            't': { mode: 'interval', semitones: 8 },
+            'y': { mode: 'interval', semitones: 10 },
+            'u': { mode: 'interval', semitones: 12 },
+            'i': { mode: 'interval', semitones: 14 },
+            'o': { mode: 'interval', semitones: 16 },
+            'p': { mode: 'interval', semitones: 18 },
+            '[': { mode: 'interval', semitones: 20 },
+            ']': { mode: 'interval', semitones: 22 },
+
         }
     },
     // ── Diatonic: home row = white keys (major scale), top row = accidentals ─
