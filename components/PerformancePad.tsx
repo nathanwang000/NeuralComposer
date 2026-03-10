@@ -1137,6 +1137,8 @@ const SOLO_LAYOUTS: Record<SoloLayoutName, { label: string; description: string;
 const PerformancePad: React.FC = () => {
     const padRef = useRef<HTMLDivElement>(null);
     const activePointerIdsRef = useRef<Set<number>>(new Set());
+    // Maps pointer ID → audio voice-group ID for independently-releasable multi-touch chords.
+    const pointerVoiceGroupRef = useRef<Map<number, number>>(new Map());
     const controlPointerIdRef = useRef<number | null>(null);
     const activeKeyboardKeysRef = useRef<Set<string>>(new Set());
     const isMouseInPadRef = useRef(false);
@@ -1505,6 +1507,23 @@ const PerformancePad: React.FC = () => {
             if (!isMouseInPadRef.current) return;
             if (isTypingElement(e.target)) return;
 
+            // Solo layout keys take priority over all other KB shortcuts.
+            // This lets any physical key be claimed by the active layout —
+            // including left-hand keys — without needing to clean up the
+            // individual handlers below.
+            // physicalKeyOf() strips Shift from e.key (J→j, ;→;, [→[, etc.).
+            {
+                const physicalKey = physicalKeyOf(e.key);
+                if (!e.repeat && !activeKeyboardKeysRef.current.has(physicalKey)) {
+                    const octaveShift = e.shiftKey ? 12 : e.ctrlKey ? -12 : 0;
+                    if (playSoloKey(physicalKey, octaveShift)) {
+                        e.preventDefault();
+                        activeKeyboardKeysRef.current.add(physicalKey);
+                        return;
+                    }
+                }
+            }
+
             // KB.RESET: reset step counter
             if (e.key === KB.RESET.key) {
                 e.preventDefault();
@@ -1655,23 +1674,6 @@ const PerformancePad: React.FC = () => {
                 return;
             }
 
-            // Solo layout keys — resolved through the active KeyLayout.
-            // Any key present in the current layout is handled here; keys not
-            // in the layout fall through silently to the PLAY handler below.
-            // physicalKeyOf() strips the Shift modifier from e.key so that
-            // e.g. Shift+J → 'j' and Shift+; → ';' look up correctly.
-            {
-                const physicalKey = physicalKeyOf(e.key);
-                if (!e.repeat && !activeKeyboardKeysRef.current.has(physicalKey)) {
-                    const octaveShift = e.shiftKey ? 12 : e.ctrlKey ? -12 : 0;
-                    if (playSoloKey(physicalKey, octaveShift)) {
-                        e.preventDefault();
-                        activeKeyboardKeysRef.current.add(physicalKey);
-                        return;
-                    }
-                }
-            }
-
             // KB.PLAY: play chord (hold)
             const key = e.key.toLowerCase();
             if (!(KB.PLAY.key as readonly string[]).includes(key)) return;
@@ -1725,7 +1727,42 @@ const PerformancePad: React.FC = () => {
     const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     const y = Math.max(0, Math.min(1, 1 - (e.clientY - rect.top) / rect.height)); // Y up is 1
                 hoverPosRef.current = { x, y };
-                startTrigger(x, y);
+
+    if (e.pointerType === 'touch') {
+        // Multi-touch: all simultaneous fingers play the SAME chord step, each
+        // with its own voice group (so releasing one finger stops only its chord).
+        // The step counter advances only when the first finger goes down; additional
+        // fingers joining an existing hold play the same chord step, not the next one.
+        setIsPlaying(true);
+        setCursorPos({ x, y });
+
+        const isFirstFinger = activePointerIdsRef.current.size === 1;
+        const sequence = chordSequence.length > 0 ? chordSequence : [{ notes: [60], strumMs: 0 }];
+        // Use the step that was current when the first finger landed (not the
+        // already-advanced index), so all fingers of this gesture share a step.
+        const stepIndex = isFirstFinger
+            ? currentNoteIndexRef.current
+            : (currentNoteIndexRef.current - 1 + sequence.length) % sequence.length;
+        const step = sequence[stepIndex % sequence.length];
+
+        audioEngine.updateActiveVoiceParams(calculateParams(x, y));
+        const groupId = audioEngine.startContinuousNotesGroup(
+            step.notes,
+            Math.round(chordVolumeRef.current * 100),
+            step.strumMs,
+        );
+        pointerVoiceGroupRef.current.set(e.pointerId, groupId);
+
+        // Only advance the step counter for the first finger.
+        if (isFirstFinger) {
+            const advancedIndex = (stepIndex + 1) % sequence.length;
+            currentNoteIndexRef.current = advancedIndex;
+            setCurrentNoteIndex(advancedIndex);
+        }
+    } else {
+        // Mouse / pen: replace-all behaviour (same as before).
+        startTrigger(x, y);
+    }
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
@@ -1750,6 +1787,15 @@ const PerformancePad: React.FC = () => {
         }
 
         activePointerIdsRef.current.delete(e.pointerId);
+
+        // For touch: stop only this finger's voice group; other fingers keep playing.
+        if (e.pointerType === 'touch') {
+            const groupId = pointerVoiceGroupRef.current.get(e.pointerId);
+            if (groupId !== undefined) {
+                pointerVoiceGroupRef.current.delete(e.pointerId);
+                audioEngine.stopVoiceGroup(groupId);
+            }
+        }
 
         if (controlPointerIdRef.current === e.pointerId) {
             const remainingPointers = Array.from(activePointerIdsRef.current);

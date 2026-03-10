@@ -26,6 +26,8 @@ class AudioEngine {
   };
 
   private activeVoices: ActiveVoice[] = [];
+  private voiceGroups = new Map<number, ActiveVoice[]>();
+  private nextGroupId = 0;
 
   init() {
     if (this.ctx && this.ctx.state !== 'closed') return;
@@ -259,6 +261,70 @@ class AudioEngine {
     this.activeVoices = voices;
   }
 
+  /**
+   * Start a chord additively (without stopping existing voices).
+   * Returns an opaque group ID that can be passed to stopVoiceGroup() to
+   * release only these voices, leaving all others playing.
+   * Used for multi-touch: each finger gets its own group.
+   */
+  startContinuousNotesGroup(midis: number[], velocity: number, strumMs: number = 0): number {
+    if (!midis || midis.length === 0) return -1;
+    if (!this.ctx) this.init();
+    if (!this.ctx) return -1;
+
+    const baseStartTime = this.ctx.currentTime;
+    const safeStepDelaySeconds = Math.max(0, strumMs) / 1000;
+
+    const voices = midis
+      .map((midi, index) => this.createContinuousVoice(midi, velocity, baseStartTime + (index * safeStepDelaySeconds)))
+      .filter((voice): voice is ActiveVoice => voice !== null);
+
+    this.activeVoices.push(...voices);
+    const id = this.nextGroupId++;
+    this.voiceGroups.set(id, voices);
+    return id;
+  }
+
+  /**
+   * Release only the voices belonging to the given group ID.
+   * Other simultaneously-playing groups are unaffected.
+   */
+  stopVoiceGroup(groupId: number) {
+    const group = this.voiceGroups.get(groupId);
+    this.voiceGroups.delete(groupId);
+    if (!group || !this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const releaseDuration = Math.max(0.01, this.config.release);
+    const groupSet = new Set(group);
+
+    group.forEach(({ osc, env, filter, startTime }) => {
+      try {
+        const releaseStart = Math.max(now, startTime);
+        const releaseTime = releaseStart + releaseDuration;
+
+        if (typeof env.gain.cancelAndHoldAtTime === 'function') {
+          env.gain.cancelAndHoldAtTime(releaseStart);
+        } else {
+          env.gain.cancelScheduledValues(releaseStart);
+          env.gain.setValueAtTime(Math.max(0.001, env.gain.value), releaseStart);
+        }
+        if (typeof filter.frequency.cancelAndHoldAtTime === 'function') {
+          filter.frequency.cancelAndHoldAtTime(releaseStart);
+        } else {
+          filter.frequency.cancelScheduledValues(releaseStart);
+        }
+
+        env.gain.exponentialRampToValueAtTime(0.001, releaseTime);
+        osc.stop(releaseTime + 0.1);
+      } catch (e) {
+        console.warn('Error stopping voice group', e);
+      }
+    });
+
+    this.activeVoices = this.activeVoices.filter(v => !groupSet.has(v));
+  }
+
   startContinuousNote(midi: number, velocity: number) {
     this.startContinuousNotes([midi], velocity);
   }
@@ -286,6 +352,7 @@ class AudioEngine {
   }
 
   stopContinuousNote() {
+    this.voiceGroups.clear();
     if (this.activeVoices.length === 0 || !this.ctx) return;
 
     const now = this.ctx.currentTime;
