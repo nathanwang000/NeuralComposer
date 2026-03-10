@@ -1160,6 +1160,7 @@ const PerformancePad: React.FC = () => {
     const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 }); // 0-1 normalised
     // Per-finger positions for multi-touch visualisation.
     const [touchPoints, setTouchPoints] = useState<{ id: number; x: number; y: number }[]>([]);
+    const [isTouchDevice, setIsTouchDevice] = useState(false);
 
     // Sequence
     const [sequenceInput, setSequenceInput] = useState("C4+E4+G4+B5+C5+E6+G6+E5+C5+B4@200ms, D4+E4+G4+B5+C5+E6+G6+E5+C5+B4@200ms,F4+C5+A5,F4+C5+A5,F4+C5+G5,F4+C5+F5,E4+C5+G5");
@@ -1242,6 +1243,10 @@ const PerformancePad: React.FC = () => {
         chordVolumeRef.current = chordVolume;
         audioEngine.setActiveVoicesVelocity(Math.round(chordVolume * 100));
     }, [chordVolume]);
+
+    useEffect(() => {
+        setIsTouchDevice(navigator.maxTouchPoints > 0 || 'ontouchstart' in window);
+    }, []);
 
     useEffect(() => {
         const syncFullscreenState = () => {
@@ -1961,20 +1966,45 @@ const PerformancePad: React.FC = () => {
             onContextMenu={(e) => e.preventDefault()}
             onSelectStart={(e) => e.preventDefault()}
         >
-            <button
-                type="button"
-                data-pad-control="true"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    toggleFullscreen();
-                }}
-                className="absolute top-3 right-3 z-20 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/60 border border-white/10 text-slate-200 hover:text-white hover:border-white/20 text-[10px] font-black uppercase tracking-widest"
-            >
-                {isFullscreen ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
-                {isFullscreen ? 'Exit' : 'Full'}
-            </button>
+            <div className="absolute top-3 right-3 z-20 flex items-center gap-2">
+                {isTouchDevice && (
+                    <button
+                        type="button"
+                        data-pad-control="true"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            // Stop and release all ghost touch voice groups
+                            pointerVoiceGroupRef.current.forEach((groupId) => {
+                                audioEngine.stopVoiceGroup(groupId);
+                            });
+                            pointerVoiceGroupRef.current.clear();
+                            activePointerIdsRef.current.clear();
+                            controlPointerIdRef.current = null;
+                            setTouchPoints([]);
+                            setIsPlaying(false);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/60 border border-white/10 text-slate-200 hover:text-white hover:border-white/20 text-[10px] font-black uppercase tracking-widest"
+                    >
+                        Reset
+                    </button>
+                )}
+                <button
+                    type="button"
+                    data-pad-control="true"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        toggleFullscreen();
+                    }}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/60 border border-white/10 text-slate-200 hover:text-white hover:border-white/20 text-[10px] font-black uppercase tracking-widest"
+                >
+                    {isFullscreen ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+                    {isFullscreen ? 'Exit' : 'Full'}
+                </button>
+            </div>
 
             {/* Current section badge */}
             {/* {currentSection && (
@@ -2023,9 +2053,11 @@ const PerformancePad: React.FC = () => {
             <div className="absolute top-4 left-4 text-xs font-black text-slate-700 pointer-events-none select-none uppercase tracking-widest rotate-90 origin-top-left translate-x-4">
                Y: {yTargets.join(', ') || 'None'}
             </div>
-                <div className="absolute bottom-4 left-4 text-[10px] font-black text-slate-700 pointer-events-none select-none uppercase tracking-widest hidden md:block">
+                {!isTouchDevice && (
+                <div className="absolute bottom-4 left-4 text-[10px] font-black text-slate-700 pointer-events-none select-none uppercase tracking-widest">
                     {KEY_HINT}
                 </div>
+                )}
 
             {/* Active Cursor/Visualizer */}
             {isPlaying && (
