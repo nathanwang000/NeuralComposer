@@ -891,7 +891,7 @@ const KB = {
     PLAY:           { key: ['d', 'f'] as const,  display: 'D/F',    hint: 'Play'                       },
 
     // ── Step navigation ───────────────────────────────────────────────────
-    RESET:          { key: ' ',                  display: 'Space',  hint: 'Reset step'                 },
+    RESET:          { key: '0',                  display: '0',  hint: 'Reset step'                 },
     BACK:           { key: 'b',                  display: 'B',      hint: 'Back step'                  },
     SECTIONS:       { key: '1-9' /* regex */,    display: '1-9',    hint: 'Jump section'               },
 
@@ -1016,27 +1016,27 @@ const SOLO_LAYOUTS: Record<SoloLayoutName, { label: string; description: string;
         label: 'Wicki-Hayden',
         description: 'Wicki-Hayden layout: see wikipedia (isomorphic keyboard: translationally equivariant)',
         layout: {
-            // home row
-            'h': { mode: 'interval', semitones: 5  },
-            'j': { mode: 'interval', semitones: 7  },
-            'k': { mode: 'interval', semitones: 9  },
-            'l': { mode: 'interval', semitones: 11 },
-            ';': { mode: 'interval', semitones: 13 },
-            "'": { mode: 'interval', semitones: 15 },
-            // top row
-            'y': { mode: 'interval', semitones: 10 },
-            'u': { mode: 'interval', semitones: 12 },
-            'i': { mode: 'interval', semitones: 14 },
-            'o': { mode: 'interval', semitones: 16 },
-            'p': { mode: 'interval', semitones: 18 },
-            '[': { mode: 'interval', semitones: 20 },
-            ']': { mode: 'interval', semitones: 22 },
             // bottom row
-            'n': { mode: 'interval', semitones: 0 },
-            'm': { mode: 'interval', semitones: 2 },
-            ',': { mode: 'interval', semitones: 4 },
-            '.': { mode: 'interval', semitones: 6 },
-            '/': { mode: 'interval', semitones: 8 },
+            'n': { mode: 'interval', semitones: -2 },
+            'm': { mode: 'interval', semitones: 0 },
+            ',': { mode: 'interval', semitones: 2 },
+            '.': { mode: 'interval', semitones: 4 },
+            '/': { mode: 'interval', semitones: 6 },
+            // home row
+            'h': { mode: 'interval', semitones: 3  },
+            'j': { mode: 'interval', semitones: 5  },
+            'k': { mode: 'interval', semitones: 7  },
+            'l': { mode: 'interval', semitones: 9 },
+            ';': { mode: 'interval', semitones: 11 },
+            "'": { mode: 'interval', semitones: 13 },
+            // top row
+            'y': { mode: 'interval', semitones: 8 },
+            'u': { mode: 'interval', semitones: 10 },
+            'i': { mode: 'interval', semitones: 12 },
+            'o': { mode: 'interval', semitones: 14 },
+            'p': { mode: 'interval', semitones: 16 },
+            '[': { mode: 'interval', semitones: 18 },
+            ']': { mode: 'interval', semitones: 20 },
         }
     },
     fullKBwikiHayden: {
@@ -1044,41 +1044,41 @@ const SOLO_LAYOUTS: Record<SoloLayoutName, { label: string; description: string;
         description: 'Wicki-Hayden layout extended to the bottom row (isomorphic keyboard: translationally equivariant)',
         layout: {
             // bottom row
-            'z': { mode: 'interval', semitones: -10 },
-            'x': { mode: 'interval', semitones: -8 },
-            'c': { mode: 'interval', semitones: -6 },
-            'v': { mode: 'interval', semitones: -4 },
-            'b': { mode: 'interval', semitones: -2 },
-            'n': { mode: 'interval', semitones: 0 },
-            'm': { mode: 'interval', semitones: 2 },
-            ',': { mode: 'interval', semitones: 4 },
-            '.': { mode: 'interval', semitones: 6 },
-            '/': { mode: 'interval', semitones: 8 },
+            'z': { mode: 'interval', semitones: -12 },
+            'x': { mode: 'interval', semitones: -10 },
+            'c': { mode: 'interval', semitones: -8 },
+            'v': { mode: 'interval', semitones: -6 },
+            'b': { mode: 'interval', semitones: -4 },
+            'n': { mode: 'interval', semitones: -2 },
+            'm': { mode: 'interval', semitones: 0 },
+            ',': { mode: 'interval', semitones: 2 },
+            '.': { mode: 'interval', semitones: 4 },
+            '/': { mode: 'interval', semitones: 6 },
             // home row
-            'a': { mode: 'interval', semitones: -5 },
-            's': { mode: 'interval', semitones: -3 },
-            'd': { mode: 'interval', semitones: -1 },
-            'f': { mode: 'interval', semitones: 1 },
-            'g': { mode: 'interval', semitones: 3 },
-            'h': { mode: 'interval', semitones: 5  },
-            'j': { mode: 'interval', semitones: 7  },
-            'k': { mode: 'interval', semitones: 9  },
-            'l': { mode: 'interval', semitones: 11 },
-            ';': { mode: 'interval', semitones: 13 },
-            "'": { mode: 'interval', semitones: 15 },
+            'a': { mode: 'interval', semitones: -7 },
+            's': { mode: 'interval', semitones: -5 },
+            'd': { mode: 'interval', semitones: -3 },
+            'f': { mode: 'interval', semitones: -1 },
+            'g': { mode: 'interval', semitones: 1 },
+            'h': { mode: 'interval', semitones: 3  },
+            'j': { mode: 'interval', semitones: 5  },
+            'k': { mode: 'interval', semitones: 7  },
+            'l': { mode: 'interval', semitones: 9 },
+            ';': { mode: 'interval', semitones: 11 },
+            "'": { mode: 'interval', semitones: 13 },
             // top row
-            'q': { mode: 'interval', semitones: 0 },
-            'w': { mode: 'interval', semitones: 2 },
-            'e': { mode: 'interval', semitones: 4 },
-            'r': { mode: 'interval', semitones: 6 },
-            't': { mode: 'interval', semitones: 8 },
-            'y': { mode: 'interval', semitones: 10 },
-            'u': { mode: 'interval', semitones: 12 },
-            'i': { mode: 'interval', semitones: 14 },
-            'o': { mode: 'interval', semitones: 16 },
-            'p': { mode: 'interval', semitones: 18 },
-            '[': { mode: 'interval', semitones: 20 },
-            ']': { mode: 'interval', semitones: 22 },
+            'q': { mode: 'interval', semitones: -2 },
+            'w': { mode: 'interval', semitones: 0 },
+            'e': { mode: 'interval', semitones: 2 },
+            'r': { mode: 'interval', semitones: 4 },
+            't': { mode: 'interval', semitones: 6 },
+            'y': { mode: 'interval', semitones: 8 },
+            'u': { mode: 'interval', semitones: 10 },
+            'i': { mode: 'interval', semitones: 12 },
+            'o': { mode: 'interval', semitones: 14 },
+            'p': { mode: 'interval', semitones: 16 },
+            '[': { mode: 'interval', semitones: 18 },
+            ']': { mode: 'interval', semitones: 20 },
 
         }
     },
@@ -2275,7 +2275,7 @@ const PerformancePad: React.FC = () => {
                             Step: <span className="text-indigo-400">{currentNoteIndex + 1}</span>/<span className="text-slate-600">{chordSequence.length}</span>
                         </div>
                         <button
-                            title="Reset to step 1 (Space)"
+                                title={`Reset to beginning (${KB.RESET.display})`}
                             onClick={() => { setCurrentNoteIndex(0); currentNoteIndexRef.current = 0; }}
                             className="text-[10px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 uppercase font-bold"
                         >
