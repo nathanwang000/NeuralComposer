@@ -972,7 +972,7 @@ type NoteAddress =
 
 type KeyLayout = Record<string, NoteAddress>;
 
-type SoloLayoutName = 'chordTones' | 'diatonic' | 'chromatic' | 'chordBiased';
+type SoloLayoutName = 'chordTones' | 'wickiHayden' | 'diatonic' | 'chromatic' | 'chordBiased';
 
 /**
  * Resolve a NoteAddress to a MIDI note number.
@@ -1004,13 +1004,39 @@ const SOLO_LAYOUTS: Record<SoloLayoutName, { label: string; description: string;
         label: 'Chord Tones',
         description: 'J K L ; → chord notes lo→hi (linear scale)',
         layout: {
-            'j': { mode: 'chordTone', index: 0  },
-            'k': { mode: 'chordTone', index: 1  },
-            'l': { mode: 'chordTone', index: 2  },
-            ';': { mode: 'chordTone', index: 3  },
+            'j': { mode: 'chordTone', index: 0 },
+            'k': { mode: 'chordTone', index: 1 },
+            'l': { mode: 'chordTone', index: 2 },
+            ';': { mode: 'chordTone', index: 3 },
         },
     },
-
+    wickiHayden: {
+        label: 'Wicki-Hayden',
+        description: 'Wicki-Hayden layout: see wikipedia (isomorphic keyboard: translationally equivariant)',
+        layout: {
+            // home row
+            'h': { mode: 'interval', semitones: 5  },
+            'j': { mode: 'interval', semitones: 7  },
+            'k': { mode: 'interval', semitones: 9  },
+            'l': { mode: 'interval', semitones: 11 },
+            ';': { mode: 'interval', semitones: 13 },
+            "'": { mode: 'interval', semitones: 15 },
+            // top row
+            'y': { mode: 'interval', semitones: 10 },
+            'u': { mode: 'interval', semitones: 12 },
+            'i': { mode: 'interval', semitones: 14 },
+            'o': { mode: 'interval', semitones: 16 },
+            'p': { mode: 'interval', semitones: 18 },
+            '[': { mode: 'interval', semitones: 20 },
+            ']': { mode: 'interval', semitones: 22 },
+            // bottom row
+            'n': { mode: 'interval', semitones: 0 },
+            'm': { mode: 'interval', semitones: 2 },
+            ',': { mode: 'interval', semitones: 4 },
+            '.': { mode: 'interval', semitones: 6 },
+            '/': { mode: 'interval', semitones: 8 },
+        }
+    },
     // ── Diatonic: home row = white keys (major scale), top row = accidentals ─
     // All intervals relative to bass note (semitone 0).
     // Home row H J K L ; '  → 0  2  4  5  7  9   (C D E F G A in C major)
