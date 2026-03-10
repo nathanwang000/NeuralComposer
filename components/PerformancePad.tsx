@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { audioEngine } from '../services/audioEngine';
 import { SynthConfig } from '../types';
 
-type ModulationTarget = keyof SynthConfig | 'detune_octave';
+type ModulationTarget = keyof SynthConfig | 'detune_octave' | 'detune_semitone';
 
 type ChordStep = {
     notes: number[];
@@ -792,6 +792,7 @@ const AVAILABLE_TARGETS: { label: string; value: ModulationTarget }[] = [
   { label: 'Resonance', value: 'resonance' },
   { label: 'Detune', value: 'detune' },
   { label: 'Octave Pitch', value: 'detune_octave' },
+  { label: 'Semitone Step', value: 'detune_semitone' },
   { label: 'Sustain', value: 'sustain' },
 ];
 
@@ -1329,8 +1330,9 @@ const PerformancePad: React.FC = () => {
             case 'cutoff':        return ['cutoff',    100 + (val * 8000)];  // 100Hz - 8100Hz
             case 'resonance':     return ['resonance', val * 20];            // 0 - 20
             case 'detune':        return ['detune',    (val - 0.5) * 100];   // -50 to +50 cents
-            case 'detune_octave': return ['detune',    (val - 0.5) * 2400];  // -1200 to +1200 cents (±1 octave)
-            case 'sustain':       return ['sustain',   val];                 // 0 - 1
+            case 'detune_octave':   return ['detune',    (val - 0.5) * 2400];                               // -1200 to +1200 cents (±1 octave)
+            case 'detune_semitone': return ['detune',    Math.round((val - 0.5) * 24) * 100];            // snapped to nearest semitone, ±12 semitones
+            case 'sustain':        return ['sustain',   val];                                            // 0 - 1
             default:              return [target as keyof SynthConfig, 0];
         }
     };
