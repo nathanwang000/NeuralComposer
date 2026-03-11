@@ -2203,7 +2203,7 @@ const PerformancePad: React.FC = () => {
 
     // Shared band overlay renderers — stepsLo bands below centre, stepsHi above.
     // All N = stepsLo+stepsHi+1 bands are equal width so edges are never clipped.
-    const renderDetuneBandsX = (stepsLo: number, stepsHi: number, pattern: number[]) => {
+    const renderDetuneBandsX = (stepsLo: number, stepsHi: number, pattern: number[], flipped = false) => {
         const N = stepsLo + stepsHi + 1;
         const bandPct = 100 / N;
         const labelEvery = Math.max(1, Math.ceil(Math.max(stepsLo, stepsHi) / 5));
@@ -2222,7 +2222,7 @@ const PerformancePad: React.FC = () => {
                         style={{ left: `${i * bandPct}%`, width: `${bandPct}%`, backgroundColor: bg }} />;
                 })}
                 {labelSteps.map(s => {
-                    const st = stepToCents(s, pattern) / 100;
+                    const st = stepToCents(flipped ? -s : s, pattern) / 100;
                     return <div key={s} className="absolute text-[8px] font-black tabular-nums pointer-events-none select-none"
                         style={{ left: `${(s + stepsLo + 0.5) * bandPct}%`, bottom: 28, transform: 'translateX(-50%)',
                             color: s === 0 ? 'rgba(167,139,250,0.9)' : 'rgba(99,102,241,0.6)' }}>
@@ -2232,7 +2232,7 @@ const PerformancePad: React.FC = () => {
             </div>
         );
     };
-    const renderDetuneBandsY = (stepsLo: number, stepsHi: number, pattern: number[]) => {
+    const renderDetuneBandsY = (stepsLo: number, stepsHi: number, pattern: number[], flipped = false) => {
         const N = stepsLo + stepsHi + 1;
         const bandPct = 100 / N;
         const labelEvery = Math.max(1, Math.ceil(Math.max(stepsLo, stepsHi) / 5));
@@ -2251,7 +2251,7 @@ const PerformancePad: React.FC = () => {
                         style={{ bottom: `${i * bandPct}%`, height: `${bandPct}%`, backgroundColor: bg }} />;
                 })}
                 {labelSteps.map(s => {
-                    const st = stepToCents(s, pattern) / 100;
+                    const st = stepToCents(flipped ? -s : s, pattern) / 100;
                     return <div key={s} className="absolute text-[8px] font-black tabular-nums pointer-events-none select-none"
                         style={{ bottom: `${(s + stepsLo + 0.5) * bandPct}%`, right: 8, transform: 'translateY(50%)',
                             color: s === 0 ? 'rgba(167,139,250,0.9)' : 'rgba(99,102,241,0.6)' }}>
@@ -2396,10 +2396,10 @@ const PerformancePad: React.FC = () => {
 
             {/* Detune band overlays — shared renderer used by both 'detune' (continuous) and 'detune_semitone' (stepped).
                  Semitone-wide zones alternate fill colour; labels show the actual pitch offset. */}
-            {xTargets.includes('detune_semitone') && renderDetuneBandsX(xDetuneStepsLo, xDetuneStepsHi, xDetunePattern)}
-            {xTargets.includes('detune') && renderDetuneBandsX(xDetuneCentsRangeLo, xDetuneCentsRangeHi, [1])}
-            {yTargets.includes('detune_semitone') && renderDetuneBandsY(yDetuneStepsLo, yDetuneStepsHi, yDetunePattern)}
-            {yTargets.includes('detune') && renderDetuneBandsY(yDetuneCentsRangeLo, yDetuneCentsRangeHi, [1])}
+            {xTargets.includes('detune_semitone') && renderDetuneBandsX(xFlipped ? xDetuneStepsHi : xDetuneStepsLo, xFlipped ? xDetuneStepsLo : xDetuneStepsHi, xDetunePattern, xFlipped)}
+            {xTargets.includes('detune') && renderDetuneBandsX(xFlipped ? xDetuneCentsRangeHi : xDetuneCentsRangeLo, xFlipped ? xDetuneCentsRangeLo : xDetuneCentsRangeHi, [1], xFlipped)}
+            {yTargets.includes('detune_semitone') && renderDetuneBandsY(yFlipped ? yDetuneStepsHi : yDetuneStepsLo, yFlipped ? yDetuneStepsLo : yDetuneStepsHi, yDetunePattern, yFlipped)}
+            {yTargets.includes('detune') && renderDetuneBandsY(yFlipped ? yDetuneCentsRangeHi : yDetuneCentsRangeLo, yFlipped ? yDetuneCentsRangeLo : yDetuneCentsRangeHi, [1], yFlipped)}
 
             {/* Axis Labels */}
             <div className="absolute bottom-4 right-4 text-xs font-black text-slate-700 pointer-events-none select-none uppercase tracking-widest">
