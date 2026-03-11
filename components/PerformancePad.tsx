@@ -811,14 +811,14 @@ function stepToCents(step: number, pattern: number[]): number {
 
 const DETUNE_PATTERN_PRESETS: { label: string; pattern: number[]; semitoneRange: number }[] = [
     { label: 'Chromatic',  pattern: [1],             semitoneRange: 12 },
-    { label: 'Whole Tone', pattern: [2],             semitoneRange: 24 },
-    { label: 'Major',      pattern: [2,2,1,2,2,2,1], semitoneRange: 24 },
-    { label: 'Nat Minor',  pattern: [2,1,2,2,1,2,2], semitoneRange: 24 },
-    { label: 'Pentatonic', pattern: [2,3,2,2,3],     semitoneRange: 24 },
-    { label: 'Guitar',     pattern: [5,5,5,4,5],     semitoneRange: 24 },
-    { label: '5ths',       pattern: [7],             semitoneRange: 28 },
+    { label: 'Whole Tone', pattern: [2],             semitoneRange: 12 },
+    { label: 'Major',      pattern: [2,2,1,2,2,2,1], semitoneRange: 12 },
+    { label: 'Nat Minor',  pattern: [2,1,2,2,1,2,2], semitoneRange: 12 },
+    { label: 'Pentatonic', pattern: [2,3,2,2,3],     semitoneRange: 12 },
+    { label: 'Guitar',     pattern: [5,5,5,4,5],     semitoneRange: 12 },
+    { label: '5ths',       pattern: [7],             semitoneRange: 12 },
     { label: '4ths',       pattern: [5],             semitoneRange: 30 },
-    { label: '3rds (maj)', pattern: [4],             semitoneRange: 24 },
+    { label: '3rds (maj)', pattern: [4],             semitoneRange: 12 },
 ];
 
 // ---------------------------------------------------------------------------
@@ -1395,10 +1395,10 @@ const PerformancePad: React.FC = () => {
     // Pattern Step: per-axis interval pattern (semitones) and range for the detune_semitone target.
     // [1] = chromatic (default); [7] = 5ths (violin); [2,2,1,2,2,2,1] = major scale, etc.
     const [xDetunePattern, setXDetunePattern] = useState<number[]>([1]);
-    const [xDetuneSemitoneRange, setXDetuneSemitoneRange] = useState(12);
+    const [xDetuneSemitoneRange, setXDetuneSemitoneRange] = useState(6);
     const [xDetunePatternInput, setXDetunePatternInput] = useState('1');
     const [yDetunePattern, setYDetunePattern] = useState<number[]>([1]);
-    const [yDetuneSemitoneRange, setYDetuneSemitoneRange] = useState(12);
+    const [yDetuneSemitoneRange, setYDetuneSemitoneRange] = useState(6);
     const [yDetunePatternInput, setYDetunePatternInput] = useState('1');
 
     // Pad pixel size — updated by a ResizeObserver so we can show px/band feedback.
@@ -1415,8 +1415,8 @@ const PerformancePad: React.FC = () => {
     }, [yDetunePattern, yDetuneSemitoneRange]);
 
     // Continuous detune range per axis (semitones; value maps linearly, no snapping).
-    const [xDetuneCentsRange, setXDetuneCentsRange] = useState(12);
-    const [yDetuneCentsRange, setYDetuneCentsRange] = useState(12);
+    const [xDetuneCentsRange, setXDetuneCentsRange] = useState(6);
+    const [yDetuneCentsRange, setYDetuneCentsRange] = useState(6);
 
     // Track pad dimensions for the px/band density hint.
     useEffect(() => {
