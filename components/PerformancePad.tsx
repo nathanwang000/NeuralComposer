@@ -790,8 +790,8 @@ function getStepMidi(sequence: string, stepIndex: number): number[] | null {
 const AVAILABLE_TARGETS: { label: string; value: ModulationTarget }[] = [
   { label: 'Filter Cutoff', value: 'cutoff' },
   { label: 'Resonance', value: 'resonance' },
-  { label: 'Cont. Detune', value: 'detune' },
-  { label: 'Pattern Step', value: 'detune_semitone' },
+  { label: 'Ctn. Detune', value: 'detune' },
+  { label: 'Discrete Detune', value: 'detune_semitone' },
   { label: 'Sustain', value: 'sustain' },
 ];
 
@@ -2762,7 +2762,7 @@ const PerformancePad: React.FC = () => {
                 {(xTargets.includes('detune') || yTargets.includes('detune')) && (
                     <div className="flex flex-col gap-3">
                         <div className="flex items-center gap-2 text-slate-500 font-black uppercase text-xs">
-                            <Music size={14} /> Cont. Detune Range
+                            <Music size={14} /> {AVAILABLE_TARGETS.find(t => t.value === 'detune')?.label}
                         </div>
                         {([
                             xTargets.includes('detune') && { label: 'X', range: xDetuneCentsRange, setRange: setXDetuneCentsRange, pxSize: padSize.width } as const,
@@ -2792,7 +2792,7 @@ const PerformancePad: React.FC = () => {
                 {(xTargets.includes('detune_semitone') || yTargets.includes('detune_semitone')) && (
                     <div className="flex flex-col gap-3">
                         <div className="flex items-center gap-2 text-slate-500 font-black uppercase text-xs">
-                            <Music size={14} /> Pattern Step Config
+                            <Music size={14} /> {AVAILABLE_TARGETS.find(t => t.value === 'detune_semitone')?.label}
                         </div>
                         {(() => {
                             const renderAxisConfig = (
@@ -2813,7 +2813,7 @@ const PerformancePad: React.FC = () => {
                                         {DETUNE_PATTERN_PRESETS.map(p => (
                                             <button
                                                 key={p.label}
-                                                title={`Pattern: [${p.pattern.join(', ')}] · ±${p.semitoneRange}st range`}
+                                                title={`Intervals: [${p.pattern.join(', ')}] st · ±${p.semitoneRange} st range`}
                                                 onClick={() => { setPattern(p.pattern); setSemitoneRange(p.semitoneRange); setPatternInput(p.pattern.join(', ')); }}
                                                 className={`px-2 py-1 rounded text-[9px] font-bold uppercase border transition-all ${
                                                     JSON.stringify(pattern) === JSON.stringify(p.pattern) && semitoneRange === p.semitoneRange
@@ -2825,7 +2825,7 @@ const PerformancePad: React.FC = () => {
                                     </div>
                                     {/* Manual pattern input */}
                                     <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="text-[9px] text-slate-600 font-black uppercase shrink-0">Pattern (st)</span>
+                                        <span className="text-[9px] text-slate-600 font-black uppercase shrink-0">Intervals (st)</span>
                                         <input
                                             type="text"
                                             value={patternInput}
