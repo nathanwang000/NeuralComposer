@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { audioEngine } from '../services/audioEngine';
 import { SynthConfig } from '../types';
 
-type ModulationTarget = keyof SynthConfig | 'detune_octave' | 'detune_semitone';
+type ModulationTarget = keyof SynthConfig | 'detune_semitone';
 
 type ChordStep = {
     notes: number[];
@@ -790,8 +790,7 @@ function getStepMidi(sequence: string, stepIndex: number): number[] | null {
 const AVAILABLE_TARGETS: { label: string; value: ModulationTarget }[] = [
   { label: 'Filter Cutoff', value: 'cutoff' },
   { label: 'Resonance', value: 'resonance' },
-  { label: 'Detune', value: 'detune' },
-  { label: 'Octave Pitch', value: 'detune_octave' },
+  { label: 'Cont. Detune', value: 'detune' },
   { label: 'Pattern Step', value: 'detune_semitone' },
   { label: 'Sustain', value: 'sustain' },
 ];
@@ -1415,6 +1414,10 @@ const PerformancePad: React.FC = () => {
         return Math.max(1, Math.ceil(yDetuneSemitoneRange / avg));
     }, [yDetunePattern, yDetuneSemitoneRange]);
 
+    // Continuous detune range per axis (semitones; value maps linearly, no snapping).
+    const [xDetuneCentsRange, setXDetuneCentsRange] = useState(12);
+    const [yDetuneCentsRange, setYDetuneCentsRange] = useState(12);
+
     // Track pad dimensions for the px/band density hint.
     useEffect(() => {
         const el = padRef.current;
@@ -1590,12 +1593,11 @@ const PerformancePad: React.FC = () => {
     const updates: Partial<SynthConfig> = {};
 
     // Helper to map 0-1 to parameter ranges; returns [synthConfigKey, value]
-    const mapValue = (val: number, target: ModulationTarget, stepsPerSide: number, pattern: number[]): [keyof SynthConfig, number] => {
+    const mapValue = (val: number, target: ModulationTarget, stepsPerSide: number, pattern: number[], contRangeSt: number): [keyof SynthConfig, number] => {
         switch (target) {
             case 'cutoff':        return ['cutoff',    100 + (val * 8000)];  // 100Hz - 8100Hz
             case 'resonance':     return ['resonance', val * 20];            // 0 - 20
-            case 'detune':        return ['detune',    (val - 0.5) * 100];   // -50 to +50 cents
-            case 'detune_octave':   return ['detune',    (val - 0.5) * 2400];                               // -1200 to +1200 cents (±1 octave)
+            case 'detune':        return ['detune',    (val - 0.5) * 2 * contRangeSt * 100]; // ±contRangeSt semitones
             case 'detune_semitone': {
                 // Snap val→step index, then convert via repeating interval pattern.
                 const step = Math.round((val - 0.5) * 2 * stepsPerSide);
@@ -1611,17 +1613,17 @@ const PerformancePad: React.FC = () => {
     };
 
     xTargets.forEach(t => {
-        const [key, value] = mapValue(x, t, xDetuneStepsPerSide, xDetunePattern);
+        const [key, value] = mapValue(x, t, xDetuneStepsPerSide, xDetunePattern, xDetuneCentsRange);
         accumulate(key, value);
     });
 
     yTargets.forEach(t => {
-        const [key, value] = mapValue(y, t, yDetuneStepsPerSide, yDetunePattern);
+        const [key, value] = mapValue(y, t, yDetuneStepsPerSide, yDetunePattern, yDetuneCentsRange);
         accumulate(key, value);
     });
 
     return updates;
-  }, [xTargets, yTargets, xDetunePattern, xDetuneSemitoneRange, xDetuneStepsPerSide, yDetunePattern, yDetuneSemitoneRange, yDetuneStepsPerSide]);
+  }, [xTargets, yTargets, xDetunePattern, xDetuneSemitoneRange, xDetuneStepsPerSide, yDetunePattern, yDetuneSemitoneRange, yDetuneStepsPerSide, xDetuneCentsRange, yDetuneCentsRange]);
 
     const updateHoverFromClientPosition = useCallback((clientX: number, clientY: number) => {
         if (!padRef.current) return null;
@@ -2176,6 +2178,69 @@ const PerformancePad: React.FC = () => {
         ? [...sections].reverse().find(s => s.startStep <= currentNoteIndex) ?? null
         : null;
 
+    // Shared band overlay renderers — used by both 'detune' (continuous) and 'detune_semitone' (stepped).
+    // stepsPerSide: number of bands per side from centre. pattern: interval pattern for labels.
+    const renderDetuneBandsX = (stepsPerSide: number, pattern: number[]) => {
+        const total = 2 * stepsPerSide;
+        const bandWidthPct = 100 / total;
+        const labelEvery = Math.max(1, Math.ceil(stepsPerSide / 6));
+        const labelSteps = Array.from(new Set(
+            Array.from({ length: total + 1 }, (_, i) => i - stepsPerSide)
+                .filter(s => s === 0 || s === -stepsPerSide || s === stepsPerSide || Math.abs(s) % labelEvery === 0)
+        ));
+        return (
+            <div className="absolute inset-0 pointer-events-none">
+                {Array.from({ length: total + 1 }, (_, i) => {
+                    const s = i - stepsPerSide;
+                    const leftPct = (0.5 + (s - 0.5) / total) * 100;
+                    const bg = s === 0 ? 'rgba(167,139,250,0.22)'
+                        : Math.abs(s) % 2 === 0 ? 'rgba(99,102,241,0.13)'
+                        : 'rgba(0,0,0,0)';
+                    return <div key={s} className="absolute top-0 bottom-0 pointer-events-none"
+                        style={{ left: `${leftPct}%`, width: `${bandWidthPct}%`, backgroundColor: bg }} />;
+                })}
+                {labelSteps.map(s => {
+                    const st = stepToCents(s, pattern) / 100;
+                    return <div key={s} className="absolute text-[8px] font-black tabular-nums pointer-events-none select-none"
+                        style={{ left: `${(0.5 + s / total) * 100}%`, bottom: 28, transform: 'translateX(-50%)',
+                            color: s === 0 ? 'rgba(167,139,250,0.9)' : 'rgba(99,102,241,0.6)' }}>
+                        {st > 0 ? `+${st}` : st}
+                    </div>;
+                })}
+            </div>
+        );
+    };
+    const renderDetuneBandsY = (stepsPerSide: number, pattern: number[]) => {
+        const total = 2 * stepsPerSide;
+        const bandHeightPct = 100 / total;
+        const labelEvery = Math.max(1, Math.ceil(stepsPerSide / 6));
+        const labelSteps = Array.from(new Set(
+            Array.from({ length: total + 1 }, (_, i) => i - stepsPerSide)
+                .filter(s => s === 0 || s === -stepsPerSide || s === stepsPerSide || Math.abs(s) % labelEvery === 0)
+        ));
+        return (
+            <div className="absolute inset-0 pointer-events-none">
+                {Array.from({ length: total + 1 }, (_, i) => {
+                    const s = i - stepsPerSide;
+                    const bottomPct = (0.5 + (s - 0.5) / total) * 100;
+                    const bg = s === 0 ? 'rgba(167,139,250,0.22)'
+                        : Math.abs(s) % 2 === 0 ? 'rgba(99,102,241,0.13)'
+                        : 'rgba(0,0,0,0)';
+                    return <div key={s} className="absolute left-0 right-0 pointer-events-none"
+                        style={{ bottom: `${bottomPct}%`, height: `${bandHeightPct}%`, backgroundColor: bg }} />;
+                })}
+                {labelSteps.map(s => {
+                    const st = stepToCents(s, pattern) / 100;
+                    return <div key={s} className="absolute text-[8px] font-black tabular-nums pointer-events-none select-none"
+                        style={{ bottom: `${(0.5 + s / total) * 100}%`, right: 8, transform: 'translateY(50%)',
+                            color: s === 0 ? 'rgba(167,139,250,0.9)' : 'rgba(99,102,241,0.6)' }}>
+                        {st > 0 ? `+${st}` : st}
+                    </div>;
+                })}
+            </div>
+        );
+    };
+
     const padElement = (
         <div
             ref={padRef}
@@ -2308,88 +2373,12 @@ const PerformancePad: React.FC = () => {
                  ))}
             </div>
 
-            {/* Pattern Step bands — shown when detune_semitone is active on X or Y axis.
-                 The val range is divided equally among (2*stepsPerSide + 1) snap zones.
-                 Adjacent zones alternate fill colours so each zone is visually distinct.
-                 Labels show the actual semitone offset (derived from the interval pattern). */}
-            {xTargets.includes('detune_semitone') && (() => {
-                const total = 2 * xDetuneStepsPerSide;
-                const bandWidthPct = 100 / total;
-                // Deduplicated label steps: edges, midpoints, zero.
-                const labelSteps = Array.from(new Set([
-                    -xDetuneStepsPerSide,
-                    -Math.round(xDetuneStepsPerSide * 0.5),
-                    0,
-                    Math.round(xDetuneStepsPerSide * 0.5),
-                    xDetuneStepsPerSide,
-                ]));
-                return (
-                    <div className="absolute inset-0 pointer-events-none">
-                        {Array.from({ length: total + 1 }, (_, i) => {
-                            const s = i - xDetuneStepsPerSide;
-                            const leftPct = (0.5 + (s - 0.5) / total) * 100;
-                            // Symmetric alternation from centre: 0=violet, ±1=transparent, ±2=indigo, …
-                            const bg = s === 0
-                                ? 'rgba(167,139,250,0.22)'
-                                : Math.abs(s) % 2 === 0
-                                ? 'rgba(99,102,241,0.13)'
-                                : 'rgba(0,0,0,0)';
-                            return (
-                                <div key={s} className="absolute top-0 bottom-0 pointer-events-none"
-                                    style={{ left: `${leftPct}%`, width: `${bandWidthPct}%`, backgroundColor: bg }} />
-                            );
-                        })}
-                        {labelSteps.map(s => {
-                            const st = stepToCents(s, xDetunePattern) / 100;
-                            return (
-                                <div key={s} className="absolute text-[8px] font-black tabular-nums pointer-events-none select-none"
-                                    style={{ left: `${(0.5 + s / total) * 100}%`, bottom: 28, transform: 'translateX(-50%)',
-                                        color: s === 0 ? 'rgba(167,139,250,0.9)' : 'rgba(99,102,241,0.6)' }}>
-                                    {st > 0 ? `+${st}` : st}
-                                </div>
-                            );
-                        })}
-                    </div>
-                );
-            })()}
-            {yTargets.includes('detune_semitone') && (() => {
-                const total = 2 * yDetuneStepsPerSide;
-                const bandHeightPct = 100 / total;
-                const labelSteps = Array.from(new Set([
-                    -yDetuneStepsPerSide,
-                    -Math.round(yDetuneStepsPerSide * 0.5),
-                    0,
-                    Math.round(yDetuneStepsPerSide * 0.5),
-                    yDetuneStepsPerSide,
-                ]));
-                return (
-                    <div className="absolute inset-0 pointer-events-none">
-                        {Array.from({ length: total + 1 }, (_, i) => {
-                            const s = i - yDetuneStepsPerSide;
-                            const bottomPct = (0.5 + (s - 0.5) / total) * 100;
-                            const bg = s === 0
-                                ? 'rgba(167,139,250,0.22)'
-                                : Math.abs(s) % 2 === 0
-                                ? 'rgba(99,102,241,0.13)'
-                                : 'rgba(0,0,0,0)';
-                            return (
-                                <div key={s} className="absolute left-0 right-0 pointer-events-none"
-                                    style={{ bottom: `${bottomPct}%`, height: `${bandHeightPct}%`, backgroundColor: bg }} />
-                            );
-                        })}
-                        {labelSteps.map(s => {
-                            const st = stepToCents(s, yDetunePattern) / 100;
-                            return (
-                                <div key={s} className="absolute text-[8px] font-black tabular-nums pointer-events-none select-none"
-                                    style={{ bottom: `${(0.5 + s / total) * 100}%`, right: 8, transform: 'translateY(50%)',
-                                        color: s === 0 ? 'rgba(167,139,250,0.9)' : 'rgba(99,102,241,0.6)' }}>
-                                    {st > 0 ? `+${st}` : st}
-                                </div>
-                            );
-                        })}
-                    </div>
-                );
-            })()}
+            {/* Detune band overlays — shared renderer used by both 'detune' (continuous) and 'detune_semitone' (stepped).
+                 Semitone-wide zones alternate fill colour; labels show the actual pitch offset. */}
+            {xTargets.includes('detune_semitone') && renderDetuneBandsX(xDetuneStepsPerSide, xDetunePattern)}
+            {xTargets.includes('detune') && renderDetuneBandsX(xDetuneCentsRange, [1])}
+            {yTargets.includes('detune_semitone') && renderDetuneBandsY(yDetuneStepsPerSide, yDetunePattern)}
+            {yTargets.includes('detune') && renderDetuneBandsY(yDetuneCentsRange, [1])}
 
             {/* Axis Labels */}
             <div className="absolute bottom-4 right-4 text-xs font-black text-slate-700 pointer-events-none select-none uppercase tracking-widest">
@@ -2768,6 +2757,36 @@ const PerformancePad: React.FC = () => {
                         ))}
                     </div>
                 </div>
+
+                {/* Cont. Detune config — per-axis range control, visible when 'detune' is active */}
+                {(xTargets.includes('detune') || yTargets.includes('detune')) && (
+                    <div className="flex flex-col gap-3">
+                        <div className="flex items-center gap-2 text-slate-500 font-black uppercase text-xs">
+                            <Music size={14} /> Cont. Detune Range
+                        </div>
+                        {([
+                            xTargets.includes('detune') && { label: 'X', range: xDetuneCentsRange, setRange: setXDetuneCentsRange, pxSize: padSize.width } as const,
+                            yTargets.includes('detune') && { label: 'Y', range: yDetuneCentsRange, setRange: setYDetuneCentsRange, pxSize: padSize.height } as const,
+                        ].filter(Boolean) as { label: string; range: number; setRange: React.Dispatch<React.SetStateAction<number>>; pxSize: number }[]).map(({ label, range, setRange, pxSize }) => (
+                            <div key={label} className="flex flex-col gap-1.5 border border-white/5 rounded-lg p-2">
+                                <span className="text-[9px] text-slate-500 font-black uppercase">{label} Axis</span>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-[9px] text-slate-600 font-black uppercase shrink-0">Range ±st</span>
+                                    <button onClick={() => setRange(r => Math.max(1, r - 1))} className="text-[9px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 font-bold">−</button>
+                                    <input
+                                        type="number" min={1} max={120} value={range}
+                                        onChange={e => setRange(Math.max(1, Math.min(120, parseInt(e.target.value) || 1)))}
+                                        className="bg-black/40 border border-white/10 rounded px-2 py-1 text-[10px] font-mono text-violet-300 focus:outline-none focus:border-violet-500/50 w-14 text-center"
+                                    />
+                                    <button onClick={() => setRange(r => Math.min(120, r + 1))} className="text-[9px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 font-bold">+</button>
+                                    <span className="text-[9px] text-slate-600 tabular-nums">
+                                        → ±{range} st{pxSize > 0 ? ` · ~${Math.round(pxSize / (2 * range))}px/st` : ''}
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
 
                 {/* Pattern Step config — per-axis, visible when detune_semitone is active */}
                 {(xTargets.includes('detune_semitone') || yTargets.includes('detune_semitone')) && (
