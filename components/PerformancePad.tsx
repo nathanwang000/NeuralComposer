@@ -2244,6 +2244,84 @@ const PerformancePad: React.FC = () => {
                  ))}
             </div>
 
+            {/* Semitone bands — shown when detune_semitone is active on X or Y axis.
+                 Each of the 25 semitone zones (-12…+12) is a filled region whose
+                 colour alternates so adjacent zones are visually distinct.
+                 Band centre for semitone s: val = 0.5 + s/24
+                 Band left/bottom edge:      val = 0.5 + (s - 0.5)/24 */}
+            {xTargets.includes('detune_semitone') && (
+                <div className="absolute inset-0 pointer-events-none">
+                    {/* Alternating filled bands */}
+                    {Array.from({ length: 25 }, (_, i) => {
+                        const s = i - 12; // semitone: -12 … +12
+                        const bandW = 1 / 24;
+                        const leftPct  = (0.5 + (s - 0.5) / 24) * 100;
+                        const widthPct = bandW * 100;
+                        const bg = s === 0
+                            ? 'rgba(167,139,250,0.22)'  // unison: bright violet
+                            : i % 2 === 0
+                            ? 'rgba(99,102,241,0.11)'   // even: faint indigo
+                            : 'rgba(0,0,0,0)';           // odd: transparent
+                        return (
+                            <div
+                                key={s}
+                                className="absolute top-0 bottom-0 pointer-events-none"
+                                style={{ left: `${leftPct}%`, width: `${widthPct}%`, backgroundColor: bg }}
+                            />
+                        );
+                    })}
+                    {/* Stronger dividers at ±6 and ±12 for orientation */}
+                    {[-6, 6, -12, 12].map(s => (
+                        <div key={s} className="absolute top-0 bottom-0 pointer-events-none"
+                            style={{ left: `${(0.5 + (s - 0.5) / 24) * 100}%`, width: 1, backgroundColor: 'rgba(99,102,241,0.35)' }} />
+                    ))}
+                    {/* Labels at the centre of notable bands */}
+                    {[-12, -6, 0, 6, 12].map(s => (
+                        <div key={s} className="absolute text-[8px] font-black tabular-nums pointer-events-none select-none"
+                            style={{ left: `${(0.5 + s / 24) * 100}%`, bottom: 28, transform: 'translateX(-50%)',
+                                color: s === 0 ? 'rgba(167,139,250,0.85)' : 'rgba(99,102,241,0.55)' }}>
+                            {s > 0 ? `+${s}` : s}
+                        </div>
+                    ))}
+                </div>
+            )}
+            {yTargets.includes('detune_semitone') && (
+                <div className="absolute inset-0 pointer-events-none">
+                    {/* Alternating filled bands */}
+                    {Array.from({ length: 25 }, (_, i) => {
+                        const s = i - 12;
+                        const bandW = 1 / 24;
+                        const bottomPct = (0.5 + (s - 0.5) / 24) * 100;
+                        const heightPct = bandW * 100;
+                        const bg = s === 0
+                            ? 'rgba(167,139,250,0.22)'
+                            : i % 2 === 0
+                            ? 'rgba(99,102,241,0.11)'
+                            : 'rgba(0,0,0,0)';
+                        return (
+                            <div
+                                key={s}
+                                className="absolute left-0 right-0 pointer-events-none"
+                                style={{ bottom: `${bottomPct}%`, height: `${heightPct}%`, backgroundColor: bg }}
+                            />
+                        );
+                    })}
+                    {/* Stronger dividers at ±6 and ±12 for orientation */}
+                    {[-6, 6, -12, 12].map(s => (
+                        <div key={s} className="absolute left-0 right-0 pointer-events-none"
+                            style={{ bottom: `${(0.5 + (s - 0.5) / 24) * 100}%`, height: 1, backgroundColor: 'rgba(99,102,241,0.35)' }} />
+                    ))}
+                    {/* Labels at the centre of notable bands */}
+                    {[-12, -6, 0, 6, 12].map(s => (
+                        <div key={s} className="absolute text-[8px] font-black tabular-nums pointer-events-none select-none"
+                            style={{ bottom: `${(0.5 + s / 24) * 100}%`, right: 8, transform: 'translateY(50%)',
+                                color: s === 0 ? 'rgba(167,139,250,0.85)' : 'rgba(99,102,241,0.55)' }}>
+                            {s > 0 ? `+${s}` : s}
+                        </div>
+                    ))}
+                </div>
+            )}
+
             {/* Axis Labels */}
             <div className="absolute bottom-4 right-4 text-xs font-black text-slate-700 pointer-events-none select-none uppercase tracking-widest">
                X: {xTargets.join(', ') || 'None'}
