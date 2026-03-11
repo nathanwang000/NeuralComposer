@@ -1865,7 +1865,10 @@ const PerformancePad: React.FC = () => {
 
         const onKeyDown = (e: KeyboardEvent) => {
             if (!isMouseInPadRef.current) return;
-            if (isTypingElement(e.target)) return;
+            if (isTypingElement(e.target)) {
+                // Blur the focused input so the key can act as a pad shortcut.
+                (e.target as HTMLElement).blur();
+            }
 
             // Solo layout keys take priority over all other KB shortcuts.
             // This lets any physical key be claimed by the active layout —
@@ -2088,6 +2091,11 @@ const PerformancePad: React.FC = () => {
         const target = e.target as HTMLElement;
         if (target.closest('[data-pad-control="true"]')) {
             return;
+        }
+
+        // Steal focus from any text input so the user can immediately use pad shortcuts.
+        if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
         }
 
     if (!padRef.current) return;
