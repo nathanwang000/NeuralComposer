@@ -1,5 +1,5 @@
 import { Maximize2, Minimize2, Music } from 'lucide-react';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { audioEngine } from '../services/audioEngine';
 import { SynthConfig } from '../types';
@@ -810,16 +810,16 @@ function stepToCents(step: number, pattern: number[]): number {
     return sign * semitones * 100; // cents
 }
 
-const DETUNE_PATTERN_PRESETS: { label: string; pattern: number[]; stepsPerSide: number }[] = [
-    { label: 'Chromatic',  pattern: [1],              stepsPerSide: 12 },
-    { label: 'Whole Tone', pattern: [2],              stepsPerSide: 12 },
-    { label: 'Major',      pattern: [2,2,1,2,2,2,1],  stepsPerSide: 14 },
-    { label: 'Nat Minor',  pattern: [2,1,2,2,1,2,2],  stepsPerSide: 14 },
-    { label: 'Pentatonic', pattern: [2,3,2,2,3],      stepsPerSide: 10 },
-    { label: 'Guitar',     pattern: [5,5,5,4,5],      stepsPerSide:  5 },
-    { label: '5ths',       pattern: [7],              stepsPerSide:  4 },
-    { label: '4ths',       pattern: [5],              stepsPerSide:  6 },
-    { label: '3rds (maj)', pattern: [4],              stepsPerSide:  6 },
+const DETUNE_PATTERN_PRESETS: { label: string; pattern: number[]; semitoneRange: number }[] = [
+    { label: 'Chromatic',  pattern: [1],             semitoneRange: 12 },
+    { label: 'Whole Tone', pattern: [2],             semitoneRange: 24 },
+    { label: 'Major',      pattern: [2,2,1,2,2,2,1], semitoneRange: 24 },
+    { label: 'Nat Minor',  pattern: [2,1,2,2,1,2,2], semitoneRange: 24 },
+    { label: 'Pentatonic', pattern: [2,3,2,2,3],     semitoneRange: 24 },
+    { label: 'Guitar',     pattern: [5,5,5,4,5],     semitoneRange: 24 },
+    { label: '5ths',       pattern: [7],             semitoneRange: 28 },
+    { label: '4ths',       pattern: [5],             semitoneRange: 30 },
+    { label: '3rds (maj)', pattern: [4],             semitoneRange: 24 },
 ];
 
 // ---------------------------------------------------------------------------
@@ -1396,8 +1396,29 @@ const PerformancePad: React.FC = () => {
     // Pattern Step: interval pattern (semitones) and range for the detune_semitone target.
     // [1] = chromatic (default); [7] = 5ths (violin); [2,2,1,2,2,2,1] = major scale, etc.
     const [detunePattern, setDetunePattern] = useState<number[]>([1]);
-    const [detuneStepsPerSide, setDetuneStepsPerSide] = useState(12);
+    const [detuneSemitoneRange, setDetuneSemitoneRange] = useState(12); // ±N semitones total range
     const [detunePatternInput, setDetunePatternInput] = useState('1');
+
+    // Pad pixel size — updated by a ResizeObserver so we can show px/band feedback.
+    const [padSize, setPadSize] = useState({ width: 0, height: 0 });
+
+    // Derived: how many steps fit on each side given the pattern's average interval.
+    const detuneStepsPerSide = useMemo(() => {
+        const avg = detunePattern.reduce((a, b) => a + b, 0) / detunePattern.length;
+        return Math.max(1, Math.ceil(detuneSemitoneRange / avg));
+    }, [detunePattern, detuneSemitoneRange]);
+
+    // Track pad dimensions for the px/band density hint.
+    useEffect(() => {
+        const el = padRef.current;
+        if (!el) return;
+        const ro = new ResizeObserver(entries => {
+            const { width, height } = entries[0].contentRect;
+            setPadSize({ width, height });
+        });
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
 
     useEffect(() => {
         // If this change didn't come from a voicing button, clear the voicing snapshot.
@@ -1593,7 +1614,7 @@ const PerformancePad: React.FC = () => {
     });
 
     return updates;
-  }, [xTargets, yTargets, detunePattern, detuneStepsPerSide]);
+  }, [xTargets, yTargets, detunePattern, detuneSemitoneRange, detuneStepsPerSide]);
 
     const updateHoverFromClientPosition = useCallback((clientX: number, clientY: number) => {
         if (!padRef.current) return null;
@@ -2752,14 +2773,14 @@ const PerformancePad: React.FC = () => {
                             {DETUNE_PATTERN_PRESETS.map(p => (
                                 <button
                                     key={p.label}
-                                    title={`Pattern: [${p.pattern.join(', ')}] · ±${p.stepsPerSide} steps`}
+                                    title={`Pattern: [${p.pattern.join(', ')}] · ±${p.semitoneRange}st range`}
                                     onClick={() => {
                                         setDetunePattern(p.pattern);
-                                        setDetuneStepsPerSide(p.stepsPerSide);
+                                        setDetuneSemitoneRange(p.semitoneRange);
                                         setDetunePatternInput(p.pattern.join(', '));
                                     }}
                                     className={`px-2 py-1 rounded text-[9px] font-bold uppercase border transition-all ${
-                                        JSON.stringify(detunePattern) === JSON.stringify(p.pattern) && detuneStepsPerSide === p.stepsPerSide
+                                        JSON.stringify(detunePattern) === JSON.stringify(p.pattern) && detuneSemitoneRange === p.semitoneRange
                                             ? 'bg-violet-600 border-violet-500 text-white'
                                             : 'bg-slate-900 border-white/10 text-slate-500 hover:text-violet-300 hover:border-violet-500/30'
                                     }`}
@@ -2768,34 +2789,60 @@ const PerformancePad: React.FC = () => {
                                 </button>
                             ))}
                         </div>
-                        {/* Manual pattern input + steps-per-side */}
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-[9px] text-slate-600 font-black uppercase shrink-0">Pattern (st)</span>
-                            <input
-                                type="text"
-                                value={detunePatternInput}
-                                onChange={(e) => {
-                                    setDetunePatternInput(e.target.value);
-                                    const parsed = e.target.value
-                                        .split(',')
-                                        .map(n => parseInt(n.trim(), 10))
-                                        .filter(n => n >= 1);
-                                    if (parsed.length > 0) setDetunePattern(parsed);
-                                }}
-                                className="bg-black/40 border border-white/10 rounded px-2 py-1 text-[10px] font-mono text-violet-300 focus:outline-none focus:border-violet-500/50 w-44"
-                                placeholder="e.g. 2, 2, 1, 2, 2, 2, 1"
-                                autoCorrect="off" autoCapitalize="off" spellCheck={false}
-                            />
-                            <span className="text-[9px] text-slate-600 font-black uppercase shrink-0">Steps ±</span>
-                            <button
-                                onClick={() => setDetuneStepsPerSide(s => Math.max(1, s - 1))}
-                                className="text-[9px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 font-bold"
-                            >−</button>
-                            <span className="text-[10px] tabular-nums text-violet-300 font-bold w-6 text-center">{detuneStepsPerSide}</span>
-                            <button
-                                onClick={() => setDetuneStepsPerSide(s => Math.min(48, s + 1))}
-                                className="text-[9px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 font-bold"
-                            >+</button>
+                        {/* Manual pattern input + semitone range */}
+                        <div className="flex flex-col gap-1.5">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-[9px] text-slate-600 font-black uppercase shrink-0">Pattern (st)</span>
+                                <input
+                                    type="text"
+                                    value={detunePatternInput}
+                                    onChange={(e) => {
+                                        setDetunePatternInput(e.target.value);
+                                        const parsed = e.target.value
+                                            .split(',')
+                                            .map(n => parseInt(n.trim(), 10))
+                                            .filter(n => n >= 1);
+                                        if (parsed.length > 0) setDetunePattern(parsed);
+                                    }}
+                                    className="bg-black/40 border border-white/10 rounded px-2 py-1 text-[10px] font-mono text-violet-300 focus:outline-none focus:border-violet-500/50 w-44"
+                                    placeholder="e.g. 2, 2, 1, 2, 2, 2, 1"
+                                    autoCorrect="off" autoCapitalize="off" spellCheck={false}
+                                />
+                            </div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-[9px] text-slate-600 font-black uppercase shrink-0">Range ±st</span>
+                                <button
+                                    onClick={() => setDetuneSemitoneRange(r => Math.max(1, r - 1))}
+                                    className="text-[9px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 font-bold"
+                                >−</button>
+                                <input
+                                    type="number"
+                                    min={1} max={120}
+                                    value={detuneSemitoneRange}
+                                    onChange={e => setDetuneSemitoneRange(Math.max(1, Math.min(120, parseInt(e.target.value) || 1)))}
+                                    className="bg-black/40 border border-white/10 rounded px-2 py-1 text-[10px] font-mono text-violet-300 focus:outline-none focus:border-violet-500/50 w-14 text-center"
+                                />
+                                <button
+                                    onClick={() => setDetuneSemitoneRange(r => Math.min(120, r + 1))}
+                                    className="text-[9px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 font-bold"
+                                >+</button>
+                                {/* Read-only density hint */}
+                                {(() => {
+                                    const totalBands = 2 * detuneStepsPerSide + 1;
+                                    const pxX = padSize.width  > 0 ? Math.round(padSize.width  / totalBands) : null;
+                                    const pxY = padSize.height > 0 ? Math.round(padSize.height / totalBands) : null;
+                                    const hasX = xTargets.includes('detune_semitone');
+                                    const hasY = yTargets.includes('detune_semitone');
+                                    const parts: string[] = [`${totalBands} bands`];
+                                    if (hasX && pxX !== null) parts.push(`~${pxX}px/band (X)`);
+                                    if (hasY && pxY !== null) parts.push(`~${pxY}px/band (Y)`);
+                                    return (
+                                        <span className="text-[9px] text-slate-600 tabular-nums">
+                                            → {parts.join(' · ')}
+                                        </span>
+                                    );
+                                })()}
+                            </div>
                         </div>
                     </div>
                 )}
