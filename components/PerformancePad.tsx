@@ -2077,8 +2077,28 @@ const PerformancePad: React.FC = () => {
             return;
         }
 
-    e.preventDefault();
     if (!padRef.current) return;
+
+        // Ghost note cleanup: if this pointer ID is already tracked (browser reused a pointer ID
+        // that was never properly cancelled), stop the stale voice and release the old capture.
+        // Returning WITHOUT e.preventDefault() lets the browser properly route the touch to its
+        // actual target (e.g. a control button in the panel below the pad) on the next attempt.
+        if (activePointerIdsRef.current.has(e.pointerId)) {
+            const ghostGroupId = pointerVoiceGroupRef.current.get(e.pointerId);
+            if (ghostGroupId !== undefined) {
+                pointerVoiceGroupRef.current.delete(e.pointerId);
+                audioEngine.stopVoiceGroup(ghostGroupId);
+            }
+            activePointerIdsRef.current.delete(e.pointerId);
+            if (padRef.current.hasPointerCapture(e.pointerId)) {
+                padRef.current.releasePointerCapture(e.pointerId);
+            }
+            setTouchPoints(prev => prev.filter(p => p.id !== e.pointerId));
+            stopTriggerIfIdle();
+            return; // Do NOT call e.preventDefault() so click synthesis is preserved
+        }
+
+    e.preventDefault();
 
         activePointerIdsRef.current.add(e.pointerId);
         controlPointerIdRef.current = e.pointerId;
@@ -2496,7 +2516,8 @@ const PerformancePad: React.FC = () => {
                         <button
                             key={preset.label}
                             title={preset.description}
-                            onClick={() => setSequenceInput(preset.sequence)}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onPointerUp={(e) => { e.stopPropagation(); setSequenceInput(preset.sequence); }}
                             className="px-2 py-1 rounded-lg text-[9px] font-bold uppercase border border-white/5 bg-slate-900 text-slate-500 hover:text-indigo-300 hover:border-indigo-500/30 transition-all"
                         >
                             {preset.label}
@@ -2509,7 +2530,8 @@ const PerformancePad: React.FC = () => {
                                 <button
                                     key={preset.label}
                                     title={preset.description}
-                                    onClick={() => setSequenceInput(preset.sequence)}
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onPointerUp={(e) => { e.stopPropagation(); setSequenceInput(preset.sequence); }}
                                     className="px-2 py-1 rounded-lg text-[9px] font-bold uppercase border border-teal-900/60 bg-slate-900 text-teal-600 hover:text-teal-300 hover:border-teal-500/40 transition-all"
                                 >
                                     {preset.label}
@@ -2535,7 +2557,8 @@ const PerformancePad: React.FC = () => {
                             <button
                                 key={delta}
                                 title={tooltip}
-                                onClick={() => applyTranspose(delta)}
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onPointerUp={(e) => { e.stopPropagation(); applyTranspose(delta); }}
                                 className="text-[9px] bg-white/5 hover:bg-indigo-500/20 hover:text-indigo-300 px-2 py-1 rounded text-slate-400 font-bold tabular-nums transition-all"
                             >
                                 {delta > 0 ? `+${delta}` : delta}
@@ -2546,7 +2569,8 @@ const PerformancePad: React.FC = () => {
                         <span className="text-[9px] text-slate-700 font-black uppercase w-16 shrink-0">Chord Vol</span>
                         <button
                             title="Decrease chord volume by 0.1 (⇧← Arrow)"
-                            onClick={() => setChordVolume(prev => { const v = Math.max(0, Math.round((prev - 0.1) * 10) / 10); chordVolumeRef.current = v; return v; })}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onPointerUp={(e) => { e.stopPropagation(); setChordVolume(prev => { const v = Math.max(0, Math.round((prev - 0.1) * 10) / 10); chordVolumeRef.current = v; return v; }); }}
                             className="text-[9px] bg-white/5 hover:bg-rose-500/20 hover:text-rose-300 px-2 py-1 rounded text-slate-400 font-bold tabular-nums transition-all"
                         >
                             −0.1
@@ -2556,7 +2580,8 @@ const PerformancePad: React.FC = () => {
                         </div>
                         <button
                             title="Increase chord volume by 0.1 (⇧→ Arrow)"
-                            onClick={() => setChordVolume(prev => { const v = Math.min(1, Math.round((prev + 0.1) * 10) / 10); chordVolumeRef.current = v; return v; })}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onPointerUp={(e) => { e.stopPropagation(); setChordVolume(prev => { const v = Math.min(1, Math.round((prev + 0.1) * 10) / 10); chordVolumeRef.current = v; return v; }); }}
                             className="text-[9px] bg-white/5 hover:bg-indigo-500/20 hover:text-indigo-300 px-2 py-1 rounded text-slate-400 font-bold tabular-nums transition-all"
                         >
                             +0.1
@@ -2571,7 +2596,8 @@ const PerformancePad: React.FC = () => {
                             <button
                                 key={label}
                                 title={tooltip}
-                                onClick={() => setSequenceInput(prev => scaleStrumSpeed(prev, factor))}
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onPointerUp={(e) => { e.stopPropagation(); setSequenceInput(prev => scaleStrumSpeed(prev, factor)); }}
                                 className="text-[9px] bg-white/5 hover:bg-emerald-500/20 hover:text-emerald-300 px-2 py-1 rounded text-slate-400 font-bold tabular-nums transition-all"
                             >
                                 {label}
@@ -2583,7 +2609,8 @@ const PerformancePad: React.FC = () => {
                         </div>
                         <button
                                 title={`Reset to beginning (${KB.RESET.display})`}
-                            onClick={() => { setCurrentNoteIndex(0); currentNoteIndexRef.current = 0; }}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onPointerUp={(e) => { e.stopPropagation(); setCurrentNoteIndex(0); currentNoteIndexRef.current = 0; }}
                             className="text-[10px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 uppercase font-bold"
                         >
                             Reset
@@ -2619,7 +2646,8 @@ const PerformancePad: React.FC = () => {
                             <button
                                 key={name}
                                 title={spec.description}
-                                onClick={() => { setCurrentLayout(name); currentLayoutRef.current = name; }}
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onPointerUp={(e) => { e.stopPropagation(); setCurrentLayout(name); currentLayoutRef.current = name; }}
                                 className={`text-[9px] px-2 py-1 rounded font-bold uppercase border transition-all ${
                                     currentLayout === name
                                         ? 'bg-violet-600 border-violet-500 text-white'
@@ -2637,7 +2665,8 @@ const PerformancePad: React.FC = () => {
                                 <button
                                     key={s.label}
                                     title={`Jump to [${s.label}] — step ${s.startStep + 1} · Key ${i + 1}`}
-                                    onClick={() => jumpToSection(i)}
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onPointerUp={(e) => { e.stopPropagation(); jumpToSection(i); }}
                                     className={`text-[9px] px-2 py-1 rounded font-bold uppercase border transition-all ${
                                         currentSection?.label === s.label
                                             ? 'bg-indigo-600 border-indigo-500 text-white'
@@ -2654,7 +2683,9 @@ const PerformancePad: React.FC = () => {
                         <button
                             title={voicingBase ? `Restore original voicing for all steps (${KB.ORIGINAL.display})` : `No voicing changes yet (${KB.ORIGINAL.display})`}
                             disabled={!voicingBase}
-                            onClick={() => {
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onPointerUp={(e) => {
+                                e.stopPropagation();
                                 if (!voicingBase) return;
                                 voicingChangeInProgressRef.current = true;
                                 setSequenceInput(voicingBase);
@@ -2666,14 +2697,16 @@ const PerformancePad: React.FC = () => {
                         </button>
                         <button
                             title={`Compress all steps: pull each note into the octave below the leading tone; duplicate pitch classes are spread one octave apart (${KB.COMPRESS.display})`}
-                            onClick={() => applyVoicing(compressVoicing)}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onPointerUp={(e) => { e.stopPropagation(); applyVoicing(compressVoicing); }}
                             className="text-[9px] bg-white/5 hover:bg-teal-500/20 hover:text-teal-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
                         >
                             Compress
                         </button>
                         <button
                             title={`Smooth (${KB.SMOOTH.display}): revoice every step so voices move as little as possible between chords. Anchored to the current step (its voicing is unchanged). Melody, bass and inner voices are matched by role across chord changes — not by fixed position — so chords with different note counts smooth correctly.`}
-                            onClick={applySmooth}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onPointerUp={(e) => { e.stopPropagation(); applySmooth(); }}
                             className="text-[9px] bg-white/5 hover:bg-cyan-500/20 hover:text-cyan-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
                         >
                             Smooth
@@ -2684,7 +2717,8 @@ const PerformancePad: React.FC = () => {
                                 <button
                                     key={`drop-${n}`}
                                     title={`Drop ${n} (all steps): lower the ${ordinal(n)}-highest note by octaves until it no longer duplicates another note${n === 1 ? ` (${KB.DROP_1.display})` : n === 2 ? ` (${KB.DROP_2.display})` : ''}`}
-                                    onClick={() => applyVoicing(m => dropChord(m, n))}
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onPointerUp={(e) => { e.stopPropagation(); applyVoicing(m => dropChord(m, n)); }}
                                     className="text-[9px] bg-white/5 hover:bg-sky-500/20 hover:text-sky-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
                                 >
                                     Drop {n}
@@ -2698,7 +2732,8 @@ const PerformancePad: React.FC = () => {
                                 <button
                                     key={`inv-${k}`}
                                     title={`${ordinal(k)} inversion (all steps): rotate the ${k} lowest pitch class${k > 1 ? 'es' : ''} above the top — octave doublings stay in place${k === 1 ? ` (${KB.INVERT_1.display})` : ''}`}
-                                    onClick={() => applyVoicing(m => invertChord(m, k))}
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onPointerUp={(e) => { e.stopPropagation(); applyVoicing(m => invertChord(m, k)); }}
                                     className="text-[9px] bg-white/5 hover:bg-purple-500/20 hover:text-purple-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
                                 >
                                     {ordinal(k)} inv
@@ -2710,21 +2745,24 @@ const PerformancePad: React.FC = () => {
                         <span className="text-[9px] text-slate-700 font-black uppercase w-16 shrink-0">Order</span>
                         <button
                             title={`Reverse note order within each chord (e.g. C4+E4+G4 → G4+E4+C4) (${KB.ORDER_REV.display})`}
-                            onClick={() => setSequenceInput(prev => reorderChordNotes(prev, 'reverse'))}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onPointerUp={(e) => { e.stopPropagation(); setSequenceInput(prev => reorderChordNotes(prev, 'reverse')); }}
                             className="text-[9px] bg-white/5 hover:bg-amber-500/20 hover:text-amber-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
                         >
                             Reverse
                         </button>
                         <button
                             title={`Randomise note order within each chord (${KB.ORDER_RAND.display})`}
-                            onClick={() => setSequenceInput(prev => reorderChordNotes(prev, 'random'))}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onPointerUp={(e) => { e.stopPropagation(); setSequenceInput(prev => reorderChordNotes(prev, 'random')); }}
                             className="text-[9px] bg-white/5 hover:bg-amber-500/20 hover:text-amber-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
                         >
                             Random
                         </button>
                         <button
                             title={`Sort notes by pitch low→high within each chord (${KB.ORDER_SORT.display})`}
-                            onClick={() => setSequenceInput(prev => reorderChordNotes(prev, 'sort'))}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onPointerUp={(e) => { e.stopPropagation(); setSequenceInput(prev => reorderChordNotes(prev, 'sort')); }}
                             className="text-[9px] bg-white/5 hover:bg-amber-500/20 hover:text-amber-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
                         >
                             Sort ↑
@@ -2741,7 +2779,8 @@ const PerformancePad: React.FC = () => {
                         <Maximize2 size={14} className="rotate-90" /> X-Axis Control (Left - Right)
                         <button
                             title={xFlipped ? 'X axis: flipped (right = low). Click to restore.' : 'X axis: normal (right = high). Click to flip.'}
-                            onClick={() => setXFlipped(f => !f)}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onPointerUp={(e) => { e.stopPropagation(); setXFlipped(f => !f); }}
                             className={`ml-auto text-[9px] px-2 py-0.5 rounded border font-bold uppercase transition-all ${
                                 xFlipped ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-white/5 border-white/10 text-slate-500 hover:text-slate-300'
                             }`}
@@ -2751,7 +2790,8 @@ const PerformancePad: React.FC = () => {
                         {AVAILABLE_TARGETS.map(t => (
                             <button
                                 key={`x-${t.value}`}
-                                onClick={() => toggleTarget('x', t.value)}
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onPointerUp={(e) => { e.stopPropagation(); toggleTarget('x', t.value); }}
                                 className={`px-2 py-1 rounded text-[10px] font-bold uppercase border transition-all ${
                                     xTargets.includes(t.value)
                                     ? 'bg-indigo-600 border-indigo-500 text-white'
@@ -2770,7 +2810,8 @@ const PerformancePad: React.FC = () => {
                         <Maximize2 size={14} /> Y-Axis Control (Bottom - Top)
                         <button
                             title={yFlipped ? 'Y axis: flipped (top = low). Click to restore.' : 'Y axis: normal (top = high). Click to flip.'}
-                            onClick={() => setYFlipped(f => !f)}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onPointerUp={(e) => { e.stopPropagation(); setYFlipped(f => !f); }}
                             className={`ml-auto text-[9px] px-2 py-0.5 rounded border font-bold uppercase transition-all ${
                                 yFlipped ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-white/5 border-white/10 text-slate-500 hover:text-slate-300'
                             }`}
@@ -2780,7 +2821,8 @@ const PerformancePad: React.FC = () => {
                         {AVAILABLE_TARGETS.map(t => (
                             <button
                                 key={`y-${t.value}`}
-                                onClick={() => toggleTarget('y', t.value)}
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onPointerUp={(e) => { e.stopPropagation(); toggleTarget('y', t.value); }}
                                 className={`px-2 py-1 rounded text-[10px] font-bold uppercase border transition-all ${
                                     yTargets.includes(t.value)
                                     ? 'bg-emerald-600 border-emerald-500 text-white'
@@ -2807,17 +2849,17 @@ const PerformancePad: React.FC = () => {
                                 <span className="text-[9px] text-slate-500 font-black uppercase">{label} Axis</span>
                                 <div className="flex items-center gap-1.5 flex-wrap">
                                     <span className="text-[9px] text-slate-600 font-black uppercase shrink-0">− st</span>
-                                    <button onClick={() => setLo(r => Math.max(1, r - 1))} className="text-[9px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 font-bold">−</button>
+                                    <button onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => { e.stopPropagation(); setLo(r => Math.max(1, r - 1)); }} className="text-[9px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 font-bold">−</button>
                                     <input type="number" min={1} max={120} value={lo}
                                         onChange={e => setLo(Math.max(1, Math.min(120, parseInt(e.target.value) || 1)))}
                                         className="bg-black/40 border border-white/10 rounded px-2 py-1 text-[10px] font-mono text-violet-300 focus:outline-none focus:border-violet-500/50 w-12 text-center" />
-                                    <button onClick={() => setLo(r => Math.min(120, r + 1))} className="text-[9px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 font-bold">+</button>
+                                    <button onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => { e.stopPropagation(); setLo(r => Math.min(120, r + 1)); }} className="text-[9px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 font-bold">+</button>
                                     <span className="text-[9px] text-slate-600 font-black uppercase shrink-0 ml-2">+ st</span>
-                                    <button onClick={() => setHi(r => Math.max(1, r - 1))} className="text-[9px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 font-bold">−</button>
+                                    <button onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => { e.stopPropagation(); setHi(r => Math.max(1, r - 1)); }} className="text-[9px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 font-bold">−</button>
                                     <input type="number" min={1} max={120} value={hi}
                                         onChange={e => setHi(Math.max(1, Math.min(120, parseInt(e.target.value) || 1)))}
                                         className="bg-black/40 border border-white/10 rounded px-2 py-1 text-[10px] font-mono text-violet-300 focus:outline-none focus:border-violet-500/50 w-12 text-center" />
-                                    <button onClick={() => setHi(r => Math.min(120, r + 1))} className="text-[9px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 font-bold">+</button>
+                                    <button onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => { e.stopPropagation(); setHi(r => Math.min(120, r + 1)); }} className="text-[9px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 font-bold">+</button>
                                     <span className="text-[9px] text-slate-600 tabular-nums">
                                         {pxSize > 0 ? `~${Math.round(pxSize / (lo + hi + 1))}px/st` : ''}
                                     </span>
@@ -2856,7 +2898,8 @@ const PerformancePad: React.FC = () => {
                                             <button
                                                 key={p.label}
                                                 title={`Intervals: [${p.pattern.join(', ')}] st · ±${p.semitoneRange} st range`}
-                                                onClick={() => { setPattern(p.pattern); setSemitoneRangeLo(p.semitoneRange); setSemitoneRangeHi(p.semitoneRange); setPatternInput(p.pattern.join(', ')); }}
+                                                onPointerDown={(e) => e.stopPropagation()}
+                                                onPointerUp={(e) => { e.stopPropagation(); setPattern(p.pattern); setSemitoneRangeLo(p.semitoneRange); setSemitoneRangeHi(p.semitoneRange); setPatternInput(p.pattern.join(', ')); }}
                                                 className={`px-2 py-1 rounded text-[9px] font-bold uppercase border transition-all ${
                                                     JSON.stringify(pattern) === JSON.stringify(p.pattern) && semitoneRangeLo === p.semitoneRange && semitoneRangeHi === p.semitoneRange
                                                         ? 'bg-violet-600 border-violet-500 text-white'
@@ -2883,17 +2926,17 @@ const PerformancePad: React.FC = () => {
                                     {/* Lo / hi range + density hint */}
                                     <div className="flex items-center gap-1.5 flex-wrap">
                                         <span className="text-[9px] text-slate-600 font-black uppercase shrink-0">− st</span>
-                                        <button onClick={() => setSemitoneRangeLo(r => Math.max(1, r - 1))} className="text-[9px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 font-bold">−</button>
+                                        <button onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => { e.stopPropagation(); setSemitoneRangeLo(r => Math.max(1, r - 1)); }} className="text-[9px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 font-bold">−</button>
                                         <input type="number" min={1} max={120} value={semitoneRangeLo}
                                             onChange={e => setSemitoneRangeLo(Math.max(1, Math.min(120, parseInt(e.target.value) || 1)))}
                                             className="bg-black/40 border border-white/10 rounded px-2 py-1 text-[10px] font-mono text-violet-300 focus:outline-none focus:border-violet-500/50 w-12 text-center" />
-                                        <button onClick={() => setSemitoneRangeLo(r => Math.min(120, r + 1))} className="text-[9px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 font-bold">+</button>
+                                        <button onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => { e.stopPropagation(); setSemitoneRangeLo(r => Math.min(120, r + 1)); }} className="text-[9px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 font-bold">+</button>
                                         <span className="text-[9px] text-slate-600 font-black uppercase shrink-0 ml-2">+ st</span>
-                                        <button onClick={() => setSemitoneRangeHi(r => Math.max(1, r - 1))} className="text-[9px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 font-bold">−</button>
+                                        <button onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => { e.stopPropagation(); setSemitoneRangeHi(r => Math.max(1, r - 1)); }} className="text-[9px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 font-bold">−</button>
                                         <input type="number" min={1} max={120} value={semitoneRangeHi}
                                             onChange={e => setSemitoneRangeHi(Math.max(1, Math.min(120, parseInt(e.target.value) || 1)))}
                                             className="bg-black/40 border border-white/10 rounded px-2 py-1 text-[10px] font-mono text-violet-300 focus:outline-none focus:border-violet-500/50 w-12 text-center" />
-                                        <button onClick={() => setSemitoneRangeHi(r => Math.min(120, r + 1))} className="text-[9px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 font-bold">+</button>
+                                        <button onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => { e.stopPropagation(); setSemitoneRangeHi(r => Math.min(120, r + 1)); }} className="text-[9px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 font-bold">+</button>
                                         <span className="text-[9px] text-slate-600 tabular-nums">
                                             {stepsLo + stepsHi + 1} bands{pxSize > 0 ? ` · ~${Math.round(pxSize / (stepsLo + stepsHi + 1))}px/band` : ''}
                                         </span>
