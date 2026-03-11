@@ -916,13 +916,14 @@ const KB = {
     PLAY:           { key: ['d', 'f'] as const,  display: 'D/F',    hint: 'Play'                       },
 
     // ── Step navigation ───────────────────────────────────────────────────
-    RESET:          { key: '0',                  display: '0',  hint: 'Reset step'                 },
-    BACK:           { key: 'b',                  display: 'B',      hint: 'Back step'                  },
+    RESET:          { key: '0',                  display: '0',      hint: 'Reset step'                 },
+    BACK:           { key: ['b', 'ArrowLeft'] as const, display: 'B/←', hint: 'Back step'             },
+    FORWARD:        { key: 'ArrowRight',          display: '→',      hint: 'Forward step'               },
     SECTIONS:       { key: '1-9' /* regex */,    display: '1-9',    hint: 'Jump section'               },
 
-    // ── Transpose (plain arrows) ──────────────────────────────────────────
-    SEMITONE_DN:    { key: 'ArrowLeft',           display: '←',      hint: 'Semitone −1'               },
-    SEMITONE_UP:    { key: 'ArrowRight',          display: '→',      hint: 'Semitone +1'               },
+    // ── Transpose ─────────────────────────────────────────────────────────
+    SEMITONE_DN:    { key: '-',                       display: '−',         hint: 'Semitone −1'        },
+    SEMITONE_UP:    { key: '+', shift: true,          display: '+',         hint: 'Semitone +1'        },
     OCTAVE_UP:      { key: 'ArrowUp',             display: '↑',      hint: 'Octave +1'                 },
     OCTAVE_DN:      { key: 'ArrowDown',           display: '↓',      hint: 'Octave −1'                 },
 
@@ -1365,8 +1366,8 @@ const PerformancePad: React.FC = () => {
     const voicingChangeInProgressRef = useRef(false);
 
     // Solo key layout
-    const [currentLayout, setCurrentLayout] = useState<SoloLayoutName>('chordTones');
-    const currentLayoutRef = useRef<SoloLayoutName>('chordTones');
+    const [currentLayout, setCurrentLayout] = useState<SoloLayoutName>('wickiHayden');
+    const currentLayoutRef = useRef<SoloLayoutName>('wickiHayden');
     useEffect(() => { currentLayoutRef.current = currentLayout; }, [currentLayout]);
 
     // Detected key for interval-mode solo (updated whenever step or sequence changes)
@@ -1893,13 +1894,23 @@ const PerformancePad: React.FC = () => {
                 return;
             }
 
-            // KB.BACK: go back one step
-            if (e.key === KB.BACK.key) {
+            // KB.BACK: go back one step (B or ← without modifiers)
+            if ((KB.BACK.key as readonly string[]).includes(e.key) && !e.shiftKey && !e.ctrlKey) {
                 e.preventDefault();
                 const seqLen = chordSequence.length > 0 ? chordSequence.length : 1;
                 const prev = (currentNoteIndexRef.current - 1 + seqLen) % seqLen;
                 currentNoteIndexRef.current = prev;
                 setCurrentNoteIndex(prev);
+                return;
+            }
+
+            // KB.FORWARD: go forward one step (→ without modifiers)
+            if (e.key === KB.FORWARD.key && !e.shiftKey && !e.ctrlKey) {
+                e.preventDefault();
+                const seqLen = chordSequence.length > 0 ? chordSequence.length : 1;
+                const next = (currentNoteIndexRef.current + 1) % seqLen;
+                currentNoteIndexRef.current = next;
+                setCurrentNoteIndex(next);
                 return;
             }
 
@@ -1917,8 +1928,10 @@ const PerformancePad: React.FC = () => {
                 // Returns true when the event matches a KB entry exactly:
                 //   • kb.shift === true  → key matches AND Shift is held
                 //   • kb.shift falsy     → key matches AND Shift is NOT held
-                const kb = (entry: { key: string; shift?: boolean }) =>
-                    e.key === entry.key && (entry.shift ? e.shiftKey : !e.shiftKey);
+                //   • kb.ctrl  === true  → key matches AND Ctrl is held
+                //   • kb.ctrl  falsy     → key matches AND Ctrl is NOT held
+                const kb = (entry: { key: string; shift?: boolean; ctrl?: boolean }) =>
+                    e.key === entry.key && !!e.shiftKey === !!entry.shift && !!e.ctrlKey === !!entry.ctrl;
 
                 if (kb(KB.VOL_DN)) {
                     e.preventDefault();
@@ -2540,6 +2553,71 @@ const PerformancePad: React.FC = () => {
                         </>
                     )}
                 </div>
+                {/* Step navigation — shown above the sequence editor */}
+                <div className="flex items-center gap-1 flex-wrap mb-2">
+                    <div className="text-[10px] text-slate-600 font-bold uppercase">
+                        Step: <span className="text-indigo-400">{currentNoteIndex + 1}</span>/<span className="text-slate-600">{chordSequence.length}</span>
+                    </div>
+                    <button
+                        title={`${KB.BACK.hint} (${KB.BACK.display})`}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onPointerUp={(e) => {
+                            e.stopPropagation();
+                            const seqLen = chordSequence.length > 0 ? chordSequence.length : 1;
+                            const prev = (currentNoteIndexRef.current - 1 + seqLen) % seqLen;
+                            currentNoteIndexRef.current = prev;
+                            setCurrentNoteIndex(prev);
+                        }}
+                        className="text-[10px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 uppercase font-bold"
+                    >
+                        ←
+                    </button>
+                    <button
+                        title={`Reset to beginning (${KB.RESET.display})`}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onPointerUp={(e) => { e.stopPropagation(); setCurrentNoteIndex(0); currentNoteIndexRef.current = 0; }}
+                        className="text-[10px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 uppercase font-bold"
+                    >
+                        Reset
+                    </button>
+                    <button
+                        title={`${KB.FORWARD.hint} (${KB.FORWARD.display})`}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onPointerUp={(e) => {
+                            e.stopPropagation();
+                            const seqLen = chordSequence.length > 0 ? chordSequence.length : 1;
+                            const next = (currentNoteIndexRef.current + 1) % seqLen;
+                            currentNoteIndexRef.current = next;
+                            setCurrentNoteIndex(next);
+                        }}
+                        className="text-[10px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 uppercase font-bold"
+                    >
+                        →
+                    </button>
+                    {(['lo', '2nd', '3rd', 'hi'] as const).map((label, i) => (
+                        <button
+                            key={label}
+                            title={`Play chord note ${label} — touch/click to hold`}
+                            onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); playNoteFromCurrentStepByLinearIndex(i); }}
+                            onPointerUp={() => stopTriggerIfIdle()}
+                            onPointerLeave={() => stopTriggerIfIdle()}
+                            onPointerCancel={() => stopTriggerIfIdle()}
+                            className="text-[10px] bg-white/5 hover:bg-violet-500/20 hover:text-violet-300 px-2 py-1 rounded text-slate-400 uppercase font-bold select-none"
+                        >
+                            ♪ {label}
+                        </button>
+                    ))}
+                    <button
+                        title={`${KB.RAND_NOTE.hint} (${KB.RAND_NOTE.display})`}
+                        onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); playRandomNoteFromCurrentStep(); }}
+                        onPointerUp={() => stopTriggerIfIdle()}
+                        onPointerLeave={() => stopTriggerIfIdle()}
+                        onPointerCancel={() => stopTriggerIfIdle()}
+                        className="text-[10px] bg-white/5 hover:bg-fuchsia-500/20 hover:text-fuchsia-300 px-2 py-1 rounded text-slate-400 uppercase font-bold select-none"
+                    >
+                        {KB.RAND_NOTE.display} (rand)
+                    </button>
+                </div>
                 <textarea
                     className="w-full bg-black/40 border border-white/5 rounded-xl p-3 text-xs font-mono text-indigo-300 focus:outline-none focus:border-indigo-500/50 h-24 resize-none"
                     style={{ touchAction: 'pan-y' }}
@@ -2553,7 +2631,12 @@ const PerformancePad: React.FC = () => {
                 <div className="flex flex-col gap-1.5 mt-2">
                     <div className="flex items-center gap-1 flex-wrap">
                         <span className="text-[9px] text-slate-700 font-black uppercase w-16 shrink-0">Transpose</span>
-                        {([[-12, '↓ Octave (↓ Arrow)'], [-1, '−1 Semitone (← Arrow)'], [1, '+1 Semitone (→ Arrow)'], [12, '↑ Octave (↑ Arrow)']] as const).map(([delta, tooltip]) => (
+                        {([
+                            [-12, `Octave −1 (${KB.OCTAVE_DN.display})`],
+                            [-1,  `Semitone −1 (${KB.SEMITONE_DN.display})`],
+                            [1,   `Semitone +1 (${KB.SEMITONE_UP.display})`],
+                            [12,  `Octave +1 (${KB.OCTAVE_UP.display})`],
+                        ] as [number, string][]).map(([delta, tooltip]) => (
                             <button
                                 key={delta}
                                 title={tooltip}
@@ -2592,10 +2675,13 @@ const PerformancePad: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-1 flex-wrap">
                         <span className="text-[9px] text-slate-700 font-black uppercase w-16 shrink-0">Strum</span>
-                        {([[1/1.5, '÷1.5', 'Slow strum (÷1.5) (⇧↓)'], [1.5, '×1.5', 'Speed strum up (×1.5) (⇧↑)']] as [number, string, string][]).map(([factor, label, tooltip]) => (
+                        {([
+                            { factor: 1/1.5, label: '÷1.5', entry: KB.STRUM_DN },
+                            { factor: 1.5,   label: '×1.5', entry: KB.STRUM_UP },
+                        ] as { factor: number; label: string; entry: { display: string; hint: string } }[]).map(({ factor, label, entry }) => (
                             <button
                                 key={label}
-                                title={tooltip}
+                                title={`${entry.hint} (${entry.display})`}
                                 onPointerDown={(e) => e.stopPropagation()}
                                 onPointerUp={(e) => { e.stopPropagation(); setSequenceInput(prev => scaleStrumSpeed(prev, factor)); }}
                                 className="text-[9px] bg-white/5 hover:bg-emerald-500/20 hover:text-emerald-300 px-2 py-1 rounded text-slate-400 font-bold tabular-nums transition-all"
@@ -2603,41 +2689,6 @@ const PerformancePad: React.FC = () => {
                                 {label}
                             </button>
                         ))}
-                        <div className="flex-1" />
-                        <div className="text-[10px] text-slate-600 font-bold uppercase">
-                            Step: <span className="text-indigo-400">{currentNoteIndex + 1}</span>/<span className="text-slate-600">{chordSequence.length}</span>
-                        </div>
-                        <button
-                                title={`Reset to beginning (${KB.RESET.display})`}
-                            onPointerDown={(e) => e.stopPropagation()}
-                            onPointerUp={(e) => { e.stopPropagation(); setCurrentNoteIndex(0); currentNoteIndexRef.current = 0; }}
-                            className="text-[10px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 uppercase font-bold"
-                        >
-                            Reset
-                        </button>
-                        {(['lo', '2nd', '3rd', 'hi'] as const).map((label, i) => (
-                            <button
-                                key={label}
-                                title={`Play chord note ${label} — touch/click to hold`}
-                                onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); playNoteFromCurrentStepByLinearIndex(i); }}
-                                onPointerUp={() => stopTriggerIfIdle()}
-                                onPointerLeave={() => stopTriggerIfIdle()}
-                                onPointerCancel={() => stopTriggerIfIdle()}
-                                className="text-[10px] bg-white/5 hover:bg-violet-500/20 hover:text-violet-300 px-2 py-1 rounded text-slate-400 uppercase font-bold select-none"
-                            >
-                                ♩ {label}
-                            </button>
-                        ))}
-                        <button
-                            title={`${KB.RAND_NOTE.hint} (${KB.RAND_NOTE.display})`}
-                            onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); playRandomNoteFromCurrentStep(); }}
-                            onPointerUp={() => stopTriggerIfIdle()}
-                            onPointerLeave={() => stopTriggerIfIdle()}
-                            onPointerCancel={() => stopTriggerIfIdle()}
-                            className="text-[10px] bg-white/5 hover:bg-fuchsia-500/20 hover:text-fuchsia-300 px-2 py-1 rounded text-slate-400 uppercase font-bold select-none"
-                        >
-                            {KB.RAND_NOTE.display} (rand)
-                        </button>
                     </div>
                     {/* Solo key layout switcher */}
                     <div className="flex items-center gap-1 flex-wrap">
