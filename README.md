@@ -220,3 +220,38 @@ Bars and chord changes are annotated with comments for readability:
 | Sections | `[SectionName]` | `# --- Bar N: Name ---` |
 | Use case | Performance pads, loops | Full compositions |
 
+
+## Tips for playing
+
+### Soloing
+
+The pad auto determines the key (minor or major) for the next chord to play. So really you can freely choose from the 1st, 3rd, 5th, 6th, 8th, 10th from the maj root node to play (1,3,5 is the major triad, while 6, 8, 10 are minor triad from the relative maj tone perspective).
+
+- in wickiHayden keyboard
+
+This natural maps to the maj triad and minor triad shape.
+
+### Playing on computer
+
+- cascading effect
+
+soloing with left hand but add octave change or inverse1 / drop1 to create a cascading sound effect.
+
+- smooth transition of chord
+
+holding d while hitting f will maintain a smooth transition to the next chord.
+
+### Playing on ipad
+
+Separate from playing on computer, ipad playing have 1 additional supported functionality: playing the same chord progression with multiple fingers
+
+- translational equivariant keyboard
+
+This is a powerful way to simlate an isomorphic (translational equivariant) keyboard if
+you set x and y axses to vary by semitone!
+
+- continuous sound change
+
+unlike on computer, if you move fingers on the ipad, you will create a continuous sound effect.
+
+
