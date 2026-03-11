@@ -1391,6 +1391,8 @@ const PerformancePad: React.FC = () => {
     // Mappings
     const [xTargets, setXTargets] = useState<ModulationTarget[]>(['cutoff']);
     const [yTargets, setYTargets] = useState<ModulationTarget[]>(['resonance']);
+    const [xFlipped, setXFlipped] = useState(false);
+    const [yFlipped, setYFlipped] = useState(false);
 
     // Pattern Step: per-axis interval pattern (semitones) and range for the detune_semitone target.
     // [1] = chromatic (default); [7] = 5ths (violin); [2,2,1,2,2,2,1] = major scale, etc.
@@ -1589,7 +1591,9 @@ const PerformancePad: React.FC = () => {
     }, []);
 
   const calculateParams = useCallback((x: number, y: number) => {
-    // x, y are 0-1
+    // x, y are 0-1; apply axis flip before mapping
+    const mx = xFlipped ? 1 - x : x;
+    const my = yFlipped ? 1 - y : y;
     const updates: Partial<SynthConfig> = {};
 
     // Helper to map 0-1 to parameter ranges; returns [synthConfigKey, value]
@@ -1613,17 +1617,17 @@ const PerformancePad: React.FC = () => {
     };
 
     xTargets.forEach(t => {
-        const [key, value] = mapValue(x, t, xDetuneStepsPerSide, xDetunePattern, xDetuneCentsRange);
+        const [key, value] = mapValue(mx, t, xDetuneStepsPerSide, xDetunePattern, xDetuneCentsRange);
         accumulate(key, value);
     });
 
     yTargets.forEach(t => {
-        const [key, value] = mapValue(y, t, yDetuneStepsPerSide, yDetunePattern, yDetuneCentsRange);
+        const [key, value] = mapValue(my, t, yDetuneStepsPerSide, yDetunePattern, yDetuneCentsRange);
         accumulate(key, value);
     });
 
     return updates;
-  }, [xTargets, yTargets, xDetunePattern, xDetuneSemitoneRange, xDetuneStepsPerSide, yDetunePattern, yDetuneSemitoneRange, yDetuneStepsPerSide, xDetuneCentsRange, yDetuneCentsRange]);
+  }, [xTargets, yTargets, xFlipped, yFlipped, xDetunePattern, xDetuneSemitoneRange, xDetuneStepsPerSide, yDetunePattern, yDetuneSemitoneRange, yDetuneStepsPerSide, xDetuneCentsRange, yDetuneCentsRange]);
 
     const updateHoverFromClientPosition = useCallback((clientX: number, clientY: number) => {
         if (!padRef.current) return null;
@@ -2718,6 +2722,13 @@ const PerformancePad: React.FC = () => {
                 <div>
                      <div className="flex items-center gap-2 mb-2 text-slate-500 font-black uppercase text-xs">
                         <Maximize2 size={14} className="rotate-90" /> X-Axis Control (Left - Right)
+                        <button
+                            title={xFlipped ? 'X axis: flipped (right = low). Click to restore.' : 'X axis: normal (right = high). Click to flip.'}
+                            onClick={() => setXFlipped(f => !f)}
+                            className={`ml-auto text-[9px] px-2 py-0.5 rounded border font-bold uppercase transition-all ${
+                                xFlipped ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-white/5 border-white/10 text-slate-500 hover:text-slate-300'
+                            }`}
+                        >{xFlipped ? '⇄ Flipped' : '⇄ Flip'}</button>
                     </div>
                     <div className="flex flex-wrap gap-2">
                         {AVAILABLE_TARGETS.map(t => (
@@ -2740,6 +2751,13 @@ const PerformancePad: React.FC = () => {
                 <div>
                      <div className="flex items-center gap-2 mb-2 text-slate-500 font-black uppercase text-xs">
                         <Maximize2 size={14} /> Y-Axis Control (Bottom - Top)
+                        <button
+                            title={yFlipped ? 'Y axis: flipped (top = low). Click to restore.' : 'Y axis: normal (top = high). Click to flip.'}
+                            onClick={() => setYFlipped(f => !f)}
+                            className={`ml-auto text-[9px] px-2 py-0.5 rounded border font-bold uppercase transition-all ${
+                                yFlipped ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-white/5 border-white/10 text-slate-500 hover:text-slate-300'
+                            }`}
+                        >{yFlipped ? '⇅ Flipped' : '⇅ Flip'}</button>
                     </div>
                     <div className="flex flex-wrap gap-2">
                         {AVAILABLE_TARGETS.map(t => (
