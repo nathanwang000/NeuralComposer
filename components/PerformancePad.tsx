@@ -1,4 +1,4 @@
-import { Maximize2, Minimize2, Music } from 'lucide-react';
+import { HelpCircle, Maximize2, Minimize2, Music, X } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { audioEngine } from '../services/audioEngine';
@@ -955,10 +955,14 @@ const KB = {
     RAND_NOTE:      { key: 'v',                  display: 'V',      hint: 'Rand note (⇧=+oct ⌃=−oct)' },
 } as const;
 
-/** Hint bar text shown at the bottom of the pad — auto-generated from KB. */
-const KEY_HINT = (Object.values(KB) as { display: string; hint: string }[])
-    .map(b => `${b.display}: ${b.hint}`)
-    .join(' · ');
+/** Grouped keyboard-shortcut reference shown in the tutorial panel. */
+const TUTORIAL_SECTIONS: { title: string; rows: { display: string; hint: string }[] }[] = [
+    { title: 'Playback',      rows: [KB.PLAY, KB.RESET, KB.BACK, KB.FORWARD, KB.SECTIONS] },
+    { title: 'Transpose',     rows: [KB.SEMITONE_DN, KB.SEMITONE_UP, KB.OCTAVE_DN, KB.OCTAVE_UP] },
+    { title: 'Volume & Strum', rows: [KB.VOL_DN, KB.VOL_UP, KB.STRUM_DN, KB.STRUM_UP] },
+    { title: 'Sequence',      rows: [KB.ORDER_RAND, KB.ORDER_REV, KB.ORDER_SORT] },
+    { title: 'Voicing',       rows: [KB.ORIGINAL, KB.SMOOTH, KB.INVERT_1, KB.DROP_1, KB.DROP_2, KB.COMPRESS, KB.RAND_NOTE] },
+];
 
 /**
  * Map from shifted e.key values back to their unshifted physical key.
@@ -1351,6 +1355,7 @@ const PerformancePad: React.FC = () => {
     // Per-finger positions for multi-touch visualisation.
     const [touchPoints, setTouchPoints] = useState<{ id: number; x: number; y: number }[]>([]);
     const [isTouchDevice, setIsTouchDevice] = useState(false);
+    const [showTutorial, setShowTutorial] = useState(false);
 
     // Sequence
     const [sequenceInput, setSequenceInput] = useState("C4+E4+G4+B5+C5+E6+G6+E5+C5+B4@200ms, D4+E4+G4+B5+C5+E6+G6+E5+C5+B4@200ms,F4+C5+A5,F4+C5+A5,F4+C5+G5,F4+C5+F5,E4+C5+G5");
@@ -2634,11 +2639,15 @@ const PerformancePad: React.FC = () => {
             <div className="absolute top-4 left-4 text-xs font-black text-slate-700 pointer-events-none select-none uppercase tracking-widest rotate-90 origin-top-left translate-x-4">
                Y: {yTargets.join(', ') || 'None'}
             </div>
-                {!isTouchDevice && (
-                <div className="absolute bottom-4 left-4 text-[10px] font-black text-slate-700 pointer-events-none select-none uppercase tracking-widest">
-                    {KEY_HINT}
-                </div>
-                )}
+                <button
+                    onPointerDown={e => e.stopPropagation()}
+                    onClick={e => { e.stopPropagation(); setShowTutorial(true); }}
+                    className="absolute bottom-3 left-3 z-10 flex items-center gap-1 px-2 py-1 rounded-lg bg-black/40 border border-white/10 text-slate-500 hover:text-slate-200 hover:border-white/25 hover:bg-black/60 transition-colors select-none"
+                    title="Keyboard shortcuts"
+                >
+                    <HelpCircle size={12} />
+                    {!isTouchDevice && <span className="text-[9px] font-black uppercase tracking-wider">Keys</span>}
+                </button>
 
             {/* Active Cursor/Visualizer */}
             {isPlaying && (
@@ -2701,6 +2710,7 @@ const PerformancePad: React.FC = () => {
     );
 
     return (
+        <>
         <div
             className="flex flex-col gap-4 h-full select-none"
             style={{ userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
@@ -3199,6 +3209,66 @@ const PerformancePad: React.FC = () => {
             </div>
         </div>
     </div>
+
+    {/* Tutorial / keyboard-shortcut modal */}
+    {showTutorial && createPortal(
+        <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center"
+            onPointerDown={() => setShowTutorial(false)}
+        >
+            {/* Backdrop */}
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+
+            {/* Panel */}
+            <div
+                className="relative z-10 w-full max-w-lg mx-4 rounded-2xl border border-white/10 bg-slate-900/95 shadow-2xl overflow-hidden"
+                onPointerDown={e => e.stopPropagation()}
+            >
+                {/* Header */}
+                <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+                    <div className="flex items-center gap-2">
+                        <HelpCircle size={16} className="text-indigo-400" />
+                        <span className="text-sm font-black uppercase tracking-widest text-white">Keyboard Shortcuts</span>
+                    </div>
+                    <button
+                        onClick={() => setShowTutorial(false)}
+                        className="text-slate-500 hover:text-white transition-colors"
+                    >
+                        <X size={16} />
+                    </button>
+                </div>
+
+                {/* Shortcut sections */}
+                <div className="p-5 grid grid-cols-2 gap-x-6 gap-y-5 max-h-[70vh] overflow-y-auto">
+                    {TUTORIAL_SECTIONS.map(section => (
+                        <div key={section.title}>
+                            <div className="text-[9px] font-black uppercase tracking-widest text-indigo-400 mb-2">
+                                {section.title}
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                {section.rows.map(row => (
+                                    <div key={row.display} className="flex items-center justify-between gap-3">
+                                        <span className="text-[10px] font-black bg-white/8 border border-white/10 text-slate-300 px-1.5 py-0.5 rounded shrink-0 tabular-nums">
+                                            {row.display}
+                                        </span>
+                                        <span className="text-[10px] text-slate-400 text-right leading-tight">
+                                            {row.hint}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="px-5 py-3 border-t border-white/10 text-[9px] text-slate-600 uppercase tracking-widest">
+                    Click anywhere outside to close
+                </div>
+            </div>
+        </div>,
+        document.body
+    )}
+        </>
   );
 };
 
