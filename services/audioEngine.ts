@@ -29,12 +29,64 @@ class AudioEngine {
   private voiceGroups = new Map<number, ActiveVoice[]>();
   private nextGroupId = 0;
 
-  init() {
-    if (this.ctx && this.ctx.state !== 'closed') return;
+  private buildContext() {
     this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
     this.masterGain = this.ctx.createGain();
     this.masterGain.gain.value = 0.3;
     this.masterGain.connect(this.ctx.destination);
+  }
+
+  init() {
+    if (this.ctx && this.ctx.state !== 'closed') return;
+    this.buildContext();
+
+    // Best-effort resume when the page becomes visible. On iOS this won't
+    // work without a user gesture, but ensureRunning() handles that on the
+    // next touch/click.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && this.ctx && this.ctx.state !== 'running') {
+        this.ctx.resume().catch(() => {});
+      }
+    });
+  }
+
+  /**
+   * Called at the start of every user-gesture-driven play path.
+   * Recreates the AudioContext if iOS has put it into an unrecoverable
+   * interrupted/closed state, then awaits resume() so oscillators are only
+   * created once the context is truly running.
+   */
+  private async ensureRunning(): Promise<void> {
+    if (!this.ctx || this.ctx.state === 'closed') {
+      this.buildContext();
+    }
+    if (!this.ctx) return;
+    if (this.ctx.state === 'running') return;
+
+    // Race resume() against a 600 ms deadline. On iOS after video playback
+    // the promise can hang indefinitely (audio session still owned by the
+    // video player), so we detect the timeout and rebuild from scratch.
+    try {
+      await Promise.race([
+        this.ctx.resume(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('AudioContext resume timeout')), 600)
+        ),
+      ]);
+    } catch {
+      // Stuck context: nuke it and create a fresh one.
+      // A new AudioContext created inside a user gesture starts in 'running'
+      // state on iOS, bypassing the stale audio session entirely.
+      try { this.ctx.close(); } catch {}
+      this.buildContext();
+      await this.ctx!.resume().catch(() => {});
+    }
+  }
+
+  /** Call from inside a user-gesture handler so the browser lifts its
+   *  autoplay restriction. Returns when the context is running (or recovers). */
+  resume(): Promise<void> {
+    return this.ensureRunning();
   }
 
   setTempo(bpm: number) {
@@ -90,7 +142,7 @@ class AudioEngine {
   private globalLastNoteEndTime: number = 0;
 
   scheduleNote(event: MidiEvent, eventAbsoluteBeat: number, currentPlaybackBeat: number, legato: boolean = false) {
-    if (!this.ctx || !this.masterGain) return;
+    if (!this.ctx || !this.masterGain || this.ctx.state !== 'running') return;
 
     const secondsPerBeat = 60 / this.tempo;
     const beatDistance = eventAbsoluteBeat - currentPlaybackBeat;
@@ -243,12 +295,15 @@ class AudioEngine {
     };
   }
 
-  startContinuousNotes(midis: number[], velocity: number, strumMs: number = 0) {
+  async startContinuousNotes(midis: number[], velocity: number, strumMs: number = 0): Promise<void> {
     if (!midis || midis.length === 0) return;
 
     this.stopContinuousNote();
 
-    if (!this.ctx) this.init();
+    // Ensure the AudioContext is truly running before creating any voices.
+    // This handles iOS tab-switch / video-interruption recovery inside the
+    // user-gesture path so the browser will always honour the resume.
+    await this.ensureRunning();
     if (!this.ctx) return;
 
     const baseStartTime = this.ctx.currentTime;
@@ -269,9 +324,11 @@ class AudioEngine {
    *   other simultaneously-playing groups are completely unaffected.
    * Used for multi-touch: each finger gets its own group and its own settings.
    */
-  startContinuousNotesGroup(midis: number[], velocity: number, strumMs: number = 0, params?: Partial<SynthConfig>): number {
+  async startContinuousNotesGroup(midis: number[], velocity: number, strumMs: number = 0, params?: Partial<SynthConfig>): Promise<number> {
     if (!midis || midis.length === 0) return -1;
-    if (!this.ctx) this.init();
+
+    // Ensure the AudioContext is truly running — always called from a user gesture.
+    await this.ensureRunning();
     if (!this.ctx) return -1;
 
     // Snapshot a config for this group only — never touches other groups.
@@ -379,8 +436,8 @@ class AudioEngine {
   }
 
   /** Start a note and add it to the active voice pool without stopping existing voices. */
-  addContinuousNote(midi: number, velocity: number) {
-    if (!this.ctx) this.init();
+  async addContinuousNote(midi: number, velocity: number): Promise<void> {
+    await this.ensureRunning();
     if (!this.ctx) return;
     const voice = this.createContinuousVoice(midi, velocity, this.ctx.currentTime);
     if (voice) this.activeVoices.push(voice);

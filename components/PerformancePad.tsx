@@ -1667,7 +1667,7 @@ const PerformancePad: React.FC = () => {
         return { x, y };
     }, []);
 
-    const startTrigger = useCallback((x: number, y: number) => {
+    const startTrigger = useCallback(async (x: number, y: number) => {
         setIsPlaying(true);
         setCursorPos({ x, y });
 
@@ -1677,7 +1677,7 @@ const PerformancePad: React.FC = () => {
 
         const params = calculateParams(x, y);
         audioEngine.updateActiveVoiceParams(params);
-        audioEngine.startContinuousNotes(step.notes, Math.round(chordVolumeRef.current * 100), step.strumMs);
+        await audioEngine.startContinuousNotes(step.notes, Math.round(chordVolumeRef.current * 100), step.strumMs);
 
         const advancedIndex = (nextIndex + 1) % sequence.length;
         currentNoteIndexRef.current = advancedIndex;
@@ -2095,7 +2095,7 @@ const PerformancePad: React.FC = () => {
         };
     }, [startTrigger, stopTriggerIfIdle, jumpToSection, playRandomNoteFromCurrentStep, playSoloKey, applyVoicing, applyTranspose, applySmooth, voicingBase, currentNoteIndex, chordSequence]);
 
-  const handlePointerDown = (e: React.PointerEvent) => {
+  const handlePointerDown = async (e: React.PointerEvent) => {
         const target = e.target as HTMLElement;
         if (target.closest('[data-pad-control="true"]')) {
             return;
@@ -2155,7 +2155,10 @@ const PerformancePad: React.FC = () => {
             : (currentNoteIndexRef.current - 1 + sequence.length) % sequence.length;
         const step = sequence[stepIndex % sequence.length];
 
-        const groupId = audioEngine.startContinuousNotesGroup(
+        // ensureRunning() is awaited inside startContinuousNotesGroup, so the
+        // AudioContext is fully running (or freshly recreated) before any
+        // oscillators are created — this is the iOS tab-switch / video recovery fix.
+        const groupId = await audioEngine.startContinuousNotesGroup(
             step.notes,
             Math.round(chordVolumeRef.current * 100),
             step.strumMs,
