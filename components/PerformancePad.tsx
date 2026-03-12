@@ -2244,6 +2244,23 @@ const PerformancePad: React.FC = () => {
 
     // Shared band overlay renderers — stepsLo bands below centre, stepsHi above.
     // All N = stepsLo+stepsHi+1 bands are equal width so edges are never clipped.
+    //
+    // Colour encoding:
+    //   hue       = pitch class (pc × 30°) of the note the base pitch would land on
+    //               after applying the band's semitone offset — derived from the
+    //               lowest note of the current chord (falls back to C4 = MIDI 60).
+    //   lightness = direction from centre: going up → brighter, going down → darker.
+    //               centre band is mid-lightness and gets a white inset border to
+    //               visually ground the user.
+    //
+    // Works identically for discrete (pattern-stepped) and continuous (pattern=[1],
+    // stepsLo/Hi in semitones) cases, and is flip-aware on both axes.
+    const baseMidiForBands = useMemo(() => {
+        if (chordSequence.length === 0) return 60;
+        const notes = chordSequence[currentNoteIndex % chordSequence.length]?.notes;
+        return notes && notes.length > 0 ? Math.min(...notes) : 60;
+    }, [chordSequence, currentNoteIndex]);
+
     const renderDetuneBandsX = (stepsLo: number, stepsHi: number, pattern: number[], flipped = false) => {
         const N = stepsLo + stepsHi + 1;
         const bandPct = 100 / N;
@@ -2256,17 +2273,39 @@ const PerformancePad: React.FC = () => {
             <div className="absolute inset-0 pointer-events-none">
                 {Array.from({ length: N }, (_, i) => {
                     const s = i - stepsLo;
-                    const bg = s === 0 ? 'rgba(167,139,250,0.22)'
-                        : Math.abs(s) % 2 === 0 ? 'rgba(99,102,241,0.13)'
-                        : 'rgba(0,0,0,0)';
+                    // signedS: actual pitch displacement (accounts for axis flip)
+                    const signedS = flipped ? -s : s;
+                    const semitoneOffset = stepToCents(signedS, pattern) / 100;
+                    const pc = ((baseMidiForBands % 12) + Math.round(semitoneOffset) + 1200) % 12;
+                    const hue = pc * 30;
+                    const L_center = 28;
+                    const L_range = 20;
+                    // Higher semitone offset → brighter; lower → darker.
+                    // Use positive denominators so normOffset sign matches direction.
+                    const maxUp   = stepToCents(stepsHi,  pattern) / 100; // > 0
+                    const maxDown = stepToCents(stepsLo,   pattern) / 100; // > 0
+                    const normOffset = semitoneOffset > 0 && maxUp > 0
+                        ?  semitoneOffset / maxUp
+                        : semitoneOffset < 0 && maxDown > 0
+                        ?  semitoneOffset / maxDown   // negative / positive → negative
+                        : 0;
+                    const L = Math.max(8, Math.min(52, L_center + normOffset * L_range));
+                    const alpha = s === 0 ? 0.48 : 0.32;
+                    const bg = `hsla(${hue}, 62%, ${L}%, ${alpha})`;
                     return <div key={s} className="absolute top-0 bottom-0 pointer-events-none"
-                        style={{ left: `${i * bandPct}%`, width: `${bandPct}%`, backgroundColor: bg }} />;
+                        style={{
+                            left: `${i * bandPct}%`, width: `${bandPct}%`,
+                            backgroundColor: bg,
+                            boxShadow: s === 0
+                                ? 'inset 0 0 0 1.5px rgba(255,255,255,0.35)'
+                                : 'inset 0 0 0 0.5px rgba(255,255,255,0.12)',
+                        }} />;
                 })}
                 {labelSteps.map(s => {
                     const st = stepToCents(flipped ? -s : s, pattern) / 100;
                     return <div key={s} className="absolute text-[8px] font-black tabular-nums pointer-events-none select-none"
                         style={{ left: `${(s + stepsLo + 0.5) * bandPct}%`, bottom: 28, transform: 'translateX(-50%)',
-                            color: s === 0 ? 'rgba(167,139,250,0.9)' : 'rgba(99,102,241,0.6)' }}>
+                            color: s === 0 ? 'rgba(255,255,255,0.85)' : 'rgba(200,200,200,0.55)' }}>
                         {st > 0 ? `+${st}` : st}
                     </div>;
                 })}
@@ -2285,17 +2324,130 @@ const PerformancePad: React.FC = () => {
             <div className="absolute inset-0 pointer-events-none">
                 {Array.from({ length: N }, (_, i) => {
                     const s = i - stepsLo;
-                    const bg = s === 0 ? 'rgba(167,139,250,0.22)'
-                        : Math.abs(s) % 2 === 0 ? 'rgba(99,102,241,0.13)'
-                        : 'rgba(0,0,0,0)';
+                    const signedS = flipped ? -s : s;
+                    const semitoneOffset = stepToCents(signedS, pattern) / 100;
+                    const pc = ((baseMidiForBands % 12) + Math.round(semitoneOffset) + 1200) % 12;
+                    const hue = pc * 30;
+                    const L_center = 28;
+                    const L_range = 20;
+                    const maxUp   = stepToCents(stepsHi,  pattern) / 100;
+                    const maxDown = stepToCents(stepsLo,   pattern) / 100;
+                    const normOffset = semitoneOffset > 0 && maxUp > 0
+                        ?  semitoneOffset / maxUp
+                        : semitoneOffset < 0 && maxDown > 0
+                        ?  semitoneOffset / maxDown
+                        : 0;
+                    const L = Math.max(8, Math.min(52, L_center + normOffset * L_range));
+                    const alpha = s === 0 ? 0.48 : 0.32;
+                    const bg = `hsla(${hue}, 62%, ${L}%, ${alpha})`;
                     return <div key={s} className="absolute left-0 right-0 pointer-events-none"
-                        style={{ bottom: `${i * bandPct}%`, height: `${bandPct}%`, backgroundColor: bg }} />;
+                        style={{
+                            bottom: `${i * bandPct}%`, height: `${bandPct}%`,
+                            backgroundColor: bg,
+                            boxShadow: s === 0
+                                ? 'inset 0 0 0 1.5px rgba(255,255,255,0.35)'
+                                : 'inset 0 0 0 0.5px rgba(255,255,255,0.12)',
+                        }} />;
                 })}
                 {labelSteps.map(s => {
                     const st = stepToCents(flipped ? -s : s, pattern) / 100;
                     return <div key={s} className="absolute text-[8px] font-black tabular-nums pointer-events-none select-none"
                         style={{ bottom: `${(s + stepsLo + 0.5) * bandPct}%`, right: 8, transform: 'translateY(50%)',
-                            color: s === 0 ? 'rgba(167,139,250,0.9)' : 'rgba(99,102,241,0.6)' }}>
+                            color: s === 0 ? 'rgba(255,255,255,0.85)' : 'rgba(200,200,200,0.55)' }}>
+                        {st > 0 ? `+${st}` : st}
+                    </div>;
+                })}
+            </div>
+        );
+    };
+
+    // 2-D band overlay — used when BOTH axes carry a detune target.
+    // Each cell (ix, iy) is coloured by the ACTUAL combined pitch at that location:
+    //   resultingMidi = baseMidi + xSemitoneOffset(ix) + ySemitoneOffset(iy)
+    // hue = pitch-class × 30°, lightness = direction from base (bright = up, dark = down).
+    // stepsLo/Hi must already be pre-swapped for flip at the call site (same convention as 1D renderers).
+    const renderDetuneBands2D = (
+        xStepsLo: number, xStepsHi: number, xPattern: number[], xFlipped: boolean,
+        yStepsLo: number, yStepsHi: number, yPattern: number[], yFlipped: boolean,
+    ) => {
+        const NX = xStepsLo + xStepsHi + 1;
+        const NY = yStepsLo + yStepsHi + 1;
+        const xBandPct = 100 / NX;
+        const yBandPct = 100 / NY;
+
+        const xMaxUp   = stepToCents(xStepsHi, xPattern) / 100;
+        const xMaxDown = stepToCents(xStepsLo, xPattern) / 100;
+        const yMaxUp   = stepToCents(yStepsHi, yPattern) / 100;
+        const yMaxDown = stepToCents(yStepsLo, yPattern) / 100;
+        const totalMaxUp   = xMaxUp   + yMaxUp;
+        const totalMaxDown = xMaxDown + yMaxDown;
+
+        // Label helpers — same thinning logic as 1D renderers.
+        const xLabelEvery = Math.max(1, Math.ceil(Math.max(xStepsLo, xStepsHi) / 5));
+        const xLabelSteps = Array.from(new Set(
+            Array.from({ length: NX }, (_, i) => i - xStepsLo)
+                .filter(s => s === 0 || s === -xStepsLo || s === xStepsHi || Math.abs(s) % xLabelEvery === 0)
+        ));
+        const yLabelEvery = Math.max(1, Math.ceil(Math.max(yStepsLo, yStepsHi) / 5));
+        const yLabelSteps = Array.from(new Set(
+            Array.from({ length: NY }, (_, i) => i - yStepsLo)
+                .filter(s => s === 0 || s === -yStepsLo || s === yStepsHi || Math.abs(s) % yLabelEvery === 0)
+        ));
+
+        return (
+            <div className="absolute inset-0 pointer-events-none">
+                {/* Grid cells */}
+                <div className="absolute inset-0" style={{
+                    display: 'grid',
+                    gridTemplateColumns: `repeat(${NX}, 1fr)`,
+                    gridTemplateRows: `repeat(${NY}, 1fr)`,
+                }}>
+                    {Array.from({ length: NY }, (_, gridRow) => {
+                        // gridRow 0 = top; band index 0 = bottom → invert
+                        const bandIY = NY - 1 - gridRow;
+                        const yS = bandIY - yStepsLo;
+                        const ySignedS = yFlipped ? -yS : yS;
+                        const ySemitone = stepToCents(ySignedS, yPattern) / 100;
+                        return Array.from({ length: NX }, (_, ix) => {
+                            const xS = ix - xStepsLo;
+                            const xSignedS = xFlipped ? -xS : xS;
+                            const xSemitone = stepToCents(xSignedS, xPattern) / 100;
+                            const totalSemitone = xSemitone + ySemitone;
+                            const resultMidi = baseMidiForBands + Math.round(totalSemitone);
+                            const pc = ((resultMidi % 12) + 12) % 12;
+                            const hue = pc * 30;
+                            const normOffset = totalSemitone > 0 && totalMaxUp > 0
+                                ?  totalSemitone / totalMaxUp
+                                : totalSemitone < 0 && totalMaxDown > 0
+                                ?  totalSemitone / totalMaxDown
+                                : 0;
+                            const L = Math.max(8, Math.min(52, 28 + normOffset * 20));
+                            const isCenter = xS === 0 && yS === 0;
+                            const alpha = isCenter ? 0.52 : 0.36;
+                            return <div key={`${gridRow}-${ix}`} style={{
+                                backgroundColor: `hsla(${hue}, 62%, ${L}%, ${alpha})`,
+                                boxShadow: isCenter
+                                    ? 'inset 0 0 0 1.5px rgba(255,255,255,0.35)'
+                                    : 'inset 0 0 0 0.5px rgba(255,255,255,0.10)',
+                            }} />;
+                        });
+                    })}
+                </div>
+                {/* X-axis labels — along the bottom */}
+                {xLabelSteps.map(s => {
+                    const st = stepToCents(xFlipped ? -s : s, xPattern) / 100;
+                    return <div key={`xl${s}`} className="absolute text-[8px] font-black tabular-nums pointer-events-none select-none"
+                        style={{ left: `${(s + xStepsLo + 0.5) * xBandPct}%`, bottom: 28, transform: 'translateX(-50%)',
+                            color: s === 0 ? 'rgba(255,255,255,0.85)' : 'rgba(200,200,200,0.50)' }}>
+                        {st > 0 ? `+${st}` : st}
+                    </div>;
+                })}
+                {/* Y-axis labels — along the right */}
+                {yLabelSteps.map(s => {
+                    const st = stepToCents(yFlipped ? -s : s, yPattern) / 100;
+                    return <div key={`yl${s}`} className="absolute text-[8px] font-black tabular-nums pointer-events-none select-none"
+                        style={{ bottom: `${(s + yStepsLo + 0.5) * yBandPct}%`, right: 8, transform: 'translateY(50%)',
+                            color: s === 0 ? 'rgba(255,255,255,0.85)' : 'rgba(200,200,200,0.50)' }}>
                         {st > 0 ? `+${st}` : st}
                     </div>;
                 })}
@@ -2435,12 +2587,45 @@ const PerformancePad: React.FC = () => {
                  ))}
             </div>
 
-            {/* Detune band overlays — shared renderer used by both 'detune' (continuous) and 'detune_semitone' (stepped).
-                 Semitone-wide zones alternate fill colour; labels show the actual pitch offset. */}
-            {xTargets.includes('detune_semitone') && renderDetuneBandsX(xFlipped ? xDetuneStepsHi : xDetuneStepsLo, xFlipped ? xDetuneStepsLo : xDetuneStepsHi, xDetunePattern, xFlipped)}
-            {xTargets.includes('detune') && renderDetuneBandsX(xFlipped ? xDetuneCentsRangeHi : xDetuneCentsRangeLo, xFlipped ? xDetuneCentsRangeLo : xDetuneCentsRangeHi, [1], xFlipped)}
-            {yTargets.includes('detune_semitone') && renderDetuneBandsY(yFlipped ? yDetuneStepsHi : yDetuneStepsLo, yFlipped ? yDetuneStepsLo : yDetuneStepsHi, yDetunePattern, yFlipped)}
-            {yTargets.includes('detune') && renderDetuneBandsY(yFlipped ? yDetuneCentsRangeHi : yDetuneCentsRangeLo, yFlipped ? yDetuneCentsRangeLo : yDetuneCentsRangeHi, [1], yFlipped)}
+            {/* Detune band overlays.
+                 When only one axis has detune, render independent 1-D strips.
+                 When BOTH axes carry a detune target, use the 2-D grid renderer so
+                 each cell's colour reflects the true combined pitch at that location.
+                 Priority when an axis has both types: detune_semitone > detune. */}
+            {(() => {
+                // Resolve each axis's dominant detune config (null = no detune on that axis).
+                type DetuneParams = { stepsLo: number; stepsHi: number; pattern: number[]; flipped: boolean };
+                const xDet: DetuneParams | null = xTargets.includes('detune_semitone')
+                    ? { stepsLo: xFlipped ? xDetuneStepsHi : xDetuneStepsLo,
+                        stepsHi: xFlipped ? xDetuneStepsLo : xDetuneStepsHi,
+                        pattern: xDetunePattern, flipped: xFlipped }
+                    : xTargets.includes('detune')
+                    ? { stepsLo: xFlipped ? xDetuneCentsRangeHi : xDetuneCentsRangeLo,
+                        stepsHi: xFlipped ? xDetuneCentsRangeLo : xDetuneCentsRangeHi,
+                        pattern: [1], flipped: xFlipped }
+                    : null;
+                const yDet: DetuneParams | null = yTargets.includes('detune_semitone')
+                    ? { stepsLo: yFlipped ? yDetuneStepsHi : yDetuneStepsLo,
+                        stepsHi: yFlipped ? yDetuneStepsLo : yDetuneStepsHi,
+                        pattern: yDetunePattern, flipped: yFlipped }
+                    : yTargets.includes('detune')
+                    ? { stepsLo: yFlipped ? yDetuneCentsRangeHi : yDetuneCentsRangeLo,
+                        stepsHi: yFlipped ? yDetuneCentsRangeLo : yDetuneCentsRangeHi,
+                        pattern: [1], flipped: yFlipped }
+                    : null;
+
+                if (xDet && yDet) {
+                    // Both axes — 2-D combined-pitch grid.
+                    return renderDetuneBands2D(
+                        xDet.stepsLo, xDet.stepsHi, xDet.pattern, xDet.flipped,
+                        yDet.stepsLo, yDet.stepsHi, yDet.pattern, yDet.flipped,
+                    );
+                }
+                return <>
+                    {xDet && renderDetuneBandsX(xDet.stepsLo, xDet.stepsHi, xDet.pattern, xDet.flipped)}
+                    {yDet && renderDetuneBandsY(yDet.stepsLo, yDet.stepsHi, yDet.pattern, yDet.flipped)}
+                </>;
+            })()}
 
             {/* Axis Labels */}
             <div className="absolute bottom-4 right-4 text-xs font-black text-slate-700 pointer-events-none select-none uppercase tracking-widest">
