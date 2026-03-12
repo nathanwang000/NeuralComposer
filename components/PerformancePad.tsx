@@ -1,4 +1,4 @@
-import { HelpCircle, Maximize2, Minimize2, Music, X } from 'lucide-react';
+import { HelpCircle, Maximize2, Minimize2, Music, Settings, X } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { audioEngine } from '../services/audioEngine';
@@ -1356,6 +1356,9 @@ const PerformancePad: React.FC = () => {
     const [touchPoints, setTouchPoints] = useState<{ id: number; x: number; y: number }[]>([]);
     const [isTouchDevice, setIsTouchDevice] = useState(false);
     const [showTutorial, setShowTutorial] = useState(false);
+    // 'relative': hue encodes interval from the base note (same pattern regardless of key).
+    // 'absolute': hue encodes the resulting pitch class (C=red, D=yellow, …).
+    const [bandColorMode, setBandColorMode] = useState<'relative' | 'absolute'>('relative');
 
     // Sequence
     const [sequenceInput, setSequenceInput] = useState("C4+E4+G4+B5+C5+E6+G6+E5+C5+B4@200ms, D4+E4+G4+B5+C5+E6+G6+E5+C5+B4@200ms,F4+C5+A5,F4+C5+A5,F4+C5+G5,F4+C5+F5,E4+C5+G5");
@@ -2281,7 +2284,9 @@ const PerformancePad: React.FC = () => {
                     // signedS: actual pitch displacement (accounts for axis flip)
                     const signedS = flipped ? -s : s;
                     const semitoneOffset = stepToCents(signedS, pattern) / 100;
-                    const pc = ((baseMidiForBands % 12) + Math.round(semitoneOffset) + 1200) % 12;
+                    const pc = bandColorMode === 'relative'
+                        ? ((Math.round(semitoneOffset) % 12) + 12) % 12
+                        : ((baseMidiForBands % 12) + Math.round(semitoneOffset) + 1200) % 12;
                     const hue = pc * 30;
                     const L_center = 42;
                     const L_range = 24;
@@ -2331,7 +2336,9 @@ const PerformancePad: React.FC = () => {
                     const s = i - stepsLo;
                     const signedS = flipped ? -s : s;
                     const semitoneOffset = stepToCents(signedS, pattern) / 100;
-                    const pc = ((baseMidiForBands % 12) + Math.round(semitoneOffset) + 1200) % 12;
+                    const pc = bandColorMode === 'relative'
+                        ? ((Math.round(semitoneOffset) % 12) + 12) % 12
+                        : ((baseMidiForBands % 12) + Math.round(semitoneOffset) + 1200) % 12;
                     const hue = pc * 30;
                     const L_center = 42;
                     const L_range = 24;
@@ -2419,7 +2426,9 @@ const PerformancePad: React.FC = () => {
                             const xSemitone = stepToCents(xSignedS, xPattern) / 100;
                             const totalSemitone = xSemitone + ySemitone;
                             const resultMidi = baseMidiForBands + Math.round(totalSemitone);
-                            const pc = ((resultMidi % 12) + 12) % 12;
+                            const pc = bandColorMode === 'relative'
+                                ? ((Math.round(totalSemitone) % 12) + 12) % 12
+                                : ((resultMidi % 12) + 12) % 12;
                             const hue = pc * 30;
                             const normOffset = totalSemitone > 0 && totalMaxUp > 0
                                 ?  totalSemitone / totalMaxUp
@@ -2643,10 +2652,9 @@ const PerformancePad: React.FC = () => {
                     onPointerDown={e => e.stopPropagation()}
                     onClick={e => { e.stopPropagation(); setShowTutorial(true); }}
                     className="absolute bottom-3 left-3 z-10 flex items-center gap-1 px-2 py-1 rounded-lg bg-black/40 border border-white/10 text-slate-500 hover:text-slate-200 hover:border-white/25 hover:bg-black/60 transition-colors select-none"
-                    title="Keyboard shortcuts"
+                    title="Settings"
                 >
-                    <HelpCircle size={12} />
-                    {!isTouchDevice && <span className="text-[9px] font-black uppercase tracking-wider">Keys</span>}
+                    <Settings size={12} />
                 </button>
 
             {/* Active Cursor/Visualizer */}
@@ -3210,7 +3218,7 @@ const PerformancePad: React.FC = () => {
         </div>
     </div>
 
-    {/* Tutorial / keyboard-shortcut modal */}
+    {/* Settings modal — colour mode + keyboard shortcuts */}
     {showTutorial && createPortal(
         <div
             className="fixed inset-0 z-[9999] flex items-center justify-center"
@@ -3227,8 +3235,8 @@ const PerformancePad: React.FC = () => {
                 {/* Header */}
                 <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
                     <div className="flex items-center gap-2">
-                        <HelpCircle size={16} className="text-indigo-400" />
-                        <span className="text-sm font-black uppercase tracking-widest text-white">Keyboard Shortcuts</span>
+                        <Settings size={16} className="text-indigo-400" />
+                        <span className="text-sm font-black uppercase tracking-widest text-white">Settings</span>
                     </div>
                     <button
                         onClick={() => setShowTutorial(false)}
@@ -3238,27 +3246,60 @@ const PerformancePad: React.FC = () => {
                     </button>
                 </div>
 
-                {/* Shortcut sections */}
-                <div className="p-5 grid grid-cols-2 gap-x-6 gap-y-5 max-h-[70vh] overflow-y-auto">
-                    {TUTORIAL_SECTIONS.map(section => (
-                        <div key={section.title}>
-                            <div className="text-[9px] font-black uppercase tracking-widest text-indigo-400 mb-2">
-                                {section.title}
-                            </div>
-                            <div className="flex flex-col gap-1">
-                                {section.rows.map(row => (
-                                    <div key={row.display} className="flex items-center justify-between gap-3">
-                                        <span className="text-[10px] font-black bg-white/8 border border-white/10 text-slate-300 px-1.5 py-0.5 rounded shrink-0 tabular-nums">
-                                            {row.display}
-                                        </span>
-                                        <span className="text-[10px] text-slate-400 text-right leading-tight">
-                                            {row.hint}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
+                <div className="p-5 flex flex-col gap-6 max-h-[70vh] overflow-y-auto">
+                    {/* Colour mode */}
+                    <div>
+                        <div className="text-[9px] font-black uppercase tracking-widest text-indigo-400 mb-3">Pad Colours</div>
+                        <div className="flex gap-2">
+                            {(['relative', 'absolute'] as const).map(mode => (
+                                <button
+                                    key={mode}
+                                    onClick={() => setBandColorMode(mode)}
+                                    className={`flex-1 py-2 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-colors ${
+                                        bandColorMode === mode
+                                            ? 'bg-indigo-600/80 border-indigo-400 text-white'
+                                            : 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/25'
+                                    }`}
+                                >
+                                    {mode}
+                                </button>
+                            ))}
                         </div>
-                    ))}
+                        <p className="mt-2 text-[9px] text-slate-500 leading-relaxed">
+                            {bandColorMode === 'relative'
+                                ? 'Hue encodes the interval from the base note — same colour pattern in every key.'
+                                : 'Hue encodes the absolute pitch class — C is always the same colour regardless of key.'}
+                        </p>
+                    </div>
+
+                    {/* Keyboard shortcuts */}
+                    <div>
+                        <div className="flex items-center gap-2 mb-3">
+                            <HelpCircle size={11} className="text-indigo-400" />
+                            <span className="text-[9px] font-black uppercase tracking-widest text-indigo-400">Keyboard Shortcuts</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-5">
+                            {TUTORIAL_SECTIONS.map(section => (
+                                <div key={section.title}>
+                                    <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
+                                        {section.title}
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        {section.rows.map(row => (
+                                            <div key={row.display} className="flex items-center justify-between gap-3">
+                                                <span className="text-[10px] font-black bg-white/8 border border-white/10 text-slate-300 px-1.5 py-0.5 rounded shrink-0 tabular-nums">
+                                                    {row.display}
+                                                </span>
+                                                <span className="text-[10px] text-slate-400 text-right leading-tight">
+                                                    {row.hint}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
 
                 <div className="px-5 py-3 border-t border-white/10 text-[9px] text-slate-600 uppercase tracking-widest">
