@@ -2278,8 +2278,8 @@ const PerformancePad: React.FC = () => {
                     const semitoneOffset = stepToCents(signedS, pattern) / 100;
                     const pc = ((baseMidiForBands % 12) + Math.round(semitoneOffset) + 1200) % 12;
                     const hue = pc * 30;
-                    const L_center = 28;
-                    const L_range = 20;
+                    const L_center = 42;
+                    const L_range = 24;
                     // Higher semitone offset → brighter; lower → darker.
                     // Use positive denominators so normOffset sign matches direction.
                     const maxUp   = stepToCents(stepsHi,  pattern) / 100; // > 0
@@ -2289,9 +2289,9 @@ const PerformancePad: React.FC = () => {
                         : semitoneOffset < 0 && maxDown > 0
                         ?  semitoneOffset / maxDown   // negative / positive → negative
                         : 0;
-                    const L = Math.max(8, Math.min(52, L_center + normOffset * L_range));
-                    const alpha = s === 0 ? 0.48 : 0.32;
-                    const bg = `hsla(${hue}, 62%, ${L}%, ${alpha})`;
+                    const L = Math.max(18, Math.min(66, L_center + normOffset * L_range));
+                    const alpha = s === 0 ? 0.62 : 0.44;
+                    const bg = `hsla(${hue}, 72%, ${L}%, ${alpha})`;
                     return <div key={s} className="absolute top-0 bottom-0 pointer-events-none"
                         style={{
                             left: `${i * bandPct}%`, width: `${bandPct}%`,
@@ -2328,8 +2328,8 @@ const PerformancePad: React.FC = () => {
                     const semitoneOffset = stepToCents(signedS, pattern) / 100;
                     const pc = ((baseMidiForBands % 12) + Math.round(semitoneOffset) + 1200) % 12;
                     const hue = pc * 30;
-                    const L_center = 28;
-                    const L_range = 20;
+                    const L_center = 42;
+                    const L_range = 24;
                     const maxUp   = stepToCents(stepsHi,  pattern) / 100;
                     const maxDown = stepToCents(stepsLo,   pattern) / 100;
                     const normOffset = semitoneOffset > 0 && maxUp > 0
@@ -2337,9 +2337,9 @@ const PerformancePad: React.FC = () => {
                         : semitoneOffset < 0 && maxDown > 0
                         ?  semitoneOffset / maxDown
                         : 0;
-                    const L = Math.max(8, Math.min(52, L_center + normOffset * L_range));
-                    const alpha = s === 0 ? 0.48 : 0.32;
-                    const bg = `hsla(${hue}, 62%, ${L}%, ${alpha})`;
+                    const L = Math.max(18, Math.min(66, L_center + normOffset * L_range));
+                    const alpha = s === 0 ? 0.62 : 0.44;
+                    const bg = `hsla(${hue}, 72%, ${L}%, ${alpha})`;
                     return <div key={s} className="absolute left-0 right-0 pointer-events-none"
                         style={{
                             bottom: `${i * bandPct}%`, height: `${bandPct}%`,
@@ -2421,9 +2421,9 @@ const PerformancePad: React.FC = () => {
                                 : totalSemitone < 0 && totalMaxDown > 0
                                 ?  totalSemitone / totalMaxDown
                                 : 0;
-                            const L = Math.max(8, Math.min(52, 28 + normOffset * 20));
+                            const L = Math.max(18, Math.min(66, 42 + normOffset * 24));
                             const isCenter = xS === 0 && yS === 0;
-                            const alpha = isCenter ? 0.52 : 0.36;
+                            const alpha = isCenter ? 0.65 : 0.46;
                             return <div key={`${gridRow}-${ix}`} style={{
                                 backgroundColor: `hsla(${hue}, 62%, ${L}%, ${alpha})`,
                                 boxShadow: isCenter
