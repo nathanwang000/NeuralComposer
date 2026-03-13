@@ -1201,17 +1201,17 @@ const SOLO_LAYOUTS: Record<SoloLayoutName, { label: string; description: string;
             'f': { mode: 'interval', semitones: 0 },
             'g': { mode: 'interval', semitones: -2 },
             // top row
-            'q': { mode: 'interval', semitones: 3 },
-            'w': { mode: 'interval', semitones: 5 },
-            'e': { mode: 'interval', semitones: 7  },
-            'r': { mode: 'interval', semitones: 9 },
-            't': { mode: 'interval', semitones: 11 },
+            'q': { mode: 'interval', semitones: 11},
+            'w': { mode: 'interval', semitones: 9 },
+            'e': { mode: 'interval', semitones: 7 },
+            'r': { mode: 'interval', semitones: 5 },
+            't': { mode: 'interval', semitones: 3 },
             // bottom row
-            'z': { mode: 'interval', semitones: -7 },
-            'x': { mode: 'interval', semitones: -5 },
+            'z': { mode: 'interval', semitones: 1 },
+            'x': { mode: 'interval', semitones: -1 },
             'c': { mode: 'interval', semitones: -3 },
-            'v': { mode: 'interval', semitones: -1 },
-            'b': { mode: 'interval', semitones: 1 },
+            'v': { mode: 'interval', semitones: -5 },
+            'b': { mode: 'interval', semitones: -7 },
         }
     },
     fullKBwickiHayden: {
