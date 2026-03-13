@@ -1004,7 +1004,7 @@ type NoteAddress =
 
 type KeyLayout = Record<string, NoteAddress>;
 
-type SoloLayoutName = 'chordTones' | 'wickiHayden' | 'leftHandWickiHayden'| 'fullKBwickiHayden' | 'diatonic' | 'chromatic' | 'chordBiased' | 'fullKBviolin';
+type SoloLayoutName = 'chordTones' | 'wickiHayden' | 'mirroredWickiHayden'| 'fullKBwickiHayden' | 'diatonic' | 'chromatic' | 'chordBiased' | 'fullKBviolin';
 
 /**
  * Resolve a NoteAddress to a MIDI note number.
@@ -1190,8 +1190,8 @@ const SOLO_LAYOUTS: Record<SoloLayoutName, { label: string; description: string;
             '/': { mode: 'interval', semitones: 1 },
         }
     },
-    leftHandWickiHayden: {
-        label: 'Wicki-Hayden (left hand)',
+    mirroredWickiHayden: {
+        label: 'Wicki-Hayden (mirrored left/right hand)',
         description: 'Wicki-Hayden layout: see wikipedia (isomorphic keyboard: translationally equivariant)',
         layout: {
             // home row
@@ -1200,18 +1200,39 @@ const SOLO_LAYOUTS: Record<SoloLayoutName, { label: string; description: string;
             'd': { mode: 'interval', semitones: 2 },
             'f': { mode: 'interval', semitones: 0 },
             'g': { mode: 'interval', semitones: -2 },
+            // mirrored right hand
+            'h': { mode: 'interval', semitones: -2 },
+            'j': { mode: 'interval', semitones: 0  },
+            'k': { mode: 'interval', semitones: 2 },
+            'l': { mode: 'interval', semitones: 4 },
+            ';': { mode: 'interval', semitones: 6 },
+            "'": { mode: 'interval', semitones: 8 },
             // top row
             'q': { mode: 'interval', semitones: 11},
             'w': { mode: 'interval', semitones: 9 },
             'e': { mode: 'interval', semitones: 7 },
             'r': { mode: 'interval', semitones: 5 },
             't': { mode: 'interval', semitones: 3 },
+            // mirrored top row
+            'y': { mode: 'interval', semitones: 3 },
+            'u': { mode: 'interval', semitones: 5 },
+            'i': { mode: 'interval', semitones: 7  },
+            'o': { mode: 'interval', semitones: 9 },
+            'p': { mode: 'interval', semitones: 11 },
+            '[': { mode: 'interval', semitones: 13 },
+            ']': { mode: 'interval', semitones: 15 },
             // bottom row
             'z': { mode: 'interval', semitones: 1 },
             'x': { mode: 'interval', semitones: -1 },
             'c': { mode: 'interval', semitones: -3 },
             'v': { mode: 'interval', semitones: -5 },
             'b': { mode: 'interval', semitones: -7 },
+            // mirrored bottom row
+            'n': { mode: 'interval', semitones: -7 },
+            'm': { mode: 'interval', semitones: -5 },
+            ',': { mode: 'interval', semitones: -3 },
+            '.': { mode: 'interval', semitones: -1 },
+            '/': { mode: 'interval', semitones: 1 },
         }
     },
     fullKBwickiHayden: {
