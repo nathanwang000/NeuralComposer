@@ -1209,28 +1209,27 @@ const SOLO_LAYOUTS: Record<SoloLayoutName, { label: string; description: string;
         label: 'Wicki-Hayden',
         description: 'Wicki-Hayden layout: see wikipedia (isomorphic keyboard: translationally equivariant)',
         layout: {
-
             // home row
-            'h': { mode: 'interval', semitones: 10 },
-            'j': { mode: 'interval', semitones: 12  },
-            'k': { mode: 'interval', semitones: 14 },
-            'l': { mode: 'interval', semitones: 16 },
-            ';': { mode: 'interval', semitones: 18 },
-            "'": { mode: 'interval', semitones: 20 },
+            'h': { mode: 'interval', semitones: -2 },
+            'j': { mode: 'interval', semitones: 0  },
+            'k': { mode: 'interval', semitones: 2 },
+            'l': { mode: 'interval', semitones: 4 },
+            ';': { mode: 'interval', semitones: 6 },
+            "'": { mode: 'interval', semitones: 8 },
             // top row
-            'y': { mode: 'interval', semitones: 15 },
-            'u': { mode: 'interval', semitones: 17 },
-            'i': { mode: 'interval', semitones: 19 },
-            'o': { mode: 'interval', semitones: 21 },
-            'p': { mode: 'interval', semitones: 23 },
-            '[': { mode: 'interval', semitones: 25 },
-            ']': { mode: 'interval', semitones: 27 },
+            'y': { mode: 'interval', semitones: 3 },
+            'u': { mode: 'interval', semitones: 5 },
+            'i': { mode: 'interval', semitones: 7  },
+            'o': { mode: 'interval', semitones: 9 },
+            'p': { mode: 'interval', semitones: 11 },
+            '[': { mode: 'interval', semitones: 13 },
+            ']': { mode: 'interval', semitones: 15 },
             // bottom row
-            'n': { mode: 'interval', semitones: 5 },
-            'm': { mode: 'interval', semitones: 7 },
-            ',': { mode: 'interval', semitones: 9 },
-            '.': { mode: 'interval', semitones: 11 },
-            '/': { mode: 'interval', semitones: 13 },        }
+            'n': { mode: 'interval', semitones: -7 },
+            'm': { mode: 'interval', semitones: -5 },
+            ',': { mode: 'interval', semitones: -3 },
+            '.': { mode: 'interval', semitones: -1 },
+            '/': { mode: 'interval', semitones: 1 },        }
     },
     fullKBwikiHayden: {
         label: '2 hands Wicki-Hayden',
