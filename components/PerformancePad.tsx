@@ -1004,7 +1004,7 @@ type NoteAddress =
 
 type KeyLayout = Record<string, NoteAddress>;
 
-type SoloLayoutName = 'chordTones' | 'wickiHayden' | 'diatonic' | 'chromatic' | 'chordBiased' | 'fullKBwikiHayden';
+type SoloLayoutName = 'chordTones' | 'wickiHayden' | 'diatonic' | 'chromatic' | 'chordBiased' | 'fullKBwikiHayden' | 'fullKBviolin';
 
 /**
  * Resolve a NoteAddress to a MIDI note number.
@@ -1162,6 +1162,48 @@ const SOLO_LAYOUTS: Record<SoloLayoutName, { label: string; description: string;
             'l': { mode: 'chordTone', index: 2 },
             ';': { mode: 'chordTone', index: 3 },
         },
+    },
+    fullKBviolin: {
+        label: '2 hands Violin',
+        description: 'Full keyboard Violin-style layout (chromatically descending on x-axis, 5ths descending on y-axis)',
+        layout: {
+            // home row
+            'a': { mode: 'interval', semitones: 6 },
+            's': { mode: 'interval', semitones: 5 },
+            'd': { mode: 'interval', semitones: 4 },
+            'f': { mode: 'interval', semitones: 3 },
+            'g': { mode: 'interval', semitones: 2 },
+            'h': { mode: 'interval', semitones: 1 },
+            'j': { mode: 'interval', semitones: 0 },
+            'k': { mode: 'interval', semitones: -1 },
+            'l': { mode: 'interval', semitones: -2 },
+            ';': { mode: 'interval', semitones: -3 },
+            "'": { mode: 'interval', semitones: -4 },
+            // top row
+            'q': { mode: 'interval', semitones: 0 },
+            'w': { mode: 'interval', semitones: -1 },
+            'e': { mode: 'interval', semitones: -2 },
+            'r': { mode: 'interval', semitones: -3 },
+            't': { mode: 'interval', semitones: -4 },
+            'y': { mode: 'interval', semitones: -5 },
+            'u': { mode: 'interval', semitones: -6 },
+            'i': { mode: 'interval', semitones: -7 },
+            'o': { mode: 'interval', semitones: -8 },
+            'p': { mode: 'interval', semitones: -9 },
+            '[': { mode: 'interval', semitones: -10 },
+            ']': { mode: 'interval', semitones: -11 },
+             // bottom row
+             'z': { mode: 'interval', semitones: 12 },
+             'x': { mode: 'interval', semitones: 11 },
+             'c': { mode: 'interval', semitones: 10 },
+             'v': { mode: 'interval', semitones: 9 },
+             'b': { mode: 'interval', semitones: 8 },
+             'n': { mode: 'interval', semitones: 7 },
+             'm': { mode: 'interval', semitones: 6 },
+             ',': { mode: 'interval', semitones: 5 },
+             '.': { mode: 'interval', semitones: 4 },
+             '/': { mode: 'interval', semitones: 3 },
+        }
     },
     wickiHayden: {
         label: 'Wicki-Hayden',
