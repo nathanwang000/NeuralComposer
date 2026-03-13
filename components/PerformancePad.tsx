@@ -1003,7 +1003,7 @@ type NoteAddress =
 
 type KeyLayout = Record<string, NoteAddress>;
 
-type SoloLayoutName = 'chordBiased' | 'wickiHayden' | 'wholeToneWH' | 'diatonic' | 'fullKBwickiHayden' | 'mirroredWickiHayden' | 'chromatic' | 'fullKBviolin';
+type SoloLayoutName = 'noodle' | 'chordBiased' | 'wickiHayden' | 'wholeToneWH' | 'diatonic' | 'fullKBwickiHayden' | 'mirroredWickiHayden' | 'chromatic' | 'fullKBviolin';
 
 /**
  * Resolve a NoteAddress to a MIDI note number.
@@ -1180,6 +1180,32 @@ const SOLO_LAYOUTS: Record<SoloLayoutName, { label: string; description: string;
             ',': { mode: 'interval', semitones: -4 },  // b6 below
             '.': { mode: 'interval', semitones: -5 },  // 4th below
             '/': { mode: 'interval', semitones: -7 },  // 5th below
+        },
+    },
+    noodle: {
+        label: 'Noodle',
+        description: 'Experimental',
+        layout: {
+            // home row
+            'h': { mode: 'chordTone', index: -1 },
+            'j': { mode: 'interval', semitones: 0  },
+            'k': { mode: 'interval', semitones: 4  },
+            'l': { mode: 'interval', semitones: 7  },
+            ';': { mode: 'interval', semitones: 9 },
+            "'": { mode: 'interval', semitones: 11 },
+            // top row
+            'y': { mode: 'interval', semitones: 1  },
+            'u': { mode: 'interval', semitones: 3  },
+            'i': { mode: 'interval', semitones: 6  },
+            'o': { mode: 'interval', semitones: 8  },
+            'p': { mode: 'interval', semitones: 10 },
+            '[': { mode: 'interval', semitones: 11 },
+            // bottom row
+            'n': { mode: 'interval', semitones: -1 },
+            'm': { mode: 'interval', semitones: -2 },
+            ',': { mode: 'interval', semitones: -4 },
+            '.': { mode: 'interval', semitones: -5 },
+            '/': { mode: 'interval', semitones: -7 },
         },
     },
     wickiHayden: {
