@@ -995,8 +995,7 @@ function physicalKeyOf(key: string): string {
 // KeyLayout — maps a physical key string to a NoteAddress.
 //   Keys not present in the layout map are silently ignored.
 //
-// SOLO_LAYOUTS — named presets. The default ('chordTones') reproduces the
-//   original J/K/L/; behaviour exactly so nothing changes on first load.
+// SOLO_LAYOUTS — named presets.
 // ---------------------------------------------------------------------------
 type NoteAddress =
     | { mode: 'interval';  semitones: number }
@@ -1004,7 +1003,7 @@ type NoteAddress =
 
 type KeyLayout = Record<string, NoteAddress>;
 
-type SoloLayoutName = 'chordTones' | 'wickiHayden' | 'mirroredWickiHayden'| 'fullKBwickiHayden' | 'diatonic' | 'chromatic' | 'chordBiased' | 'fullKBviolin';
+type SoloLayoutName = 'chordBiased' | 'wickiHayden' | 'wholeToneWH' | 'diatonic' | 'fullKBwickiHayden' | 'mirroredWickiHayden' | 'chromatic' | 'fullKBviolin';
 
 /**
  * Resolve a NoteAddress to a MIDI note number.
@@ -1152,20 +1151,40 @@ function detectBestKey(chordHistory: number[][]): KeySpec {
 }
 
 const SOLO_LAYOUTS: Record<SoloLayoutName, { label: string; description: string; layout: KeyLayout }> = {
-    // ── Default: reproduces original J/K/L/; chord-tone behaviour exactly ─
-    chordTones: {
-        label: 'Chord Tones',
-        description: 'J K L ; → chord notes lo→hi (linear scale)',
+    // ── Chord-biased: home row = chord tones, rows = chromatic neighbors ──
+    // Home row J K L ;    → chord tones 0–3
+    // Home row H          → chordTone -1 (top note, melody ceiling)
+    // Top row  Y U   O P  → upper chromatic neighbors of each chord tone
+    // Top row  I          → tritone / b5 above bass
+    // Bot row  N M , . /  → lower chromatic approach notes
+    chordBiased: {
+        label: 'Chord-Biased',
+        description: 'Home row = chord tones; reach up/down for chromatic approach notes',
         layout: {
-            'j': { mode: 'chordTone', index: 0 },
-            'k': { mode: 'chordTone', index: 1 },
-            'l': { mode: 'chordTone', index: 2 },
-            ';': { mode: 'chordTone', index: 3 },
+            // home row — chord tones
+            'h': { mode: 'chordTone', index: -1 },  // top note (melody ceiling)
+            'j': { mode: 'chordTone', index: 0  },
+            'k': { mode: 'chordTone', index: 1  },
+            'l': { mode: 'chordTone', index: 2  },
+            ';': { mode: 'chordTone', index: 3  },
+            // top row — upper chromatic / color tones relative to bass
+            'y': { mode: 'interval', semitones: 1  },  // b9
+            'u': { mode: 'interval', semitones: 3  },  // #9 / b3
+            'i': { mode: 'interval', semitones: 6  },  // b5 / #11
+            'o': { mode: 'interval', semitones: 8  },  // b13 / #5
+            'p': { mode: 'interval', semitones: 10 },  // b7
+            '[': { mode: 'interval', semitones: 11 },  // maj7
+            // bottom row — lower chromatic approach notes
+            'n': { mode: 'interval', semitones: -1 },  // leading tone below
+            'm': { mode: 'interval', semitones: -2 },  // b7 below
+            ',': { mode: 'interval', semitones: -4 },  // b6 below
+            '.': { mode: 'interval', semitones: -5 },  // 4th below
+            '/': { mode: 'interval', semitones: -7 },  // 5th below
         },
     },
     wickiHayden: {
         label: 'Wicki-Hayden',
-        description: 'Wicki-Hayden layout: see wikipedia (isomorphic keyboard: translationally equivariant)',
+        description: 'left/right = whole tone steps, up/down = perfect 5th steps (isomorphic keyboard: translationally equivariant)',
         layout: {
             // home row
             'h': { mode: 'interval', semitones: -2 },
@@ -1190,9 +1209,109 @@ const SOLO_LAYOUTS: Record<SoloLayoutName, { label: string; description: string;
             '/': { mode: 'interval', semitones: 1 },
         }
     },
+    // ── Diatonic: home row = white keys (major scale)
+    // All intervals relative to bass note (semitone 0).
+    // Home row H J K L ; '  → 0  2  4  5  7  9   (C D E F G A in C major)
+    diatonic: {
+        label: 'Diatonic',
+        description: 'Home row = scale tones, top row = one semitone up from home row, bottom row = lower approach',
+        layout: {
+            // home row
+            'h': { mode: 'interval', semitones: 0  },
+            'j': { mode: 'interval', semitones: 2  },
+            'k': { mode: 'interval', semitones: 4  },
+            'l': { mode: 'interval', semitones: 5  },
+            ';': { mode: 'interval', semitones: 7  },
+            "'": { mode: 'interval', semitones: 9  },
+            // top row — one semitone up from home row
+            'y': { mode: 'interval', semitones: -1 },
+            'u': { mode: 'interval', semitones: 1  },
+            'i': { mode: 'interval', semitones: 3  },
+            'o': { mode: 'interval', semitones: 5  },
+            'p': { mode: 'interval', semitones: 6 },
+            '[': { mode: 'interval', semitones: 8 },
+            ']': { mode: 'interval', semitones: 10 },
+            // bottom row — lower chromatic approaches
+            'n': { mode: 'interval', semitones: -1 },
+            'm': { mode: 'interval', semitones: -3 },
+            ',': { mode: 'interval', semitones: -5 },
+            '.': { mode: 'interval', semitones: -7 },
+            '/': { mode: 'interval', semitones: -8 },
+        },
+    },
+    wholeToneWH: {
+        label: 'Whole-Tone WH',
+        description: 'Home row = whole tone steps, Top row = 1 semitone up from home row, Botton row = perfect 5th below home row',
+        layout: {
+            // home row
+            'h': { mode: 'interval', semitones: -2  },
+            'j': { mode: 'interval', semitones: 0  },
+            'k': { mode: 'interval', semitones: 2  },
+            'l': { mode: 'interval', semitones: 4  },
+            ';': { mode: 'interval', semitones: 6  },
+            "'": { mode: 'interval', semitones: 8  },
+            // top row — one semitone up from home row
+            'y': { mode: 'interval', semitones: -3 },
+            'u': { mode: 'interval', semitones: -1  },
+            'i': { mode: 'interval', semitones: 1  },
+            'o': { mode: 'interval', semitones: 3  },
+            'p': { mode: 'interval', semitones: 5 },
+            '[': { mode: 'interval', semitones: 7 },
+            ']': { mode: 'interval', semitones: 9 },
+            '\\': { mode: 'interval', semitones: 11 },
+            // bottom row — perfect 5th below home row
+            'n': { mode: 'interval', semitones: -7 },
+            'm': { mode: 'interval', semitones: -5 },
+            ',': { mode: 'interval', semitones: -3 },
+            '.': { mode: 'interval', semitones: -1 },
+            '/': { mode: 'interval', semitones: 1 },
+        },
+    },
+    fullKBwickiHayden: {
+        label: 'Full WH',
+        description: 'Wicki-Hayden layout extended to the bottom row (isomorphic keyboard: translationally equivariant)',
+        layout: {
+            // home row
+            'a': { mode: 'interval', semitones: 0 },
+            's': { mode: 'interval', semitones: 2 },
+            'd': { mode: 'interval', semitones: 4 },
+            'f': { mode: 'interval', semitones: 6 },
+            'g': { mode: 'interval', semitones: 8 },
+            'h': { mode: 'interval', semitones: 10 },
+            'j': { mode: 'interval', semitones: 12  },
+            'k': { mode: 'interval', semitones: 14 },
+            'l': { mode: 'interval', semitones: 16 },
+            ';': { mode: 'interval', semitones: 18 },
+            "'": { mode: 'interval', semitones: 20 },
+            // top row
+            'q': { mode: 'interval', semitones: 5 },
+            'w': { mode: 'interval', semitones: 7 },
+            'e': { mode: 'interval', semitones: 9 },
+            'r': { mode: 'interval', semitones: 11 },
+            't': { mode: 'interval', semitones: 13 },
+            'y': { mode: 'interval', semitones: 15 },
+            'u': { mode: 'interval', semitones: 17 },
+            'i': { mode: 'interval', semitones: 19 },
+            'o': { mode: 'interval', semitones: 21 },
+            'p': { mode: 'interval', semitones: 23 },
+            '[': { mode: 'interval', semitones: 25 },
+            ']': { mode: 'interval', semitones: 27 },
+            // bottom row
+            'z': { mode: 'interval', semitones: -5 },
+            'x': { mode: 'interval', semitones: -3 },
+            'c': { mode: 'interval', semitones: -1 },
+            'v': { mode: 'interval', semitones: 1 },
+            'b': { mode: 'interval', semitones: 3 },
+            'n': { mode: 'interval', semitones: 5 },
+            'm': { mode: 'interval', semitones: 7 },
+            ',': { mode: 'interval', semitones: 9 },
+            '.': { mode: 'interval', semitones: 11 },
+            '/': { mode: 'interval', semitones: 13 },
+        }
+    },
     mirroredWickiHayden: {
-        label: 'Wicki-Hayden (mirrored left/right hand)',
-        description: 'Wicki-Hayden layout: see wikipedia (isomorphic keyboard: translationally equivariant)',
+        label: 'mirrored WH',
+        description: 'Wicki-Hayden layout mirrored around the center (both hands have mirror opposite arrangement)',
         layout: {
             // home row
             'a': { mode: 'interval', semitones: 6 },
@@ -1235,80 +1354,6 @@ const SOLO_LAYOUTS: Record<SoloLayoutName, { label: string; description: string;
             '/': { mode: 'interval', semitones: 1 },
         }
     },
-    fullKBwickiHayden: {
-        label: '2 hands Wicki-Hayden',
-        description: 'Wicki-Hayden layout extended to the bottom row (isomorphic keyboard: translationally equivariant)',
-        layout: {
-            // home row
-            'a': { mode: 'interval', semitones: 0 },
-            's': { mode: 'interval', semitones: 2 },
-            'd': { mode: 'interval', semitones: 4 },
-            'f': { mode: 'interval', semitones: 6 },
-            'g': { mode: 'interval', semitones: 8 },
-            'h': { mode: 'interval', semitones: 10 },
-            'j': { mode: 'interval', semitones: 12  },
-            'k': { mode: 'interval', semitones: 14 },
-            'l': { mode: 'interval', semitones: 16 },
-            ';': { mode: 'interval', semitones: 18 },
-            "'": { mode: 'interval', semitones: 20 },
-            // top row
-            'q': { mode: 'interval', semitones: 5 },
-            'w': { mode: 'interval', semitones: 7 },
-            'e': { mode: 'interval', semitones: 9 },
-            'r': { mode: 'interval', semitones: 11 },
-            't': { mode: 'interval', semitones: 13 },
-            'y': { mode: 'interval', semitones: 15 },
-            'u': { mode: 'interval', semitones: 17 },
-            'i': { mode: 'interval', semitones: 19 },
-            'o': { mode: 'interval', semitones: 21 },
-            'p': { mode: 'interval', semitones: 23 },
-            '[': { mode: 'interval', semitones: 25 },
-            ']': { mode: 'interval', semitones: 27 },
-            // bottom row
-            'z': { mode: 'interval', semitones: -5 },
-            'x': { mode: 'interval', semitones: -3 },
-            'c': { mode: 'interval', semitones: -1 },
-            'v': { mode: 'interval', semitones: 1 },
-            'b': { mode: 'interval', semitones: 3 },
-            'n': { mode: 'interval', semitones: 5 },
-            'm': { mode: 'interval', semitones: 7 },
-            ',': { mode: 'interval', semitones: 9 },
-            '.': { mode: 'interval', semitones: 11 },
-            '/': { mode: 'interval', semitones: 13 },
-        }
-    },
-    // ── Diatonic: home row = white keys (major scale), top row = accidentals ─
-    // All intervals relative to bass note (semitone 0).
-    // Home row H J K L ; '  → 0  2  4  5  7  9   (C D E F G A in C major)
-    // Top row  Y U I O P [  → 1  3  6  8  10 11  (Db Eb F# Ab Bb B)
-    // Bot row  N M , . /    → -1 -3 -5 -7 -8     (B  A  G  F  E below)
-    diatonic: {
-        label: 'Diatonic',
-        description: 'Home row = scale tones, top row = accidentals, bottom row = lower approach',
-        layout: {
-            // home row
-            'h': { mode: 'interval', semitones: 0  },
-            'j': { mode: 'interval', semitones: 2  },
-            'k': { mode: 'interval', semitones: 4  },
-            'l': { mode: 'interval', semitones: 5  },
-            ';': { mode: 'interval', semitones: 7  },
-            "'": { mode: 'interval', semitones: 9  },
-            // top row — accidentals
-            'y': { mode: 'interval', semitones: 1  },
-            'u': { mode: 'interval', semitones: 3  },
-            'i': { mode: 'interval', semitones: 6  },
-            'o': { mode: 'interval', semitones: 8  },
-            'p': { mode: 'interval', semitones: 10 },
-            '[': { mode: 'interval', semitones: 11 },
-            // bottom row — lower chromatic approaches
-            'n': { mode: 'interval', semitones: -1 },
-            'm': { mode: 'interval', semitones: -3 },
-            ',': { mode: 'interval', semitones: -5 },
-            '.': { mode: 'interval', semitones: -7 },
-            '/': { mode: 'interval', semitones: -8 },
-        },
-    },
-
     // ── Chromatic: fully linear, one semitone per key left→right ──────────
     // Top row Y U I O P [ ]  → 0  1  2  3  4  5  6
     // Home row H J K L ; '   → 7  8  9  10 11 12
@@ -1381,38 +1426,6 @@ const SOLO_LAYOUTS: Record<SoloLayoutName, { label: string; description: string;
              '.': { mode: 'interval', semitones: 4 },
              '/': { mode: 'interval', semitones: 3 },
         }
-    },
-
-    // ── Chord-biased: home row = chord tones, rows = chromatic neighbors ──
-    // Home row J K L ;    → chord tones 0–3 (same as default)
-    // Home row H          → chordTone -1 (top note, melody ceiling)
-    // Top row  Y U   O P  → upper chromatic neighbors of each chord tone
-    // Top row  I          → tritone / b5 above bass
-    // Bot row  N M , . /  → lower chromatic approach notes
-    chordBiased: {
-        label: 'Chord-Biased',
-        description: 'Home row = chord tones; reach up/down for chromatic approach notes',
-        layout: {
-            // home row — chord tones
-            'h': { mode: 'chordTone', index: -1 },  // top note (melody ceiling)
-            'j': { mode: 'chordTone', index: 0  },
-            'k': { mode: 'chordTone', index: 1  },
-            'l': { mode: 'chordTone', index: 2  },
-            ';': { mode: 'chordTone', index: 3  },
-            // top row — upper chromatic / color tones relative to bass
-            'y': { mode: 'interval', semitones: 1  },  // b9
-            'u': { mode: 'interval', semitones: 3  },  // #9 / b3
-            'i': { mode: 'interval', semitones: 6  },  // b5 / #11
-            'o': { mode: 'interval', semitones: 8  },  // b13 / #5
-            'p': { mode: 'interval', semitones: 10 },  // b7
-            '[': { mode: 'interval', semitones: 11 },  // maj7
-            // bottom row — lower chromatic approach notes
-            'n': { mode: 'interval', semitones: -1 },  // leading tone below
-            'm': { mode: 'interval', semitones: -2 },  // b7 below
-            ',': { mode: 'interval', semitones: -4 },  // b6 below
-            '.': { mode: 'interval', semitones: -5 },  // 4th below
-            '/': { mode: 'interval', semitones: -7 },  // 5th below
-        },
     },
 };
 
