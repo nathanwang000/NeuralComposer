@@ -2,31 +2,71 @@
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div> -->
 
-# Run and deploy
+# NeuralComposer
 
-This contains everything you need to run your app locally.
+A playground for experimenting with musical ideas. The central goal of the **Perform tab** is to make a digital instrument intuitive enough that anyone — not just trained musicians — can enjoy *playing* music, not just listening to it. Much of the work here is exploring keyboard and touch configurations toward that end.
 
-If you have music to preload into the app, put it under `samples/`
+## Features
+
+- **Voice to notes** — hum or sing into the mic; the app transcribes to MIDI (voice icon at the top)
+- **Sequence tab** — compose music manually or with Gemini AI assistance; preload compositions under `samples/`
+- **Perform tab** — enhanced live performance via customizable pad layout; preload chord sequences under `pad_samples/`
 
 ## Run Locally
 
-**Prerequisites:**  Node.js
+**Prerequisites:** Node.js
 
+1. Install dependencies: `npm install`
+2. Run the app: `npm run dev`
+3. Enter your Gemini API key in the UI (Optional).
 
-1. Install dependencies:
-   `npm install`
-2. Run the app:
-   `npm run dev`
-3. Enter your Gemini API key in the UI when prompted.
+## Deploy
 
-## Deployment commands
+```
+npm install && npm run build
+```
 
-`npm install && npm run build`
+Preview the result: `npm run preview`
 
-preview the result
-`npm run preview`
+---
 
-# NeuralComposer Sample File Syntax Guide
+# Performance Pad
+
+The perform tab lets you trigger chord progressions and solo over them in real time. The sections below are notes on the instrument design — a brain dump of learnings from messing around with different keyboard and touch configurations.
+
+## Observations
+
+- **Pitch space as a 2D plane unifies all instrument layouts.** The x-axis encodes chromatic progression; the y-axis encodes the interval between "strings" (e.g., perfect 5th for violin, mixed intervals for guitar). Once you see any instrument as a 2D grid, fingering patterns across instruments become immediately comparable.
+
+- **Isomorphism (translational equivariance) is not unique to Wicki-Hayden.** Violin's layout is equally isomorphic — any hand shape that produces a given interval pattern works identically across all positions. The effect is less obvious simply because violin only has 4 strings (4 y-values). A wider string instrument would make this symmetry as apparent as on a Wicki-Hayden keyboard.
+
+- **String instruments are a horizontal mirror of keyboard instruments.** On violin and guitar the highest pitch falls under the pinky; on piano the highest pitch falls under the thumb. For string players learning keyboard (or vice versa), this x-axis flip creates an unintuitive mental block that is purely a layout convention, not a musical necessity.
+
+- **String instruments have a structural ceiling on harmony.** Physical constraints (bow mechanics, string spacing) make 3-note voicings difficult and 4-note voicings essentially impossible on violin. Keyboard instruments place no such limit — any number of simultaneous pitches across the full range is trivially available, which fundamentally shapes how harmony is taught and practiced on each instrument.
+
+## Tips for Playing
+
+### Soloing
+
+The pad auto-determines the key (minor or major) for the next chord. You can freely choose from the 1st, 3rd, 5th, 6th, 8th, or 10th degree from the major root (1, 3, 5 form the major triad; 6, 8, 10 form the minor triad from the relative major perspective).
+
+On a Wicki-Hayden keyboard, these degrees map naturally onto the major and minor triad shapes.
+
+### Playing on computer
+
+- **Cascading effect** — solo with the left hand and layer octave changes or invert1/drop1 voicings to create a cascading sound.
+- **Smooth chord transitions** — hold `D` while hitting `F` to carry the previous chord into the next, smoothing the transition.
+
+### Playing on iPad
+
+iPad adds one extra capability: triggering the same chord progression with multiple fingers simultaneously.
+
+- **Translational equivariant keyboard** — setting both x and y axes to vary by semitone simulates an isomorphic (translational equivariant) keyboard layout.
+- **Continuous sound change** — unlike on a computer, sliding a finger on iPad produces a continuous pitch-bending effect.
+
+---
+
+# Sample File Syntax Guide
 
 This document covers the two sample file formats used in NeuralComposer:
 - **Pad Samples** (`pad_samples/*.txt`) — human-readable chord notation for performance pads
@@ -220,38 +260,5 @@ Bars and chord changes are annotated with comments for readability:
 | Sections | `[SectionName]` | `# --- Bar N: Name ---` |
 | Use case | Performance pads, loops | Full compositions |
 
-
-## Tips for playing
-
-### Soloing
-
-The pad auto determines the key (minor or major) for the next chord to play. So really you can freely choose from the 1st, 3rd, 5th, 6th, 8th, 10th from the maj root node to play (1,3,5 is the major triad, while 6, 8, 10 are minor triad from the relative maj tone perspective).
-
-- in wickiHayden keyboard
-
-This natural maps to the maj triad and minor triad shape.
-
-### Playing on computer
-
-- cascading effect
-
-soloing with left hand but add octave change or inverse1 / drop1 to create a cascading sound effect.
-
-- smooth transition of chord
-
-holding d while hitting f will maintain a smooth transition to the next chord.
-
-### Playing on ipad
-
-Separate from playing on computer, ipad playing have 1 additional supported functionality: playing the same chord progression with multiple fingers
-
-- translational equivariant keyboard
-
-This is a powerful way to simlate an isomorphic (translational equivariant) keyboard if
-you set x and y axses to vary by semitone!
-
-- continuous sound change
-
-unlike on computer, if you move fingers on the ipad, you will create a continuous sound effect.
 
 
