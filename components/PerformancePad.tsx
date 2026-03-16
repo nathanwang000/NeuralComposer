@@ -1003,7 +1003,7 @@ type NoteAddress =
 
 type KeyLayout = Record<string, NoteAddress>;
 
-type SoloLayoutName = 'noodle' | 'noodle2' | 'chordBiased' | 'wickiHayden' | 'wholeToneWH' | 'diatonic' | 'fullKBwickiHayden' | 'mirroredWickiHayden' | 'chromatic' | 'fullKBviolin';
+type SoloLayoutName = 'noodle' | 'semitoneUp' | 'chordBiased' | 'wickiHayden' | 'wholeToneWH' | 'diatonic' | 'fullKBwickiHayden' | 'mirroredWickiHayden' | 'chromatic' | 'fullKBviolin';
 
 /**
  * Resolve a NoteAddress to a MIDI note number.
@@ -1196,42 +1196,16 @@ const SOLO_LAYOUTS: Record<SoloLayoutName, { label: string; description: string;
             // top row
             'y': { mode: 'interval', semitones: 1  },
             'u': { mode: 'interval', semitones: 3  },
-            'i': { mode: 'interval', semitones: 6  },
-            'o': { mode: 'interval', semitones: 8  },
-            'p': { mode: 'interval', semitones: 10 },
-            '[': { mode: 'interval', semitones: 11 },
+            'i': { mode: 'interval', semitones: 2  },
+            'o': { mode: 'interval', semitones: 5  },
+            'p': { mode: 'interval', semitones: 8 },
+            '[': { mode: 'interval', semitones: 10 },
             // bottom row
             'n': { mode: 'interval', semitones: -1 }, // leading tone below
             'm': { mode: 'interval', semitones: 3 },
             ',': { mode: 'interval', semitones: 6 },
             '.': { mode: 'interval', semitones: 8 },
             '/': { mode: 'interval', semitones: 10 },
-        },
-    },
-    noodle2: {
-        label: 'Noodle2',
-        description: 'Experimental ()',
-        layout: {
-            // home row
-            'h': { mode: 'interval', semitones: -1 },
-            'j': { mode: 'interval', semitones: 2 },
-            'k': { mode: 'interval', semitones: 5  },
-            'l': { mode: 'interval', semitones: 8  },
-            ';': { mode: 'interval', semitones: 11 },
-            "'": { mode: 'interval', semitones: 14 },
-            // top row
-            'y': { mode: 'interval', semitones: -2  },
-            'u': { mode: 'interval', semitones: 1  },
-            'i': { mode: 'interval', semitones: 4  },
-            'o': { mode: 'interval', semitones: 7  },
-            'p': { mode: 'interval', semitones: 10 },
-            '[': { mode: 'interval', semitones: 13 },
-            // bottom row
-            'n': { mode: 'interval', semitones: 0 },
-            'm': { mode: 'interval', semitones: 3 },
-            ',': { mode: 'interval', semitones: 6 },
-            '.': { mode: 'interval', semitones: 9 },
-            '/': { mode: 'interval', semitones: 12 },
         },
     },
     wickiHayden: {
@@ -1289,6 +1263,32 @@ const SOLO_LAYOUTS: Record<SoloLayoutName, { label: string; description: string;
             ',': { mode: 'interval', semitones: -5 },
             '.': { mode: 'interval', semitones: -7 },
             '/': { mode: 'interval', semitones: -8 },
+        },
+    },
+    semitoneUp: {
+        label: 'semitone up',
+        description: 'semitone going up',
+        layout: {
+            // home row
+            'h': { mode: 'interval', semitones: -1 },
+            'j': { mode: 'interval', semitones: 2 },
+            'k': { mode: 'interval', semitones: 5  },
+            'l': { mode: 'interval', semitones: 8  },
+            ';': { mode: 'interval', semitones: 11 },
+            "'": { mode: 'interval', semitones: 14 },
+            // top row
+            'y': { mode: 'interval', semitones: -2  },
+            'u': { mode: 'interval', semitones: 1  },
+            'i': { mode: 'interval', semitones: 4  },
+            'o': { mode: 'interval', semitones: 7  },
+            'p': { mode: 'interval', semitones: 10 },
+            '[': { mode: 'interval', semitones: 13 },
+            // bottom row
+            'n': { mode: 'interval', semitones: 0 },
+            'm': { mode: 'interval', semitones: 3 },
+            ',': { mode: 'interval', semitones: 6 },
+            '.': { mode: 'interval', semitones: 9 },
+            '/': { mode: 'interval', semitones: 12 },
         },
     },
     wholeToneWH: {
