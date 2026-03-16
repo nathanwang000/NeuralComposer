@@ -1509,8 +1509,8 @@ const PerformancePad: React.FC = () => {
     const [showTutorial, setShowTutorial] = useState(false);
     // When true, solo/random notes read the current pointer position and apply the
     // pad's XY timbre mapping (cutoff, resonance, detune…) before each note is played.
-    const [soloTimbreFromPointer, setSoloTimbreFromPointer] = useState(false);
-    const soloTimbreFromPointerRef = useRef(false);
+    const [soloTimbreFromPointer, setSoloTimbreFromPointer] = useState(true);
+    const soloTimbreFromPointerRef = useRef(true);
     // 'relative': hue encodes interval from the base note (same pattern regardless of key).
     // 'absolute': hue encodes the resulting pitch class (C=red, D=yellow, …).
     const [bandColorMode, setBandColorMode] = useState<'relative' | 'absolute'>('relative');
