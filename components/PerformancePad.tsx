@@ -2370,6 +2370,7 @@ const PerformancePad: React.FC = () => {
 
     // Mouse / pen
     if (controlPointerIdRef.current !== e.pointerId) return;
+    hoverPosRef.current = { x, y };
     setCursorPos({ x, y });
     const params = calculateParams(x, y);
     audioEngine.updateActiveVoiceParams(params);
