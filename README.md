@@ -83,7 +83,7 @@ Used by the performance pad system. Designed to be compact and readable.
 ```
 [SectionName]
 // optional comment
-Note1+Note2+Note3@DURATIONms, Note1+Note2@DURATIONms, ...
+Note1+Note2+Note3@DURATION_BEATS_b, Note1+Note2@DURATION_BEATS_b, ...
 ```
 
 ### Section Headers
@@ -108,17 +108,19 @@ Single-line comments start with `//`:
 
 ### Chord Notation
 
-Each chord is a group of simultaneous notes joined by `+`, followed by a duration:
+Each chord is a group of simultaneous notes joined by `+`, followed by an optional strum annotation:
 
 ```
-D4+C5+A4+F4@305ms
+D4+C5+A4+F4@0.5b
 ```
 
 | Part | Description |
 |------|-------------|
 | `D4` | Note name (`A`–`G`) + octave number |
 | `+` | Separator between notes in a chord |
-| `@305ms` | Duration in milliseconds |
+| `@0.5b` | Strum delay in **beats** (0.5 = half a beat between each note) |
+
+Omitting the `@` annotation plays all notes of the chord simultaneously.
 
 #### Note Names
 
@@ -126,22 +128,34 @@ Standard Western pitch notation: `C`, `D`, `E`, `F`, `G`, `A`, `B`
 Append `#` for sharp or `b` for flat (e.g. `C#4`, `Gb5`).
 Octave range: `0`–`8` (middle C = `C4`).
 
-#### Duration
+#### Strum Annotation
 
-Written as `@<number>ms`. The `ms` suffix is required:
+Written as `@<number>b`. The `b` suffix stands for **beats**:
 
 ```
-@305ms    // 305 milliseconds
+@0.5b     // half a beat between each note
+@0.25b    // quarter beat (16th note at 4/4)
+@0b       // all notes fire simultaneously
 ```
 
-> **Note:** The `m` shorthand (e.g. `@305m`) also appears in some files and is treated as equivalent to `ms`.
+The delay is **tempo-relative** — it scales automatically with the BPM setting so a `@0.25b` strum always sounds the same musically regardless of tempo.
+
+Common values and their musical meaning:
+
+| Value | At 120 BPM | Feel |
+|-------|------------|------|
+| `@0b` | 0 ms | Block chord (simultaneous) |
+| `@0.1b` | 50 ms | Tight strum |
+| `@0.25b` | 125 ms | Quarter-beat spread |
+| `@0.5b` | 250 ms | Half-beat spread (jazzy) |
+| `@0.75b` | 375 ms | Three-quarter-beat spread (lazy reggae) |
 
 ### Chord Sequences
 
 Multiple chords on one line are comma-separated and play in order:
 
 ```
-D4+C5+A4+F4@305ms, B4+F5+G4+D5@305ms, B4+E4+C4+G4@305ms
+D4+C5+A4+F4@0.5b, B4+F5+G4+D5@0.5b, B4+E4+C4+G4@0.5b
 ```
 
 ### Full Example
@@ -149,13 +163,13 @@ D4+C5+A4+F4@305ms, B4+F5+G4+D5@305ms, B4+E4+C4+G4@305ms
 ```
 [jazz]
 // jazzy chord
-D4+C5+A4+F4@305ms, B4+F5+G4+D5@305ms, B4+E4+C4+G4@305ms, A3+C4+E5+G4@305ms
+D4+C5+A4+F4@0.5b, B4+F5+G4+D5@0.5b, B4+E4+C4+G4@0.5b, A3+C4+E5+G4@0.5b
 
 [Natural Minor]
-C5+A4+A5+E5@305ms, D6+F5+A5+D5@305ms, B4+D5+G4+G5@305ms
+C5+A4+A5+E5@0.5b, D6+F5+A5+D5@0.5b, B4+D5+G4+G5@0.5b
 
 [bossa nova]
-G4+C4+B4+E5@305ms, A4+C#6+E5+G5@305ms, D4+F5+C5+A4@305ms
+G4+C4+B4+E5@0.5b, A4+C#6+E5+G5@0.5b, D4+F5+C5+A4@0.5b, G4+B4+D5+F5@0.5b
 ```
 
 ---
@@ -253,7 +267,7 @@ Bars and chord changes are annotated with comments for readability:
 | Feature | Pad Samples | MIDI Samples |
 |---------|-------------|--------------|
 | Note encoding | Pitch name (`D4`, `C#5`) | MIDI number (`P:62`) |
-| Timing unit | Milliseconds (`@305ms`) | Beats (`T:3.0`) |
+| Timing unit | Beats (`@0.5b`) | Beats (`T:3.0`) |
 | Velocity | Not specified | Explicit (`V:90`) |
 | Chords | `+` joined notes | Same `T` value |
 | Comments | `//` | `#` |

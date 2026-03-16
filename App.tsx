@@ -624,7 +624,7 @@ const App: React.FC = () => {
       <main className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-6 p-4 lg:p-6 pt-0 lg:pt-0">
         <div className="lg:col-span-9 flex flex-col gap-4 min-h-0">
           {mainTab === 'performance' ? (
-             <PerformancePad />
+             <PerformancePad bpm={state.tempo} />
           ) : (
           <>
           <div className="relative flex-1 min-h-[350px] border border-white/5 rounded-3xl overflow-hidden bg-black shadow-inner">

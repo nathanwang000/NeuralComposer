@@ -8,7 +8,7 @@ type ModulationTarget = keyof SynthConfig | 'detune_semitone';
 
 type ChordStep = {
     notes: number[];
-    strumMs: number;
+    strumBeats: number;
 };
 
 type Section = {
@@ -87,6 +87,19 @@ function applyToNonComments(sequence: string, transform: (code: string) => strin
     .join('\n');
 }
 
+/**
+ * Split a raw step token into its notes part and optional strum annotation.
+ * Strum notation: @<number>b  (e.g. @0.25b = quarter-beat delay per note).
+ * Used by every function that parses or rewrites a step token.
+ */
+function splitStepToken(token: string): { notesPart: string; strumPart: string } {
+  const m = token.match(/^(.*?)(\s*@\s*\d+(?:\.\d+)?\s*b)?$/i);
+  return {
+    notesPart: (m?.[1] ?? token).trim(),
+    strumPart: m?.[2]?.trimStart() ?? '',
+  };
+}
+
 function transposeSequence(sequence: string, delta: number): string {
   // Match note tokens like C4, F#3, Db-1, Cx5 etc. — skip comment text.
   return applyToNonComments(sequence, code =>
@@ -98,11 +111,12 @@ function transposeSequence(sequence: string, delta: number): string {
 }
 
 function scaleStrumSpeed(sequence: string, factor: number): string {
-  // Scale every @Xms value by factor; 0ms stays 0ms — skip comment text.
+  // Scale every @Xb value by factor; @0b stays @0b — skip comment text.
   return applyToNonComments(sequence, code =>
-    code.replace(/@\s*(\d+(?:\.\d+)?)\s*ms?/gi, (_, ms) => {
-      const scaled = Math.round(parseFloat(ms) * factor);
-      return `@${Math.max(0, scaled)}ms`;
+    code.replace(/@\s*(\d+(?:\.\d+)?)\s*b/gi, (_, beats) => {
+      const scaled = parseFloat(beats) * factor;
+      // Round to 3 decimal places to avoid floating-point noise.
+      return `@${Math.round(scaled * 1000) / 1000}b`;
     })
   );
 }
@@ -112,9 +126,7 @@ function reorderChordNotes(sequence: string, mode: 'reverse' | 'random' | 'sort'
     .split(',')
     .map(step => {
       const trimmed = step.trim();
-      const match = trimmed.match(/^(.*?)(@\s*\d+(?:\.\d+)?\s*ms?)?$/i);
-      const notesPart = (match?.[1] ?? trimmed).trim();
-      const strumPart = match?.[2] ?? '';
+      const { notesPart, strumPart } = splitStepToken(trimmed);
       const notes = notesPart.split('+').map(n => n.trim()).filter(Boolean);
       if (mode === 'reverse') {
         notes.reverse();
@@ -636,8 +648,7 @@ function applySmoothVoicingToSequence(sequence: string, anchorStepIndex: number)
     for (const token of codePart.split(',')) {
       const t = token.trim();
       if (!t) continue;
-      const m = t.match(/^(.*?)(@\s*\d+(?:\.\d+)?\s*ms?)?$/i);
-      const notesPart  = (m?.[1] ?? t).trim();
+      const { notesPart } = splitStepToken(t);
       const noteStrings = notesPart.split('+').map(n => n.trim()).filter(Boolean);
       if (noteStrings.length === 0) continue;
       midiSteps.push(noteStrings.map(n => noteToMidi(n)));
@@ -664,9 +675,7 @@ function applySmoothVoicingToSequence(sequence: string, anchorStepIndex: number)
       const newTokens = codePart.split(',').map(token => {
         const t = token.trim();
         if (!t) return token;
-        const m = t.match(/^(.*?)(@\s*\d+(?:\.\d+)?\s*ms?)?$/i);
-        const notesPart   = (m?.[1] ?? t).trim();
-        const strumPart   = m?.[2] ?? '';
+        const { notesPart, strumPart } = splitStepToken(t);
         const noteStrings = notesPart.split('+').map(n => n.trim()).filter(Boolean);
         if (noteStrings.length === 0) return token;
         const leading = token.match(/^(\s*)/)?.[1] ?? '';
@@ -704,9 +713,7 @@ function applyColoringToStep(
       const newTokens = tokens.map(token => {
         const t = token.trim();
         if (!t) return token;
-        const m = t.match(/^(.*?)(@\s*\d+(?:\.\d+)?\s*ms?)?$/i);
-        const notesPart = (m?.[1] ?? t).trim();
-        const strumPart = m?.[2] ?? '';
+        const { notesPart, strumPart } = splitStepToken(t);
         const noteStrings = notesPart.split('+').map(n => n.trim()).filter(Boolean);
         if (noteStrings.length === 0) return token;
 
@@ -741,9 +748,7 @@ function applyVoicingToAllSteps(
       const newTokens = tokens.map(token => {
         const t = token.trim();
         if (!t) return token;
-        const m = t.match(/^(.*?)(@\s*\d+(?:\.\d+)?\s*ms?)?$/i);
-        const notesPart = (m?.[1] ?? t).trim();
-        const strumPart = m?.[2] ?? '';
+        const { notesPart, strumPart } = splitStepToken(t);
         const noteStrings = notesPart.split('+').map(n => n.trim()).filter(Boolean);
         if (noteStrings.length === 0) return token;
         const transformed = transform(noteStrings.map(n => noteToMidi(n)));
@@ -776,8 +781,7 @@ function getStepMidi(sequence: string, stepIndex: number): number[] | null {
     for (const token of codePart.split(',')) {
       const t = token.trim();
       if (!t) continue;
-      const m = t.match(/^(.*?)(@\s*\d+(?:\.\d+)?\s*ms?)?$/i);
-      const notesPart = (m?.[1] ?? t).trim();
+      const { notesPart } = splitStepToken(t);
       const noteStrings = notesPart.split('+').map(n => n.trim()).filter(Boolean);
       if (noteStrings.length === 0) continue;
       if (counter === stepIndex) return noteStrings.map(n => noteToMidi(n));
@@ -1490,7 +1494,12 @@ const TOUCH_COLORS = [
     { dot: '#34d399', glow: 'rgba(16,185,129,0.22)',  ring: 'rgba(52,211,153,0.55)'  }, // emerald
 ];
 
-const PerformancePad: React.FC = () => {
+const PerformancePad: React.FC<{ bpm?: number }> = ({ bpm = 120 }) => {
+    // Keep a ref to the latest bpm so audio callbacks always see the current value
+    // without needing to be re-created whenever bpm changes.
+    const bpmRef = useRef(bpm);
+    useEffect(() => { bpmRef.current = bpm; }, [bpm]);
+
     const padRef = useRef<HTMLDivElement>(null);
     const activePointerIdsRef = useRef<Set<number>>(new Set());
     // Maps pointer ID → audio voice-group ID for independently-releasable multi-touch chords.
@@ -1516,7 +1525,7 @@ const PerformancePad: React.FC = () => {
     const [bandColorMode, setBandColorMode] = useState<'relative' | 'absolute'>('relative');
 
     // Sequence
-    const [sequenceInput, setSequenceInput] = useState("C4+E4+G4+B5+C5+E6+G6+E5+C5+B4@200ms, D4+E4+G4+B5+C5+E6+G6+E5+C5+B4@200ms,F4+C5+A5,F4+C5+A5,F4+C5+G5,F4+C5+F5,E4+C5+G5");
+    const [sequenceInput, setSequenceInput] = useState("C4+E4+G4+B5+C5+E6+G6+E5+C5+B4@0.25b, D4+E4+G4+B5+C5+E6+G6+E5+C5+B4@0.25b,F4+C5+A5,F4+C5+A5,F4+C5+G5,F4+C5+F5,E4+C5+G5");
     const [chordSequence, setChordSequence] = useState<ChordStep[]>([]);
     const [sections, setSections] = useState<Section[]>([]);
     const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
@@ -1637,18 +1646,17 @@ const PerformancePad: React.FC = () => {
             for (const token of trimmed.split(',')) {
                 const t = token.trim();
                 if (!t) continue;
-                const match = t.match(/^(.*?)(?:@\s*(\d+(?:\.\d+)?)\s*ms?)?$/i);
-                const notesPart = (match?.[1] ?? t).trim();
-                const rawStrum = match?.[2];
-                const parsedStrum = rawStrum !== undefined ? Number(rawStrum) : 0;
-                const strumMs = Number.isFinite(parsedStrum) ? Math.max(0, parsedStrum) : 0;
+                const { notesPart, strumPart } = splitStepToken(t);
+                const strumBeats = strumPart
+                    ? Math.max(0, parseFloat(strumPart.replace(/[^\d.]/g, '')) || 0)
+                    : 0;
                 const notes = notesPart.split('+').map(n => n.trim()).filter(Boolean).map(n => noteToMidi(n));
                 if (notes.length === 0) continue;
-                parsedSteps.push({ notes, strumMs });
+                parsedSteps.push({ notes, strumBeats });
             }
         }
 
-        const newSequence = parsedSteps.length > 0 ? parsedSteps : [{ notes: [60], strumMs: 0 }];
+        const newSequence = parsedSteps.length > 0 ? parsedSteps : [{ notes: [60], strumBeats: 0 }];
         setChordSequence(newSequence);
         setSections(parsedSections);
         // Only reset the step counter when the sequence shrinks past the current position.
@@ -1826,13 +1834,13 @@ const PerformancePad: React.FC = () => {
         setIsPlaying(true);
         setCursorPos({ x, y });
 
-        const sequence = chordSequence.length > 0 ? chordSequence : [{ notes: [60], strumMs: 0 }];
+        const sequence = chordSequence.length > 0 ? chordSequence : [{ notes: [60], strumBeats: 0 }];
         const nextIndex = currentNoteIndexRef.current;
         const step = sequence[nextIndex % sequence.length];
 
         const params = calculateParams(x, y);
         audioEngine.updateActiveVoiceParams(params);
-        await audioEngine.startContinuousNotes(step.notes, Math.round(chordVolumeRef.current * 100), step.strumMs);
+        await audioEngine.startContinuousNotes(step.notes, Math.round(chordVolumeRef.current * 100), Math.round(step.strumBeats * (60000 / bpmRef.current)));
 
         const advancedIndex = (nextIndex + 1) % sequence.length;
         currentNoteIndexRef.current = advancedIndex;
@@ -1867,7 +1875,7 @@ const PerformancePad: React.FC = () => {
      * octaveShift: semitones to add (+12 = up one octave, -12 = down one octave).
      */
     const playRandomNoteFromCurrentStep = useCallback((octaveShift = 0) => {
-        const sequence = chordSequence.length > 0 ? chordSequence : [{ notes: [60], strumMs: 0 }];
+        const sequence = chordSequence.length > 0 ? chordSequence : [{ notes: [60], strumBeats: 0 }];
         const stepIndex = isPlaying
             ? (currentNoteIndexRef.current - 1 + sequence.length) % sequence.length
             : currentNoteIndexRef.current % sequence.length;
@@ -1888,7 +1896,7 @@ const PerformancePad: React.FC = () => {
      * Used by the UI buttons which don't go through the layout system.
      */
     const playNoteFromCurrentStepByLinearIndex = useCallback((keyIndex: number, octaveShift = 0) => {
-        const sequence = chordSequence.length > 0 ? chordSequence : [{ notes: [60], strumMs: 0 }];
+        const sequence = chordSequence.length > 0 ? chordSequence : [{ notes: [60], strumBeats: 0 }];
         const stepIndex = isPlaying
             ? (currentNoteIndexRef.current - 1 + sequence.length) % sequence.length
             : currentNoteIndexRef.current % sequence.length;
@@ -1919,7 +1927,7 @@ const PerformancePad: React.FC = () => {
         const address = layout[physicalKey];
         if (!address) return false;
 
-        const sequence = chordSequence.length > 0 ? chordSequence : [{ notes: [60], strumMs: 0 }];
+        const sequence = chordSequence.length > 0 ? chordSequence : [{ notes: [60], strumBeats: 0 }];
         const stepIndex = isPlaying
             ? (currentNoteIndexRef.current - 1 + sequence.length) % sequence.length
             : currentNoteIndexRef.current % sequence.length;
@@ -2314,7 +2322,7 @@ const PerformancePad: React.FC = () => {
         setCursorPos({ x, y });
 
         const isFirstFinger = activePointerIdsRef.current.size === 1;
-        const sequence = chordSequence.length > 0 ? chordSequence : [{ notes: [60], strumMs: 0 }];
+        const sequence = chordSequence.length > 0 ? chordSequence : [{ notes: [60], strumBeats: 0 }];
         // Use the step that was current when the first finger landed (not the
         // already-advanced index), so all fingers of this gesture share a step.
         const stepIndex = isFirstFinger
@@ -2328,7 +2336,7 @@ const PerformancePad: React.FC = () => {
         const groupId = await audioEngine.startContinuousNotesGroup(
             step.notes,
             Math.round(chordVolumeRef.current * 100),
-            step.strumMs,
+            Math.round(step.strumBeats * (60000 / bpmRef.current)),
             calculateParams(x, y),  // applied only to this finger's voices
         );
         pointerVoiceGroupRef.current.set(e.pointerId, groupId);
@@ -3008,7 +3016,7 @@ const PerformancePad: React.FC = () => {
                     spellCheck={false}
                     value={sequenceInput}
                     onChange={(e) => setSequenceInput(e.target.value)}
-                    placeholder="e.g. [verse]:\nC4+E4+G4@12ms, // tonic\n[chorus]:\nG3+B3+D4@30ms"
+                    placeholder="e.g. [verse]:\nC4+E4+G4@0.1b, // tonic\n[chorus]:\nG3+B3+D4@0.25b"
                 />
                 <div className="flex flex-col gap-1.5 mt-2">
                     <div className="flex items-center gap-1 flex-wrap">
