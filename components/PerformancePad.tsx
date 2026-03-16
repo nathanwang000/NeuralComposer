@@ -1507,6 +1507,10 @@ const PerformancePad: React.FC = () => {
     const [touchPoints, setTouchPoints] = useState<{ id: number; x: number; y: number }[]>([]);
     const [isTouchDevice, setIsTouchDevice] = useState(false);
     const [showTutorial, setShowTutorial] = useState(false);
+    // When true, solo/random notes read the current pointer position and apply the
+    // pad's XY timbre mapping (cutoff, resonance, detune…) before each note is played.
+    const [soloTimbreFromPointer, setSoloTimbreFromPointer] = useState(false);
+    const soloTimbreFromPointerRef = useRef(false);
     // 'relative': hue encodes interval from the base note (same pattern regardless of key).
     // 'absolute': hue encodes the resulting pitch class (C=red, D=yellow, …).
     const [bandColorMode, setBandColorMode] = useState<'relative' | 'absolute'>('relative');
@@ -1870,8 +1874,12 @@ const PerformancePad: React.FC = () => {
         const step = sequence[stepIndex];
         const midi = step.notes[Math.floor(Math.random() * step.notes.length)];
         // not using chordVolumeRef.current because this is a solo note outside the continuous chord voices
+        if (soloTimbreFromPointerRef.current) {
+            const { x, y } = hoverPosRef.current;
+            audioEngine.updateActiveVoiceParams(calculateParams(x, y));
+        }
         audioEngine.addContinuousNote(Math.max(0, Math.min(127, midi + octaveShift)), 100);
-    }, [chordSequence, isPlaying]);
+    }, [chordSequence, isPlaying, calculateParams]);
 
     /**
      * Play a note from the current step mapped linearly by keyIndex (0 = min pitch, 3 = max pitch).
@@ -1893,8 +1901,12 @@ const PerformancePad: React.FC = () => {
 
         // not using chordVolumeRef.current because this is a solo note outside the continuous chord voices
         const midi = sorted[Math.min(noteIdx, sorted.length - 1)];
+        if (soloTimbreFromPointerRef.current) {
+            const { x, y } = hoverPosRef.current;
+            audioEngine.updateActiveVoiceParams(calculateParams(x, y));
+        }
         audioEngine.addContinuousNote(Math.max(0, Math.min(127, midi + octaveShift)), 100);
-    }, [chordSequence, isPlaying]);
+    }, [chordSequence, isPlaying, calculateParams]);
 
     /**
      * Play a note using the active solo key layout.
@@ -1918,9 +1930,13 @@ const PerformancePad: React.FC = () => {
             ? detectedMajorTonicRef.current
             : undefined;
         const midi = resolveNoteAddress(address, step.notes, octaveShift, tonicOverride);
+        if (soloTimbreFromPointerRef.current) {
+            const { x, y } = hoverPosRef.current;
+            audioEngine.updateActiveVoiceParams(calculateParams(x, y));
+        }
         audioEngine.addContinuousNote(Math.max(0, Math.min(127, midi)), 100);
         return true;
-    }, [chordSequence, isPlaying]);
+    }, [chordSequence, isPlaying, calculateParams]);
 
     const jumpToSection = useCallback((sectionIndex: number) => {
         if (sectionIndex < 0 || sectionIndex >= sections.length) return;
@@ -3401,6 +3417,30 @@ const PerformancePad: React.FC = () => {
                 </div>
 
                 <div className="p-5 flex flex-col gap-6 max-h-[70vh] overflow-y-auto">
+                    {/* Solo timbre mode */}
+                    <div>
+                        <div className="text-[9px] font-black uppercase tracking-widest text-indigo-400 mb-3">Solo Timbre</div>
+                        <button
+                            onClick={() => {
+                                const next = !soloTimbreFromPointer;
+                                setSoloTimbreFromPointer(next);
+                                soloTimbreFromPointerRef.current = next;
+                            }}
+                            className={`w-full py-2 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-colors ${
+                                soloTimbreFromPointer
+                                    ? 'bg-indigo-600/80 border-indigo-400 text-white'
+                                    : 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/25'
+                            }`}
+                        >
+                            {soloTimbreFromPointer ? 'Pointer Timbre ON' : 'Pointer Timbre OFF'}
+                        </button>
+                        <p className="mt-2 text-[9px] text-slate-500 leading-relaxed">
+                            {soloTimbreFromPointer
+                                ? 'Solo and random notes read the current pointer position and apply the pad\'s XY axis mapping (cutoff, resonance, detune…) before each note.'
+                                : 'Solo and random notes use the synth\'s current settings unchanged. Enable to have pointer position shape the timbre of every note you play.'}
+                        </p>
+                    </div>
+
                     {/* Colour mode */}
                     <div>
                         <div className="text-[9px] font-black uppercase tracking-widest text-indigo-400 mb-3">Pad Colours</div>
