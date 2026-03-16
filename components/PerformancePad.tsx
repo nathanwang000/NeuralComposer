@@ -24,12 +24,13 @@ const BASE_SEMITONES: Record<string, number> = {
 function noteToMidi(note: string): number {
   // Supports any number of sharps (#, ##, ...), flats (b, bb, ...),
   // and the double-sharp shorthand (x), e.g. E#, E##, Dbb, Cx, B##
-  const regex = /^([A-G])(x|[#b]+)?(-?\d+)$/i;
+  // Octave is optional — bare names like "B" or "C#" default to octave 4.
+  const regex = /^([A-G])(x|[#b]+)?(-?\d+)?$/i;
   const match = note.match(regex);
   if (!match) return 60; // Default Middle C
 
   const [_, noteLetter, accidental, octaveStr] = match;
-  const octave = parseInt(octaveStr);
+  const octave = octaveStr !== undefined ? parseInt(octaveStr) : 4;
   const baseSemitone = BASE_SEMITONES[noteLetter.toUpperCase()];
 
   let offset = 0;
@@ -101,9 +102,11 @@ function splitStepToken(token: string): { notesPart: string; strumPart: string }
 }
 
 function transposeSequence(sequence: string, delta: number): string {
-  // Match note tokens like C4, F#3, Db-1, Cx5 etc. — skip comment text.
+  // Match note tokens like C4, F#3, Db-1, Cx5, or bare B/C# (octave defaults to 4).
+  // midiToNote always emits with an explicit octave, so bare notes get normalised
+  // in-place on the first transpose.
   return applyToNonComments(sequence, code =>
-    code.replace(/([A-G](?:x|[#b]+)?-?\d+)/gi, (match) => {
+    code.replace(/([A-G](?:x|[#b]+)?(?:-?\d+)?)/gi, (match) => {
       const midi = noteToMidi(match);
       return midiToNote(midi + delta);
     })
