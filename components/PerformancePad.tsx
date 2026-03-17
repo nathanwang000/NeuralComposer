@@ -2,7 +2,7 @@ import { HelpCircle, Maximize2, Minimize2, Music, Settings, X } from 'lucide-rea
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { audioEngine } from '../services/audioEngine';
-import { SynthConfig } from '../types';
+import { MidiEvent, SynthConfig } from '../types';
 
 type ModulationTarget = keyof SynthConfig | 'detune_semitone';
 
@@ -1497,7 +1497,10 @@ const TOUCH_COLORS = [
     { dot: '#34d399', glow: 'rgba(16,185,129,0.22)',  ring: 'rgba(52,211,153,0.55)'  }, // emerald
 ];
 
-const PerformancePad: React.FC<{ bpm?: number }> = ({ bpm = 120 }) => {
+const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: MidiEvent[]) => void }> = ({
+    bpm = 120,
+    onCommitRecording,
+}) => {
     // Keep a ref to the latest bpm so audio callbacks always see the current value
     // without needing to be re-created whenever bpm changes.
     const bpmRef = useRef(bpm);
@@ -1539,6 +1542,14 @@ const PerformancePad: React.FC<{ bpm?: number }> = ({ bpm = 120 }) => {
     // Voicing snapshot — set on the first voicing edit, cleared on any external sequence change
     const [voicingBase, setVoicingBase] = useState<string | null>(null);
     const voicingChangeInProgressRef = useRef(false);
+
+    // Recording
+    const [isRecording, setIsRecording] = useState(false);
+    const isRecordingRef = useRef(false);
+    const recordingStartMsRef = useRef(0);
+    // Map from source-key → list of { pitch, onMs } for in-flight notes.
+    const pendingNoteOnRef = useRef<Map<string, { pitch: number; onMs: number }[]>>(new Map());
+    const recordedEventsRef = useRef<MidiEvent[]>([]);
 
     // Solo key layout
     const [currentLayout, setCurrentLayout] = useState<SoloLayoutName>('wickiHayden');
@@ -1777,6 +1788,89 @@ const PerformancePad: React.FC<{ bpm?: number }> = ({ bpm = 120 }) => {
         }
     }, []);
 
+  /** Convert a SynthConfig detune value (cents) to the nearest whole semitone offset. */
+  const detuneOffsetSemitones = (params: Partial<SynthConfig>): number =>
+      Math.round(((params.detune as number | undefined) ?? 0) / 100);
+
+  /**
+   * Record a note-on. key uniquely identifies the input source so its note-off
+   * can be matched later (e.g. 'chord', 'ptr:1', 'key:j').
+   * strumBeats > 0 staggers each successive pitch by that many beats.
+   */
+  const recordNoteOn = useCallback((
+      key: string,
+      pitches: number[],
+      detuneOffset: number,
+      strumBeats: number,
+  ) => {
+      if (!isRecordingRef.current) return;
+      const msPerBeat = 60000 / bpmRef.current;
+      const now = performance.now();
+      pendingNoteOnRef.current.set(key, pitches.map((p, i) => ({
+          pitch: Math.max(0, Math.min(127, p + detuneOffset)),
+          onMs: now + i * strumBeats * msPerBeat,
+      })));
+  }, []);
+
+  /**
+   * Record a note-off for key. Pops the pending entry, computes durations from
+   * wall-clock time, and appends finished MidiEvents to recordedEventsRef.
+   */
+  const recordNoteOff = useCallback((key: string) => {
+      if (!isRecordingRef.current) return;
+      const entries = pendingNoteOnRef.current.get(key);
+      if (!entries) return;
+      pendingNoteOnRef.current.delete(key);
+      const offMs = performance.now();
+      const msPerBeat = 60000 / bpmRef.current;
+      const startMs = recordingStartMsRef.current;
+      for (const { pitch, onMs } of entries) {
+          recordedEventsRef.current.push({
+              p: pitch,
+              v: 100,
+              t: Math.max(0, (onMs - startMs) / msPerBeat),
+              d: Math.max(1 / 64, (offMs - Math.max(onMs, startMs)) / msPerBeat),
+          });
+      }
+  }, []);
+
+  /** Flush any still-held notes and fire onCommitRecording with chronologically sorted events. */
+  const commitRecording = useCallback(() => {
+      const offMs = performance.now();
+      const msPerBeat = 60000 / bpmRef.current;
+      const startMs = recordingStartMsRef.current;
+      pendingNoteOnRef.current.forEach(entries => {
+          for (const { pitch, onMs } of entries) {
+              recordedEventsRef.current.push({
+                  p: pitch,
+                  v: 100,
+                  t: Math.max(0, (onMs - startMs) / msPerBeat),
+                  d: Math.max(1 / 64, (offMs - Math.max(onMs, startMs)) / msPerBeat),
+              });
+          }
+      });
+      pendingNoteOnRef.current.clear();
+      if (recordedEventsRef.current.length > 0) {
+          const sorted = recordedEventsRef.current.slice().sort((a, b) => a.t - b.t);
+          onCommitRecording?.(sorted);
+      }
+      recordedEventsRef.current = [];
+  }, [onCommitRecording]);
+
+  const toggleRecording = useCallback(() => {
+      if (isRecordingRef.current) {
+          isRecordingRef.current = false;
+          setIsRecording(false);
+          commitRecording();
+      } else {
+          recordedEventsRef.current = [];
+          pendingNoteOnRef.current.clear();
+          recordingStartMsRef.current = performance.now();
+          isRecordingRef.current = true;
+          setIsRecording(true);
+      }
+  }, [commitRecording]);
+
   const calculateParams = useCallback((x: number, y: number) => {
     // x, y are 0-1; apply axis flip before mapping
     const mx = xFlipped ? 1 - x : x;
@@ -1844,11 +1938,12 @@ const PerformancePad: React.FC<{ bpm?: number }> = ({ bpm = 120 }) => {
         const params = calculateParams(x, y);
         audioEngine.updateActiveVoiceParams(params);
         await audioEngine.startContinuousNotes(step.notes, Math.round(chordVolumeRef.current * 100), Math.round(step.strumBeats * (60000 / bpmRef.current)));
+        recordNoteOn('chord', step.notes, detuneOffsetSemitones(params), step.strumBeats);
 
         const advancedIndex = (nextIndex + 1) % sequence.length;
         currentNoteIndexRef.current = advancedIndex;
         setCurrentNoteIndex(advancedIndex);
-    }, [calculateParams, chordSequence]);
+    }, [calculateParams, chordSequence, recordNoteOn]);
 
     const stopTriggerIfIdle = useCallback(() => {
         if (activePointerIdsRef.current.size > 0) return;
@@ -1856,7 +1951,8 @@ const PerformancePad: React.FC<{ bpm?: number }> = ({ bpm = 120 }) => {
 
         setIsPlaying(false);
         audioEngine.stopContinuousNote();
-    }, []);
+        recordNoteOff('chord');
+    }, [recordNoteOff]);
 
     const handleMouseEnter = (e: React.MouseEvent) => {
         isMouseInPadRef.current = true;
@@ -1877,7 +1973,7 @@ const PerformancePad: React.FC<{ bpm?: number }> = ({ bpm = 120 }) => {
      * (one behind the advanced pointer). Otherwise it is the next-to-play step.
      * octaveShift: semitones to add (+12 = up one octave, -12 = down one octave).
      */
-    const playRandomNoteFromCurrentStep = useCallback((octaveShift = 0) => {
+    const playRandomNoteFromCurrentStep = useCallback((octaveShift = 0, recordKey?: string) => {
         const sequence = chordSequence.length > 0 ? chordSequence : [{ notes: [60], strumBeats: 0 }];
         const stepIndex = isPlaying
             ? (currentNoteIndexRef.current - 1 + sequence.length) % sequence.length
@@ -1885,12 +1981,16 @@ const PerformancePad: React.FC<{ bpm?: number }> = ({ bpm = 120 }) => {
         const step = sequence[stepIndex];
         const midi = step.notes[Math.floor(Math.random() * step.notes.length)];
         // not using chordVolumeRef.current because this is a solo note outside the continuous chord voices
+        const { x, y } = hoverPosRef.current;
         if (soloTimbreFromPointerRef.current) {
-            const { x, y } = hoverPosRef.current;
             audioEngine.updateActiveVoiceParams(calculateParams(x, y));
         }
-        audioEngine.addContinuousNote(Math.max(0, Math.min(127, midi + octaveShift)), 100);
-    }, [chordSequence, isPlaying, calculateParams]);
+        const resolvedMidi = Math.max(0, Math.min(127, midi + octaveShift));
+        audioEngine.addContinuousNote(resolvedMidi, 100);
+        if (isRecordingRef.current && recordKey !== undefined) {
+            recordNoteOn(`key:${recordKey}`, [resolvedMidi], detuneOffsetSemitones(calculateParams(x, y)), 0);
+        }
+    }, [chordSequence, isPlaying, calculateParams, recordNoteOn]);
 
     /**
      * Play a note from the current step mapped linearly by keyIndex (0 = min pitch, 3 = max pitch).
@@ -1945,9 +2045,14 @@ const PerformancePad: React.FC<{ bpm?: number }> = ({ bpm = 120 }) => {
             const { x, y } = hoverPosRef.current;
             audioEngine.updateActiveVoiceParams(calculateParams(x, y));
         }
-        audioEngine.addContinuousNote(Math.max(0, Math.min(127, midi)), 100);
+        const resolvedMidi = Math.max(0, Math.min(127, midi));
+        audioEngine.addContinuousNote(resolvedMidi, 100);
+        if (isRecordingRef.current) {
+            const { x, y } = hoverPosRef.current;
+            recordNoteOn(`key:${physicalKey}`, [resolvedMidi], detuneOffsetSemitones(calculateParams(x, y)), 0);
+        }
         return true;
-    }, [chordSequence, isPlaying, calculateParams]);
+    }, [chordSequence, isPlaying, calculateParams, recordNoteOn]);
 
     const jumpToSection = useCallback((sectionIndex: number) => {
         if (sectionIndex < 0 || sectionIndex >= sections.length) return;
@@ -2233,7 +2338,7 @@ const PerformancePad: React.FC<{ bpm?: number }> = ({ bpm = 120 }) => {
                 e.preventDefault();
                 activeKeyboardKeysRef.current.add(KB.RAND_NOTE.key);
                 const octaveShift = e.shiftKey ? 12 : e.ctrlKey ? -12 : 0;
-                playRandomNoteFromCurrentStep(octaveShift);
+                playRandomNoteFromCurrentStep(octaveShift, KB.RAND_NOTE.key);
                 return;
             }
 
@@ -2261,6 +2366,11 @@ const PerformancePad: React.FC<{ bpm?: number }> = ({ bpm = 120 }) => {
             if (!isTracked) return;
 
             activeKeyboardKeysRef.current.delete(physicalKey);
+            // Solo layout keys and RAND_NOTE track under 'key:X'.
+            // Chord-play keys (KB.PLAY) release via stopTriggerIfIdle → recordNoteOff('chord').
+            if (!playKeys.includes(physicalKey)) {
+                recordNoteOff(`key:${physicalKey}`);
+            }
             stopTriggerIfIdle();
         };
 
@@ -2352,6 +2462,7 @@ const PerformancePad: React.FC<{ bpm?: number }> = ({ bpm = 120 }) => {
             const advancedIndex = (stepIndex + 1) % sequence.length;
             currentNoteIndexRef.current = advancedIndex;
             setCurrentNoteIndex(advancedIndex);
+            recordNoteOn(`ptr:${e.pointerId}`, step.notes, detuneOffsetSemitones(calculateParams(x, y)), step.strumBeats);
         }
     } else {
         // Mouse / pen: replace-all behaviour (same as before).
@@ -2404,6 +2515,7 @@ const PerformancePad: React.FC<{ bpm?: number }> = ({ bpm = 120 }) => {
                 pointerVoiceGroupRef.current.delete(e.pointerId);
                 audioEngine.stopVoiceGroup(groupId);
             }
+            recordNoteOff(`ptr:${e.pointerId}`);
             setTouchPoints(prev => prev.filter(p => p.id !== e.pointerId));
         }
 
@@ -2698,6 +2810,21 @@ const PerformancePad: React.FC<{ bpm?: number }> = ({ bpm = 120 }) => {
                 onPointerUp={(e) => e.stopPropagation()}
             >
                 <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        data-pad-control="true"
+                        title={isRecording ? 'Stop recording and commit to sequencer' : 'Record pad performance to sequencer'}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onPointerUp={(e) => { e.stopPropagation(); toggleRecording(); }}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-all ${
+                            isRecording
+                                ? 'bg-red-600/80 border-red-400 text-white animate-pulse'
+                                : 'bg-black/60 border-white/10 text-slate-400 hover:text-red-300 hover:border-red-500/30'
+                        }`}
+                    >
+                        <span className={`w-2 h-2 rounded-full ${isRecording ? 'bg-white' : 'bg-red-500'}`} />
+                        {isRecording ? 'Stop' : 'Rec'}
+                    </button>
                 {isTouchDevice && (
                     <button
                         type="button"

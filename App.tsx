@@ -222,6 +222,31 @@ const App: React.FC = () => {
     });
   }, [events]);
 
+  /**
+   * Receives events recorded from the performance pad and appends them to the
+   * sequencer, starting right after the last existing note. Also switches to
+   * the sequencer tab so the result is immediately visible.
+   */
+  const handleCommitRecording = useCallback((recordedEvents: MidiEvent[]) => {
+    setEvents(prev => {
+      pushHistory(prev);
+      const lastAbsoluteBeat = prev.reduce(
+        (max, e) => Math.max(max, e.beatOffset + e.event.t + e.event.d),
+        0,
+      );
+      return [
+        ...prev,
+        ...recordedEvents.map((evt, i) => ({
+          event: evt,
+          beatOffset: lastAbsoluteBeat,
+          id: `recorded-${Date.now()}-${i}`,
+          isUser: true as const,
+        })),
+      ];
+    });
+    setMainTab('sequencer');
+  }, [pushHistory]);
+
   const generateNextStream = async () => {
     if (!isAIStreamActive || isGeneratingRef.current) return;
     if (!apiKey) {
@@ -624,7 +649,7 @@ const App: React.FC = () => {
       <main className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-6 p-4 lg:p-6 pt-0 lg:pt-0">
         <div className="lg:col-span-9 flex flex-col gap-4 min-h-0">
           {mainTab === 'performance' ? (
-             <PerformancePad bpm={state.tempo} />
+             <PerformancePad bpm={state.tempo} onCommitRecording={handleCommitRecording} />
           ) : (
           <>
           <div className="relative flex-1 min-h-[350px] border border-white/5 rounded-3xl overflow-hidden bg-black shadow-inner">
