@@ -105,11 +105,27 @@ function transposeSequence(sequence: string, delta: number): string {
   // Match note tokens like C4, F#3, Db-1, Cx5, or bare B/C# (octave defaults to 4).
   // midiToNote always emits with an explicit octave, so bare notes get normalised
   // in-place on the first transpose.
-  return applyToNonComments(sequence, code =>
-    code.replace(/([A-G](?:x|[#b]+)?(?:-?\d+)?)/gi, (match) => {
+  //
+  // IMPORTANT: We must split each step into its notes part and strum annotation
+  // (@Xb) BEFORE applying the note regex. Otherwise the `b` in e.g. `@0.1b`
+  // matches [A-G] case-insensitively (as the note B) and gets transposed,
+  // corrupting the beat notation.
+  const transposeNotes = (notesPart: string) =>
+    notesPart.replace(/([A-G](?:x|[#b]+)?(?:-?\d+)?)/gi, (match) => {
       const midi = noteToMidi(match);
       return midiToNote(midi + delta);
-    })
+    });
+
+  return applyToNonComments(sequence, code =>
+    code.split(',').map(step => {
+      const trimmed = step.trim();
+      if (!trimmed) return step; // preserve empty/whitespace-only steps
+      const { notesPart, strumPart } = splitStepToken(trimmed);
+      // Re-attach original surrounding whitespace so formatting is preserved
+      const leading = step.match(/^\s*/)?.[0] ?? '';
+      const trailing = step.match(/\s*$/)?.[0] ?? '';
+      return leading + transposeNotes(notesPart) + strumPart + trailing;
+    }).join(',')
   );
 }
 
