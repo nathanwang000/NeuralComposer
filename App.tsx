@@ -649,10 +649,12 @@ const App: React.FC = () => {
 
       <main className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-6 p-4 lg:p-6 pt-0 lg:pt-0">
         <div className="lg:col-span-9 flex flex-col gap-4 min-h-0">
-          {mainTab === 'performance' ? (
-             <PerformancePad bpm={state.tempo} onCommitRecording={handleCommitRecording} />
-          ) : (
-          <>
+          {/* Both panels stay mounted at all times so their internal state is preserved across tab switches.
+              Visibility is toggled purely with CSS (hidden / contents). */}
+          <div className={mainTab === 'performance' ? '' : 'hidden'}>
+            <PerformancePad bpm={state.tempo} onCommitRecording={handleCommitRecording} />
+          </div>
+          <div className={mainTab === 'sequencer' ? 'contents' : 'hidden'}>
           <div className="relative flex-1 min-h-[350px] border border-white/5 rounded-3xl overflow-hidden bg-black shadow-inner">
             <PianoRoll events={events} currentBeat={playbackBeat} selectedNoteIds={selectedEventIds} selectionMarquee={selectionMarquee} onSeek={handleSeek} onSelectionMarqueeChange={setSelectionMarquee} onSelectNotes={setSelectedEventIds} onMoveSelection={handleMoveSelection} />
             {isWarmingUp && (
@@ -719,8 +721,7 @@ const App: React.FC = () => {
                )}
             </div>
           </div>
-          </>
-        )}
+          </div>
         </div>
 
         <div className="lg:col-span-3 flex flex-col h-full min-h-0">
