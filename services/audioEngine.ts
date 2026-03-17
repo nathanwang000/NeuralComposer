@@ -29,6 +29,13 @@ class AudioEngine {
   private voiceGroups = new Map<number, ActiveVoice[]>();
   private nextGroupId = 0;
 
+  // baseConfig is the source of truth for sequencer playback (scheduleNote).
+  // It is written ONLY by updateConfig() which is called from App.tsx when the
+  // synth panel changes. updateActiveVoiceParams() may mutate this.config for
+  // live pad modulation without ever touching baseConfig, so the two paths
+  // never interfere with each other.
+  private baseConfig: SynthConfig = { ...this.config };
+
   private buildContext() {
     this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
     this.masterGain = this.ctx.createGain();
@@ -95,6 +102,7 @@ class AudioEngine {
 
   updateConfig(newConfig: SynthConfig) {
     this.config = { ...newConfig };
+    this.baseConfig = { ...newConfig };
     if (this.activeVoices.length > 0) {
       this.updateActiveVoiceParams(newConfig);
     }
@@ -155,9 +163,9 @@ class AudioEngine {
     const actualStart = Math.max(playAt, this.ctx.currentTime);
     const freq = this.midiToFreq(event.p);
 
-    // Waveform compensation: Sines are pure fundamental, Saws have lots of energy. Adjust accordingly.
-    const waveCorrection = this.config.waveType === 'sine' ? 1.1 : (this.config.waveType === 'sawtooth' ? 0.9 : 1.0);
-    const targetVolume = (event.v / 127) * 0.4 * this.config.drive * waveCorrection;
+    // Waveform compensation: use baseConfig so pad overrides don't affect sequencer volume.
+    const waveCorrection = this.baseConfig.waveType === 'sine' ? 1.1 : (this.baseConfig.waveType === 'sawtooth' ? 0.9 : 1.0);
+    const targetVolume = (event.v / 127) * 0.4 * this.baseConfig.drive * waveCorrection;
 
     // --- Polyphonic Legato Logic ---
     // Instead of reusing oscillators (which kills polyphony), we start a NEW oscillator for every note.
@@ -172,33 +180,36 @@ class AudioEngine {
     const env = this.ctx.createGain();
 
     // 1. Configure Oscillator
-    osc.type = this.config.waveType as OscillatorType;
+    // Use baseConfig (App.tsx synth panel) so pad transient overrides (detune,
+    // cutoff, etc.) do not bleed into sequencer playback.
+    const sc = this.baseConfig;
+    osc.type = sc.waveType as OscillatorType;
     osc.frequency.setValueAtTime(freq, actualStart);
-    osc.detune.setValueAtTime(this.config.detune, actualStart);
+    osc.detune.setValueAtTime(sc.detune, actualStart);
 
     // 2. Configure Filter
-    const filterEnvAmount = this.config.cutoff * 1.5;
+    const filterEnvAmount = sc.cutoff * 1.5;
     filter.type = 'lowpass';
-    filter.Q.setValueAtTime(this.config.resonance, actualStart);
+    filter.Q.setValueAtTime(sc.resonance, actualStart);
 
     // Filter Envelope
-    filter.frequency.setValueAtTime(this.config.cutoff, actualStart);
+    filter.frequency.setValueAtTime(sc.cutoff, actualStart);
 
     if (isLegatoTransition) {
         // Legato: Less filter movement to sound "connected"
-        filter.frequency.setValueAtTime(this.config.cutoff + (filterEnvAmount * 0.5), actualStart);
-        filter.frequency.exponentialRampToValueAtTime(this.config.cutoff, actualStart + this.config.decay);
+        filter.frequency.setValueAtTime(sc.cutoff + (filterEnvAmount * 0.5), actualStart);
+        filter.frequency.exponentialRampToValueAtTime(sc.cutoff, actualStart + sc.decay);
     } else {
       // Full filter sweep
-        filter.frequency.exponentialRampToValueAtTime(Math.min(20000, this.config.cutoff + filterEnvAmount), actualStart + this.config.attack);
-        filter.frequency.exponentialRampToValueAtTime(this.config.cutoff, actualStart + this.config.attack + this.config.decay);
+        filter.frequency.exponentialRampToValueAtTime(Math.min(20000, sc.cutoff + filterEnvAmount), actualStart + sc.attack);
+        filter.frequency.exponentialRampToValueAtTime(sc.cutoff, actualStart + sc.attack + sc.decay);
     }
 
     // 3. ADSR Volume Logic
-    const attackEnd = actualStart + this.config.attack;
-    const decayEnd = attackEnd + this.config.decay;
+    const attackEnd = actualStart + sc.attack;
+    const decayEnd = attackEnd + sc.decay;
     const releaseStart = actualStart + noteDuration;
-    const releaseEnd = releaseStart + this.config.release;
+    const releaseEnd = releaseStart + sc.release;
 
     env.gain.cancelScheduledValues(actualStart);
 
@@ -214,8 +225,8 @@ class AudioEngine {
         // Normal Envelop
         env.gain.setValueAtTime(0, actualStart);
         env.gain.linearRampToValueAtTime(targetVolume, attackEnd);
-        env.gain.exponentialRampToValueAtTime(Math.max(0.001, targetVolume * this.config.sustain), decayEnd);
-        env.gain.setValueAtTime(targetVolume * this.config.sustain, releaseStart);
+        env.gain.exponentialRampToValueAtTime(Math.max(0.001, targetVolume * sc.sustain), decayEnd);
+        env.gain.setValueAtTime(targetVolume * sc.sustain, releaseStart);
     }
 
     // Release (always the same)
