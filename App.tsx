@@ -651,7 +651,7 @@ const App: React.FC = () => {
         <div className="lg:col-span-9 flex flex-col gap-4 min-h-0">
           {/* Both panels stay mounted at all times so their internal state is preserved across tab switches.
               Visibility is toggled purely with CSS (hidden / contents). */}
-          <div className={mainTab === 'performance' ? '' : 'hidden'}>
+          <div className={mainTab === 'performance' ? 'flex-1 flex flex-col min-h-0' : 'hidden'}>
             <PerformancePad bpm={state.tempo} onCommitRecording={handleCommitRecording} />
           </div>
           <div className={mainTab === 'sequencer' ? 'contents' : 'hidden'}>
