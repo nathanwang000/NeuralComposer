@@ -1567,6 +1567,18 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
     const pendingNoteOnRef = useRef<Map<string, { pitch: number; onMs: number }[]>>(new Map());
     const recordedEventsRef = useRef<MidiEvent[]>([]);
 
+    // Countdown + metronome
+    const [countdownBeat, setCountdownBeat] = useState<number | null>(null); // null = not counting down
+    const countdownActiveRef = useRef(false);
+    const [metronomeEnabled, setMetronomeEnabled] = useState(true);
+    const metronomeEnabledRef = useRef(true);
+    useEffect(() => { metronomeEnabledRef.current = metronomeEnabled; }, [metronomeEnabled]);
+    const metronomeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    // Clean up metronome on unmount
+    useEffect(() => () => {
+        if (metronomeIntervalRef.current !== null) clearInterval(metronomeIntervalRef.current);
+    }, []);
+
     // Solo key layout
     const [currentLayout, setCurrentLayout] = useState<SoloLayoutName>('wickiHayden');
     const currentLayoutRef = useRef<SoloLayoutName>('wickiHayden');
@@ -1874,17 +1886,66 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
   }, [onCommitRecording]);
 
   const toggleRecording = useCallback(() => {
-      if (isRecordingRef.current) {
-          isRecordingRef.current = false;
-          setIsRecording(false);
-          commitRecording();
-      } else {
-          recordedEventsRef.current = [];
-          pendingNoteOnRef.current.clear();
-          recordingStartMsRef.current = performance.now();
-          isRecordingRef.current = true;
-          setIsRecording(true);
+      // If a countdown or recording is active → stop everything
+      if (isRecordingRef.current || countdownActiveRef.current) {
+          if (metronomeIntervalRef.current !== null) {
+              clearInterval(metronomeIntervalRef.current);
+              metronomeIntervalRef.current = null;
+          }
+          countdownActiveRef.current = false;
+          setCountdownBeat(null);
+          if (isRecordingRef.current) {
+              isRecordingRef.current = false;
+              setIsRecording(false);
+              commitRecording();
+          }
+          return;
       }
+
+      // Begin 4-beat count-in
+      audioEngine.init();
+      audioEngine.resume().catch(() => {});
+      recordedEventsRef.current = [];
+      pendingNoteOnRef.current.clear();
+      countdownActiveRef.current = true;
+
+      let remaining = 4;
+      setCountdownBeat(remaining);
+      if (metronomeEnabledRef.current) audioEngine.playMetronomeClick(true); // accent on 1st beat of count-in
+
+      const msPerBeat = 60000 / bpmRef.current;
+      metronomeIntervalRef.current = setInterval(() => {
+          remaining--;
+          if (remaining > 0) {
+              // Still counting down
+              setCountdownBeat(remaining);
+              if (metronomeEnabledRef.current) audioEngine.playMetronomeClick(false);
+          } else {
+              // Count-in finished → start recording
+              clearInterval(metronomeIntervalRef.current!);
+              metronomeIntervalRef.current = null;
+
+              setCountdownBeat(null);
+              countdownActiveRef.current = false;
+              recordingStartMsRef.current = performance.now();
+              isRecordingRef.current = true;
+              setIsRecording(true);
+              if (metronomeEnabledRef.current) audioEngine.playMetronomeClick(true); // beat 1 accent
+
+              // Continue metronome ticks throughout recording
+              let beatInMeasure = 1; // just played beat 1
+              const recMsPerBeat = 60000 / bpmRef.current;
+              metronomeIntervalRef.current = setInterval(() => {
+                  if (!isRecordingRef.current) {
+                      clearInterval(metronomeIntervalRef.current!);
+                      metronomeIntervalRef.current = null;
+                      return;
+                  }
+                  beatInMeasure = (beatInMeasure % 4) + 1;
+                  if (metronomeEnabledRef.current) audioEngine.playMetronomeClick(beatInMeasure === 1);
+              }, recMsPerBeat);
+          }
+      }, msPerBeat);
   }, [commitRecording]);
 
   const calculateParams = useCallback((x: number, y: number) => {
@@ -2829,17 +2890,19 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                     <button
                         type="button"
                         data-pad-control="true"
-                        title={isRecording ? 'Stop recording and commit to sequencer' : 'Record pad performance to sequencer'}
+                        title={isRecording ? 'Stop recording and commit to sequencer' : countdownBeat !== null ? 'Cancel countdown' : 'Record pad performance to sequencer (4-beat count-in)'}
                         onPointerDown={(e) => e.stopPropagation()}
                         onPointerUp={(e) => { e.stopPropagation(); toggleRecording(); }}
                         className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-all ${
                             isRecording
                                 ? 'bg-red-600/80 border-red-400 text-white animate-pulse'
-                                : 'bg-black/60 border-white/10 text-slate-400 hover:text-red-300 hover:border-red-500/30'
+                                : countdownBeat !== null
+                                    ? 'bg-amber-500/80 border-amber-400 text-white'
+                                    : 'bg-black/60 border-white/10 text-slate-400 hover:text-red-300 hover:border-red-500/30'
                         }`}
                     >
-                        <span className={`w-2 h-2 rounded-full ${isRecording ? 'bg-white' : 'bg-red-500'}`} />
-                        {isRecording ? 'Stop' : 'Rec'}
+                        <span className={`w-2 h-2 rounded-full ${isRecording ? 'bg-white' : countdownBeat !== null ? 'bg-white animate-ping' : 'bg-red-500'}`} />
+                        {isRecording ? 'Stop' : countdownBeat !== null ? countdownBeat : 'Rec'}
                     </button>
                 {isTouchDevice && (
                     <button
@@ -2982,6 +3045,36 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                     <Settings size={12} />
                 </button>
 
+            {/* Countdown overlay */}
+            {countdownBeat !== null && (
+                <div className="absolute inset-0 z-30 flex flex-col items-center justify-center pointer-events-none select-none">
+                    {/* Dim backdrop */}
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+                    <div className="relative flex flex-col items-center gap-4">
+                        {/* Big beat number */}
+                        <span
+                            key={countdownBeat}
+                            className="text-[10rem] font-black leading-none text-white drop-shadow-[0_0_40px_rgba(245,158,11,0.9)]"
+                            style={{ animation: 'countBeatPop 0.18s ease-out forwards' }}
+                        >
+                            {countdownBeat}
+                        </span>
+                        {/* Dot row showing beats left */}
+                        <div className="flex gap-3">
+                            {[4, 3, 2, 1].map(n => (
+                                <div
+                                    key={n}
+                                    className={`w-3 h-3 rounded-full transition-all duration-100 ${n <= countdownBeat ? 'bg-amber-400 shadow-[0_0_8px_#f59e0b]' : 'bg-white/15'}`}
+                                />
+                            ))}
+                        </div>
+                        <span className="text-amber-300 text-xs font-black uppercase tracking-widest opacity-80">
+                            Count in…
+                        </span>
+                    </div>
+                </div>
+            )}
+
             {/* Active Cursor/Visualizer */}
             {isPlaying && (
                 <>
@@ -3044,6 +3137,12 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
 
     return (
         <>
+        <style>{`
+          @keyframes countBeatPop {
+            0%   { transform: scale(1.4); opacity: 0.4; }
+            100% { transform: scale(1);   opacity: 1;   }
+          }
+        `}</style>
         <div
             className="flex flex-col gap-4 h-full select-none"
             style={{ userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
@@ -3572,6 +3671,27 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                 </div>
 
                 <div className="p-5 flex flex-col gap-6 max-h-[70vh] overflow-y-auto">
+                    {/* Metronome */}
+                    <div>
+                        <div className="text-[9px] font-black uppercase tracking-widest text-indigo-400 mb-3">Metronome</div>
+                        <button
+                            onClick={() => setMetronomeEnabled(v => !v)}
+                            className={`w-full py-2 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-colors ${
+                                metronomeEnabled
+                                    ? 'bg-indigo-600/80 border-indigo-400 text-white'
+                                    : 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/25'
+                            }`}
+                        >
+                            {metronomeEnabled ? 'Metronome Sound ON' : 'Metronome Sound OFF'}
+                        </button>
+                        <p className="mt-2 text-[9px] text-slate-500 leading-relaxed">
+                            When recording, a 4-beat count-in plays before capture starts.
+                            {metronomeEnabled
+                                ? ' Audible click plays on every beat (accented on beat 1).'
+                                : ' Click sound is muted — the visual count-in still shows.'}
+                        </p>
+                    </div>
+
                     {/* Solo timbre mode */}
                     <div>
                         <div className="text-[9px] font-black uppercase tracking-widest text-indigo-400 mb-3">Solo Timbre</div>

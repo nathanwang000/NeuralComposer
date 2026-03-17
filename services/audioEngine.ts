@@ -490,6 +490,31 @@ class AudioEngine {
   get currentTime(): number {
     return this.ctx?.currentTime || 0;
   }
+
+  /**
+   * Play a short metronome click. accent=true → higher pitch (beat 1 of measure).
+   * Uses its own lightweight oscillator so it never interferes with voice management.
+   */
+  playMetronomeClick(accent: boolean = false) {
+    if (!this.ctx) this.init();
+    if (!this.ctx || !this.masterGain) return;
+    if (this.ctx.state !== 'running') return;
+
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(accent ? 1400 : 900, now);
+
+    gain.gain.setValueAtTime(accent ? 0.45 : 0.28, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + (accent ? 0.07 : 0.05));
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    osc.start(now);
+    osc.stop(now + 0.12);
+  }
 }
 
 export const audioEngine = new AudioEngine();
