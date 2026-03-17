@@ -329,7 +329,7 @@ const App: React.FC = () => {
       newMidiEvents.push({ event, beatOffset: baseBeatOffset, id: `note-${baseBeatOffset}-${match.index}-${event.p}` });
     }
     if (newMidiEvents.length > 0) {
-      streamBufferRef.current = streamBufferRef.current.replace(/\[\s*P:\s*(\d+)\s*,\s*V:\s*(\d+)\s*,\s*T:\s*([\d.]+)\s*,\s*D:\s*([\d.]+)\s*\]/g, "");
+      streamBufferRef.current = streamBufferRef.current.replace(/\[\s*P:\s*[\d.]+\s*,\s*V:\s*\d+\s*,\s*T:\s*[\d.]+\s*,\s*D:\s*[\d.]+\s*\]/g, "");
       setEvents(prev => [...prev, ...newMidiEvents]);
     }
   };
@@ -474,7 +474,8 @@ const App: React.FC = () => {
       // Toggle pause/play
       isPausedRef.current = !isPausedRef.current;
       setIsPaused(isPausedRef.current);
-      scheduledNoteIds.current.clear();
+      // Do NOT clear scheduledNoteIds here: notes that were already pre-scheduled
+      // in the WebAudio buffer would be re-scheduled on the next tick, playing twice.
     }
   }, [state.isPlaying]);
 
