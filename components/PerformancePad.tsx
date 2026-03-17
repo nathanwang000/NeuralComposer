@@ -878,42 +878,42 @@ const CHORD_PRESETS: { label: string; description: string; sequence: string }[] 
   {
     label: 'Jazz ii-V-I',
     description: 'Dm7 → G7 → Cmaj7 → Am7',
-    sequence: 'D3+F3+A3+C4@40ms, G3+B3+D4+F4@40ms, C3+E3+G3+B3@40ms, A2+C3+G3+E4@40ms',
+    sequence: 'D3+F3+A3+C4@0.08b, G3+B3+D4+F4@0.08b, C3+E3+G3+B3@0.08b, A2+C3+G3+E4@0.08b',
   },
   {
     label: 'Funky E7',
     description: 'E7 → A7 → B7 dominant groove',
-    sequence: 'E3+G#3+B3+D4@15ms, E3+G#3+B3+D4@15ms, A3+C#4+E4+G4@15ms, A3+C#4+E4+G4@15ms, B3+D#4+F#4+A4@15ms, A3+C#4+E4+G4@15ms',
+    sequence: 'E3+G#3+B3+D4@0.03b, E3+G#3+B3+D4@0.03b, A3+C#4+E4+G4@0.03b, A3+C#4+E4+G4@0.03b, B3+D#4+F#4+A4@0.03b, A3+C#4+E4+G4@0.03b',
   },
   {
     label: 'Japanese In',
     description: 'Hirajōshi-flavoured voicings (C In scale)',
-    sequence: 'C4+Db4+G4@70ms, G3+Ab3+Eb4@70ms, F3+Gb3+C4+Eb4@80ms, Ab3+C4+Eb4+G4@70ms',
+    sequence: 'C4+Db4+G4@0.14b, G3+Ab3+Eb4@0.14b, F3+Gb3+C4+Eb4@0.16b, Ab3+C4+Eb4+G4@0.14b',
   },
   {
     label: 'Natural Minor',
     description: 'Am: i → iv → VII → III → V → i',
-    sequence: 'A3+C4+E4+A4@30ms, D4+F4+A4+D5@30ms, G3+B3+D4+G4@30ms, C4+E4+G4+C5@30ms, E4+G#4+B4+E5@25ms, A3+C4+E4+A4@30ms',
+    sequence: 'A3+C4+E4+A4@0.06b, D4+F4+A4+D5@0.06b, G3+B3+D4+G4@0.06b, C4+E4+G4+C5@0.06b, E4+G#4+B4+E5@0.05b, A3+C4+E4+A4@0.06b',
   },
   {
     label: 'Lo-fi Chill',
     description: 'Cmaj9 → Fmaj7 → Am7 → G6/9',
-    sequence: 'C3+E3+G3+B3+D4@55ms, F3+A3+C4+E4+G4@55ms, A2+C3+E3+G3+B3@55ms, G3+A3+B3+D4+E4@55ms',
+    sequence: 'C3+E3+G3+B3+D4@0.11b, F3+A3+C4+E4+G4@0.11b, A2+C3+E3+G3+B3@0.11b, G3+A3+B3+D4+E4@0.11b',
   },
   {
     label: 'Bossa Nova',
     description: 'Cmaj7 → A7 → Dm7 → G7',
-    sequence: 'C3+G3+B3+E4@35ms, A3+E4+G4+C#5@35ms, D3+A3+C4+F4@35ms, G3+B3+D4+F4@35ms',
+    sequence: 'C3+G3+B3+E4@0.07b, A3+E4+G4+C#5@0.07b, D3+A3+C4+F4@0.07b, G3+B3+D4+F4@0.07b',
   },
   {
     label: 'Whole Tone',
     description: 'Augmented dreamy wash (C whole-tone scale)',
-    sequence: 'C4+E4+G#4+A#4@60ms, D4+F#4+A#4+C4@60ms, E4+G#4+C5+D5@60ms, F#4+A#4+D5+E5@60ms',
+    sequence: 'C4+E4+G#4+A#4@0.12b, D4+F#4+A#4+C4@0.12b, E4+G#4+C5+D5@0.12b, F#4+A#4+D5+E5@0.12b',
   },
   {
     label: 'Phrygian Stomp',
     description: 'E Phrygian flamenco-style i → bII',
-    sequence: 'E3+G3+B3+E4@20ms, F3+A3+C4+F4@20ms, E3+G3+B3+E4@20ms, F3+A3+C4+F4@60ms, E3+G3+B3+E4@20ms',
+    sequence: 'E3+G3+B3+E4@0.04b, F3+A3+C4+F4@0.04b, E3+G3+B3+E4@0.04b, F3+A3+C4+F4@0.12b, E3+G3+B3+E4@0.04b',
   },
 ];
 
