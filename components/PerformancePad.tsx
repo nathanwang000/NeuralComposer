@@ -1051,6 +1051,7 @@ function resolveNoteAddress(
             // keep the chord bass's MIDI octave block, just swap pitch class
             const octaveBlock = Math.floor(bass / 12);
             base = octaveBlock * 12 + majorKeyTonicOverride;
+            if (base < bass) base += 12; // ensure the base is never below the actual bass
         } else {
             base = bass;
         }
