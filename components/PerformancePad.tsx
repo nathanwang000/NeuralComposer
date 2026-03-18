@@ -2535,13 +2535,13 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
         // Track this finger's position for the visualiser.
         setTouchPoints(prev => [...prev.filter(p => p.id !== e.pointerId), { id: e.pointerId, x, y }]);
 
-        // Only advance the step counter for the first finger.
+        // Advance the step counter only for the first finger; all fingers record their own note.
         if (isFirstFinger) {
             const advancedIndex = (stepIndex + 1) % sequence.length;
             currentNoteIndexRef.current = advancedIndex;
             setCurrentNoteIndex(advancedIndex);
-            recordNoteOn(`ptr:${e.pointerId}`, step.notes, detuneOffsetSemitones(calculateParams(x, y)), step.strumBeats);
         }
+        recordNoteOn(`ptr:${e.pointerId}`, step.notes, detuneOffsetSemitones(calculateParams(x, y)), step.strumBeats);
     } else {
         // Mouse / pen: replace-all behaviour (same as before).
         startTrigger(x, y);
