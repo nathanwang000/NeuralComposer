@@ -1527,6 +1527,8 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
     const activePointerIdsRef = useRef<Set<number>>(new Set());
     // Maps pointer ID → audio voice-group ID for independently-releasable multi-touch chords.
     const pointerVoiceGroupRef = useRef<Map<number, number>>(new Map());
+    // Maps physical key string → audio voice-group ID for independently-releasable solo-key notes.
+    const soloKeyVoiceGroupRef = useRef<Map<string, number>>(new Map());
     const controlPointerIdRef = useRef<number | null>(null);
     const activeKeyboardKeysRef = useRef<Set<string>>(new Set());
     const isMouseInPadRef = useRef(false);
@@ -2051,7 +2053,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
      * (one behind the advanced pointer). Otherwise it is the next-to-play step.
      * octaveShift: semitones to add (+12 = up one octave, -12 = down one octave).
      */
-    const playRandomNoteFromCurrentStep = useCallback((octaveShift = 0, recordKey?: string) => {
+    const playRandomNoteFromCurrentStep = useCallback(async (octaveShift = 0, recordKey?: string) => {
         const sequence = chordSequence.length > 0 ? chordSequence : [{ notes: [60], strumBeats: 0 }];
         const stepIndex = isPlaying
             ? (currentNoteIndexRef.current - 1 + sequence.length) % sequence.length
@@ -2060,11 +2062,14 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
         const midi = step.notes[Math.floor(Math.random() * step.notes.length)];
         // not using chordVolumeRef.current because this is a solo note outside the continuous chord voices
         const { x, y } = hoverPosRef.current;
-        if (soloTimbreFromPointerRef.current) {
-            audioEngine.updateActiveVoiceParams(calculateParams(x, y));
-        }
+        const params = soloTimbreFromPointerRef.current ? calculateParams(x, y) : undefined;
         const resolvedMidi = Math.max(0, Math.min(127, midi + octaveShift));
-        audioEngine.addContinuousNote(resolvedMidi, 100);
+        // Use a voice group so this key's note can be released independently of
+        // other simultaneously held solo keys.
+        const groupId = await audioEngine.startContinuousNotesGroup([resolvedMidi], 100, 0, params);
+        if (recordKey !== undefined) {
+            soloKeyVoiceGroupRef.current.set(recordKey, groupId);
+        }
         if (isRecordingRef.current && recordKey !== undefined) {
             recordNoteOn(`key:${recordKey}`, [resolvedMidi], detuneOffsetSemitones(calculateParams(x, y)), 0);
         }
@@ -2119,14 +2124,15 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
             ? detectedMajorTonicRef.current
             : undefined;
         const midi = resolveNoteAddress(address, step.notes, octaveShift, tonicOverride);
-        if (soloTimbreFromPointerRef.current) {
-            const { x, y } = hoverPosRef.current;
-            audioEngine.updateActiveVoiceParams(calculateParams(x, y));
-        }
+        const { x, y } = hoverPosRef.current;
+        const params = soloTimbreFromPointerRef.current ? calculateParams(x, y) : undefined;
         const resolvedMidi = Math.max(0, Math.min(127, midi));
-        audioEngine.addContinuousNote(resolvedMidi, 100);
+        // Use a voice group so this key's note can be released independently of
+        // other simultaneously held solo keys.
+        audioEngine.startContinuousNotesGroup([resolvedMidi], 100, 0, params).then(groupId => {
+            soloKeyVoiceGroupRef.current.set(physicalKey, groupId);
+        });
         if (isRecordingRef.current) {
-            const { x, y } = hoverPosRef.current;
             recordNoteOn(`key:${physicalKey}`, [resolvedMidi], detuneOffsetSemitones(calculateParams(x, y)), 0);
         }
         return true;
@@ -2450,7 +2456,13 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
             // recordNoteOff is a no-op when no pending entry exists, so this is safe for
             // regular chord-trigger keys too (their note is under 'chord', not 'key:X').
             recordNoteOff(`key:${physicalKey}`);
-            // stopTriggerIfIdle handles the chord voice (KB.PLAY keys) and cleans up audio.
+            // Release only this key's voice group so other held keys keep sounding.
+            const soloGroupId = soloKeyVoiceGroupRef.current.get(physicalKey);
+            if (soloGroupId !== undefined) {
+                soloKeyVoiceGroupRef.current.delete(physicalKey);
+                audioEngine.stopVoiceGroup(soloGroupId);
+            }
+            // stopTriggerIfIdle handles the chord voice (KB.PLAY keys) and final cleanup.
             stopTriggerIfIdle();
         };
 
