@@ -2444,11 +2444,13 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
             if (!isTracked) return;
 
             activeKeyboardKeysRef.current.delete(physicalKey);
-            // Solo layout keys and RAND_NOTE track under 'key:X'.
-            // Chord-play keys (KB.PLAY) release via stopTriggerIfIdle → recordNoteOff('chord').
-            if (!playKeys.includes(physicalKey)) {
-                recordNoteOff(`key:${physicalKey}`);
-            }
+            // Always flush any pending solo-note recording for this key.
+            // When a KB.PLAY key (d/f) is overridden by the active solo layout, the note
+            // was recorded under 'key:X' — not 'chord' — so it must be closed here.
+            // recordNoteOff is a no-op when no pending entry exists, so this is safe for
+            // regular chord-trigger keys too (their note is under 'chord', not 'key:X').
+            recordNoteOff(`key:${physicalKey}`);
+            // stopTriggerIfIdle handles the chord voice (KB.PLAY keys) and cleans up audio.
             stopTriggerIfIdle();
         };
 
