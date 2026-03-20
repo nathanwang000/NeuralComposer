@@ -2197,6 +2197,13 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
         setSequenceInput(prev => applySmoothVoicingToSequence(prev, currentNoteIndex));
     }, [sequenceInput, currentNoteIndex]);
 
+    /** Reorder notes within each chord step, snapshotting voicingBase so it can be restored with A. */
+    const applyReorder = useCallback((mode: 'reverse' | 'random' | 'sort') => {
+        setVoicingBase(prev => prev ?? sequenceInput);
+        voicingChangeInProgressRef.current = true;
+        setSequenceInput(prev => reorderChordNotes(prev, mode));
+    }, [sequenceInput]);
+
     // Suppress iOS text-editing UI (undo bar, clipboard bubble, "looks like typing" prompt).
     // Must be a non-passive listener so preventDefault() is actually honoured by iOS Safari.
     // Skip controls (fullscreen button, etc.) so their taps still register.
@@ -2374,17 +2381,17 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
             // KB.ORDER_RAND / KB.ORDER_REV / KB.ORDER_SORT: reorder chord notes
             if (e.key === KB.ORDER_RAND.key) {
                 e.preventDefault();
-                setSequenceInput(prev => reorderChordNotes(prev, 'random'));
+                applyReorder('random');
                 return;
             }
             if (e.key === KB.ORDER_REV.key) {
                 e.preventDefault();
-                setSequenceInput(prev => reorderChordNotes(prev, 'reverse'));
+                applyReorder('reverse');
                 return;
             }
             if (e.key === KB.ORDER_SORT.key) {
                 e.preventDefault();
-                setSequenceInput(prev => reorderChordNotes(prev, 'sort'));
+                applyReorder('sort');
                 return;
             }
 
@@ -2485,7 +2492,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
             window.removeEventListener('keydown', onKeyDown);
             window.removeEventListener('keyup', onKeyUp);
         };
-    }, [startTrigger, stopTriggerIfIdle, jumpToSection, playRandomNoteFromCurrentStep, playSoloKey, applyVoicing, applyTranspose, applySmooth, voicingBase, currentNoteIndex, chordSequence]);
+    }, [startTrigger, stopTriggerIfIdle, jumpToSection, playRandomNoteFromCurrentStep, playSoloKey, applyVoicing, applyTranspose, applySmooth, applyReorder, voicingBase, currentNoteIndex, chordSequence]);
 
   const handlePointerDown = async (e: React.PointerEvent) => {
         const target = e.target as HTMLElement;
@@ -3459,7 +3466,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                         <button
                             title={`Reverse note order within each chord (e.g. C4+E4+G4 → G4+E4+C4) (${KB.ORDER_REV.display})`}
                             onPointerDown={(e) => e.stopPropagation()}
-                            onPointerUp={(e) => { e.stopPropagation(); setSequenceInput(prev => reorderChordNotes(prev, 'reverse')); }}
+                            onPointerUp={(e) => { e.stopPropagation(); applyReorder('reverse'); }}
                             className="text-[9px] bg-white/5 hover:bg-amber-500/20 hover:text-amber-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
                         >
                             Reverse
@@ -3467,7 +3474,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                         <button
                             title={`Randomise note order within each chord (${KB.ORDER_RAND.display})`}
                             onPointerDown={(e) => e.stopPropagation()}
-                            onPointerUp={(e) => { e.stopPropagation(); setSequenceInput(prev => reorderChordNotes(prev, 'random')); }}
+                            onPointerUp={(e) => { e.stopPropagation(); applyReorder('random'); }}
                             className="text-[9px] bg-white/5 hover:bg-amber-500/20 hover:text-amber-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
                         >
                             Random
@@ -3475,7 +3482,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                         <button
                             title={`Sort notes by pitch low→high within each chord (${KB.ORDER_SORT.display})`}
                             onPointerDown={(e) => e.stopPropagation()}
-                            onPointerUp={(e) => { e.stopPropagation(); setSequenceInput(prev => reorderChordNotes(prev, 'sort')); }}
+                            onPointerUp={(e) => { e.stopPropagation(); applyReorder('sort'); }}
                             className="text-[9px] bg-white/5 hover:bg-amber-500/20 hover:text-amber-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
                         >
                             Sort ↑
