@@ -936,7 +936,8 @@ const CHORD_PRESETS: { label: string; description: string; sequence: string }[] 
 // ---------------------------------------------------------------------------
 const KB = {
     // ── Chord playback (hold) ─────────────────────────────────────────────
-    PLAY:           { key: ['d', 'f'] as const,  display: 'D/F',    hint: 'Play'                       },
+    PLAY_HOLD:       { key: ['d'] as const,       display: 'D',      hint: 'Play (hold, no step)'        },
+    PLAY_ADVANCE:    { key: ['f'] as const,       display: 'F',      hint: 'Play + advance step'         },
 
     // ── Step navigation ───────────────────────────────────────────────────
     RESET:          { key: '0',                  display: '0',      hint: 'Reset step'                 },
@@ -980,7 +981,7 @@ const KB = {
 
 /** Grouped keyboard-shortcut reference shown in the tutorial panel. */
 const TUTORIAL_SECTIONS: { title: string; rows: { display: string; hint: string }[] }[] = [
-    { title: 'Playback',      rows: [KB.PLAY, KB.RESET, KB.BACK, KB.FORWARD, KB.SECTIONS] },
+    { title: 'Playback',      rows: [KB.PLAY_HOLD, KB.PLAY_ADVANCE, KB.RESET, KB.BACK, KB.FORWARD, KB.SECTIONS] },
     { title: 'Transpose',     rows: [KB.SEMITONE_DN, KB.SEMITONE_UP, KB.OCTAVE_DN, KB.OCTAVE_UP] },
     { title: 'Volume & Strum', rows: [KB.VOL_DN, KB.VOL_UP, KB.STRUM_DN, KB.STRUM_UP] },
     { title: 'Sequence',      rows: [KB.ORDER_RAND, KB.ORDER_REV, KB.ORDER_SORT] },
@@ -1590,21 +1591,23 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
     // Detected key for interval-mode solo (updated whenever step or sequence changes)
     const [detectedKey, setDetectedKey] = useState<string>('');
     const detectedMajorTonicRef = useRef<number>(0);
+    // The step index that is currently sounding (set explicitly in startTrigger so
+    // the detected-key display always reflects the playing chord, regardless of
+    // whether the step counter was advanced).
+    const soundingStepIndexRef = useRef<number>(0);
+    const [soundingStepIndex, setSoundingStepIndex] = useState<number>(0);
 
     // Recompute detected key whenever sequence or step changes
     useEffect(() => {
         if (chordSequence.length === 0) { setDetectedKey(''); return; }
-        // Mirror the same isPlaying correction used in playSoloKey:
-        // while the pad is held currentNoteIndex has already advanced, so
-        // the sounding step is one behind.
-        const soundingIdx = isPlaying
-            ? (currentNoteIndex - 1 + chordSequence.length) % chordSequence.length
+        const idx = isPlaying
+            ? soundingStepIndex % chordSequence.length
             : currentNoteIndex % chordSequence.length;
-        const history = buildChordHistory(chordSequence, soundingIdx);
+        const history = buildChordHistory(chordSequence, idx);
         const best = detectBestKey(history);
         detectedMajorTonicRef.current = best.relativeMajorTonic;
         setDetectedKey(best.label);
-    }, [chordSequence, currentNoteIndex, isPlaying]);
+    }, [chordSequence, currentNoteIndex, soundingStepIndex, isPlaying]);
 
     // Mappings
     const [xTargets, setXTargets] = useState<ModulationTarget[]>(['cutoff']);
@@ -2007,7 +2010,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
         return { x, y };
     }, []);
 
-    const startTrigger = useCallback(async (x: number, y: number) => {
+    const startTrigger = useCallback(async (x: number, y: number, advance = true) => {
         setIsPlaying(true);
         setCursorPos({ x, y });
 
@@ -2015,14 +2018,21 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
         const nextIndex = currentNoteIndexRef.current;
         const step = sequence[nextIndex % sequence.length];
 
+        // Record what step is actually sounding so the detected-key display is correct
+        // regardless of whether the step counter advances.
+        soundingStepIndexRef.current = nextIndex;
+        setSoundingStepIndex(nextIndex);
+
         const params = calculateParams(x, y);
         audioEngine.updateActiveVoiceParams(params);
         await audioEngine.startContinuousNotes(step.notes, Math.round(chordVolumeRef.current * 100), Math.round(step.strumBeats * (60000 / bpmRef.current)));
         recordNoteOn('chord', step.notes, detuneOffsetSemitones(params), step.strumBeats);
 
-        const advancedIndex = (nextIndex + 1) % sequence.length;
-        currentNoteIndexRef.current = advancedIndex;
-        setCurrentNoteIndex(advancedIndex);
+        if (advance) {
+            const advancedIndex = (nextIndex + 1) % sequence.length;
+            currentNoteIndexRef.current = advancedIndex;
+            setCurrentNoteIndex(advancedIndex);
+        }
     }, [calculateParams, chordSequence, recordNoteOn]);
 
     const stopTriggerIfIdle = useCallback(() => {
@@ -2426,14 +2436,16 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                 return;
             }
 
-            // KB.PLAY: play chord (hold)
+            // KB.PLAY_HOLD / KB.PLAY_ADVANCE: play chord (hold)
             const key = e.key.toLowerCase();
-            if (!(KB.PLAY.key as readonly string[]).includes(key)) return;
+            const isPlayHold    = (KB.PLAY_HOLD.key    as readonly string[]).includes(key);
+            const isPlayAdvance = (KB.PLAY_ADVANCE.key as readonly string[]).includes(key);
+            if (!isPlayHold && !isPlayAdvance) return;
             if (e.repeat || activeKeyboardKeysRef.current.has(key)) return;
 
             activeKeyboardKeysRef.current.add(key);
             const { x, y } = hoverPosRef.current;
-            startTrigger(x, y);
+            startTrigger(x, y, isPlayAdvance);
         };
 
         const onKeyUp = (e: KeyboardEvent) => {
@@ -2442,7 +2454,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
             // Normalise via physicalKeyOf so releasing Shift before the key
             // (which flips e.key from 'J' back to 'j') still finds the entry.
             const physicalKey = physicalKeyOf(e.key);
-            const playKeys: string[] = [...KB.PLAY.key];
+            const playKeys: string[] = [...KB.PLAY_HOLD.key, ...KB.PLAY_ADVANCE.key];
             const isTracked =
                 playKeys.includes(physicalKey) ||
                 physicalKey === KB.RAND_NOTE.key ||
