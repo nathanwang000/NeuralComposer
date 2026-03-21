@@ -267,6 +267,8 @@ const App: React.FC = () => {
    * the sequencer tab so the result is immediately visible.
    */
   const handleCommitRecording = useCallback((recordedEvents: MidiEvent[]) => {
+    const stamp = Date.now();
+    const newIds = recordedEvents.map((_, i) => `recorded-${stamp}-${i}`);
     setEvents(prev => {
       pushHistory(prev);
       const lastAbsoluteBeat = prev.reduce(
@@ -278,11 +280,12 @@ const App: React.FC = () => {
         ...recordedEvents.map((evt, i) => ({
           event: evt,
           beatOffset: lastAbsoluteBeat,
-          id: `recorded-${Date.now()}-${i}`,
+          id: newIds[i],
           isUser: true as const,
         })),
       ];
     });
+    setSelectedEventIds(newIds);
     setMainTab('sequencer');
   }, [pushHistory]);
 
