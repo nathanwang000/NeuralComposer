@@ -711,40 +711,32 @@ const App: React.FC = () => {
               </div>
             )}
 
-            <div className="absolute bottom-6 right-6 flex flex-col gap-2 z-30">
-              <div className="bg-slate-900/80 backdrop-blur-md border border-indigo-500/20 p-2 rounded-2xl flex items-center gap-1 shadow-2xl">
-                <button onClick={undo} disabled={history.past.length === 0} className="p-3 disabled:opacity-30 hover:bg-white/5 text-slate-400 rounded-xl flex flex-col items-center gap-1 min-w-[50px]"><Undo size={18} /><span className="text-[8px] font-black uppercase opacity-50">Undo</span></button>
-                <button onClick={redo} disabled={history.future.length === 0} className="p-3 disabled:opacity-30 hover:bg-white/5 text-slate-400 rounded-xl flex flex-col items-center gap-1 min-w-[50px]"><Redo size={18} /><span className="text-[8px] font-black uppercase opacity-50">Redo</span></button>
-                <div className="w-px h-8 bg-white/5 mx-1" />
-                {selectedEventIds.length > 0 ? (
-                  <>
-                    <button onClick={handleDelete} className="p-3 hover:bg-red-500/20 text-red-400 rounded-xl flex flex-col items-center gap-1 min-w-[50px]"><Trash2 size={18} /><span className="text-[8px] font-black uppercase opacity-50">DEL</span></button>
-                    <button onClick={handleCut} className="p-3 hover:bg-red-500/20 text-red-400 rounded-xl flex flex-col items-center gap-1 min-w-[50px]"><Scissors size={18} /><span className="text-[8px] font-black uppercase opacity-50">{KB_SEQ.CUT.display}</span></button>
-                    <button onClick={handleCopy} className="p-3 hover:bg-indigo-500/20 text-indigo-400 rounded-xl flex flex-col items-center gap-1 min-w-[50px]"><Copy size={18} /><span className="text-[8px] font-black uppercase opacity-50">{KB_SEQ.COPY.display}</span></button>
-                    <button onClick={() => setSelectedEventIds([])} className="p-3 hover:bg-slate-800 text-slate-500 rounded-xl"><X size={18} /></button>
-                  </>
-                ) : (
-                  <>
-                    <button onClick={handleSelectAll} disabled={events.length === 0} className="p-3 disabled:opacity-30 hover:bg-indigo-500/20 text-indigo-400 rounded-xl flex flex-col items-center gap-1 min-w-[50px]"><Copy size={18} /><span className="text-[8px] font-black uppercase opacity-50">{KB_SEQ.SELECT_ALL.display}</span></button>
-                    {clipboard.length > 0 && (
-                      <button onClick={handlePaste} className="p-3 hover:bg-emerald-500/20 text-emerald-400 rounded-xl flex flex-col items-center gap-1 min-w-[50px]"><ClipboardPaste size={18} /><span className="text-[8px] font-black uppercase opacity-50">{KB_SEQ.PASTE.display}</span></button>
-                    )}
-                  </>
-                )}
-                <div className="w-px h-8 bg-white/5 mx-1" />
-                <button
-                  onClick={() => setShowShortcuts(true)}
-                  className="p-3 hover:bg-white/5 text-slate-500 hover:text-indigo-400 rounded-xl flex flex-col items-center gap-1 min-w-[50px] transition-colors"
-                  title="Keyboard shortcuts"
-                >
-                  <HelpCircle size={18} />
-                  <span className="text-[8px] font-black uppercase opacity-50">Keys</span>
-                </button>
-              </div>
-            </div>
             <div className="absolute bottom-0 left-0 w-full h-1 bg-white/5 overflow-hidden">
                <div className="h-full bg-indigo-500 transition-all shadow-[0_0_10px_#6366f1]" style={{ width: `${Math.min(100, (bufferRemaining / queueThreshold) * 100)}%` }} />
             </div>
+          </div>
+
+          {/* ── Sequencer edit toolbar ── */}
+          <div className="flex-none flex flex-wrap items-center gap-1 bg-slate-900/60 backdrop-blur-md border border-white/5 rounded-2xl px-2 py-1.5">
+            <button onClick={undo} disabled={history.past.length === 0} className="flex items-center gap-1.5 px-3 py-1.5 disabled:opacity-30 hover:bg-white/5 text-slate-400 rounded-xl text-[10px] font-black uppercase transition-colors"><Undo size={14} /> Undo</button>
+            <button onClick={redo} disabled={history.future.length === 0} className="flex items-center gap-1.5 px-3 py-1.5 disabled:opacity-30 hover:bg-white/5 text-slate-400 rounded-xl text-[10px] font-black uppercase transition-colors"><Redo size={14} /> Redo</button>
+            <div className="w-px h-5 bg-white/10 mx-1" />
+            <button onClick={handleSelectAll} disabled={events.length === 0} className="flex items-center gap-1.5 px-3 py-1.5 disabled:opacity-30 hover:bg-indigo-500/10 text-slate-400 hover:text-indigo-400 rounded-xl text-[10px] font-black uppercase transition-colors"><Copy size={14} /> All</button>
+            {selectedEventIds.length > 0 && (
+              <>
+                <button onClick={handleCopy} className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-indigo-500/10 text-indigo-400 rounded-xl text-[10px] font-black uppercase transition-colors"><Copy size={14} /> Copy</button>
+                <button onClick={handleCut} className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-red-500/10 text-red-400 rounded-xl text-[10px] font-black uppercase transition-colors"><Scissors size={14} /> Cut</button>
+                <button onClick={handleDelete} className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-red-500/10 text-red-400 rounded-xl text-[10px] font-black uppercase transition-colors"><Trash2 size={14} /> Del</button>
+                <button onClick={() => setSelectedEventIds([])} className="flex items-center gap-1.5 px-2 py-1.5 hover:bg-white/5 text-slate-600 hover:text-slate-400 rounded-xl transition-colors"><X size={14} /></button>
+              </>
+            )}
+            {clipboard.length > 0 && (
+              <button onClick={handlePaste} className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-emerald-500/10 text-emerald-400 rounded-xl text-[10px] font-black uppercase transition-colors"><ClipboardPaste size={14} /> Paste</button>
+            )}
+            <div className="ml-auto" />
+            {selectedEventIds.length > 0 && (
+              <span className="text-[9px] text-slate-600 font-black uppercase mr-2">{selectedEventIds.length} selected</span>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-48 flex-none">
