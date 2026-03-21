@@ -7,6 +7,7 @@ import {
   Disc,
   Download,
   Gauge,
+  HelpCircle,
   Loader2,
   Mic,
   Minus,
@@ -29,6 +30,7 @@ import {
   Zap
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import PerformancePad from './components/PerformancePad';
 import PianoRoll, { SelectionBounds } from './components/PianoRoll';
@@ -37,6 +39,42 @@ import TimeNavigator from './components/TimeNavigator';
 import { audioEngine } from './services/audioEngine';
 import { composer } from './services/geminiComposer';
 import { CompositionState, MidiEvent, MusicGenre, SYNTH_PRESETS, SynthConfig, SynthWaveType } from './types';
+
+// ---------------------------------------------------------------------------
+// KB_SEQ — single source of truth for every sequencer keyboard shortcut.
+//
+// display: label rendered in the shortcuts modal (auto-adapts ⌘ / ⌃ by platform).
+// hint:    short description of what the shortcut does.
+//
+// To remap a shortcut:
+//   1. Change `display` here.
+//   2. Update the matching case in the keydown handler below.
+//
+// The modal text is generated automatically from these values — no manual update needed.
+// ---------------------------------------------------------------------------
+const _IS_MAC = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform);
+const _MOD = _IS_MAC ? '⌘' : '⌃';
+
+const KB_SEQ = {
+  SELECT_ALL: { display: `${_MOD}A`,     hint: 'Select all notes' },
+  COPY:       { display: `${_MOD}C`,     hint: 'Copy selection' },
+  CUT:        { display: `${_MOD}X`,     hint: 'Cut selection' },
+  PASTE:      { display: `${_MOD}V`,     hint: 'Paste at playhead' },
+  UNDO:       { display: `${_MOD}Z`,     hint: 'Undo' },
+  REDO:       { display: `${_MOD}⇧Z`,    hint: 'Redo' },
+  REDO_ALT:   { display: `${_MOD}Y`,     hint: 'Redo (alt)' },
+  DELETE:     { display: 'Del / ⌫',      hint: 'Delete selected notes' },
+  PLAY_PAUSE: { display: 'Space',         hint: 'Play / Pause' },
+} as const;
+
+/** Grouped sections shown in the sequencer shortcuts modal. */
+const SEQ_TUTORIAL_SECTIONS: { title: string; rows: { display: string; hint: string }[] }[] = [
+  { title: 'Playback',   rows: [KB_SEQ.PLAY_PAUSE] },
+  { title: 'Selection',  rows: [KB_SEQ.SELECT_ALL] },
+  { title: 'Clipboard',  rows: [KB_SEQ.COPY, KB_SEQ.CUT, KB_SEQ.PASTE, KB_SEQ.DELETE] },
+  { title: 'History',    rows: [KB_SEQ.UNDO, KB_SEQ.REDO, KB_SEQ.REDO_ALT] },
+];
+// ---------------------------------------------------------------------------
 
 interface ValidationError {
   message: string;
@@ -90,6 +128,7 @@ const App: React.FC = () => {
   const [history, setHistory] = useState<{ past: typeof events[], future: typeof events[] }>({ past: [], future: [] });
 
   const [isAIStreamActive, setIsAIStreamActive] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const beatsGeneratedRef = useRef(0);
   const isGeneratingRef = useRef(false);
   const streamBufferRef = useRef("");
@@ -680,18 +719,27 @@ const App: React.FC = () => {
                 {selectedEventIds.length > 0 ? (
                   <>
                     <button onClick={handleDelete} className="p-3 hover:bg-red-500/20 text-red-400 rounded-xl flex flex-col items-center gap-1 min-w-[50px]"><Trash2 size={18} /><span className="text-[8px] font-black uppercase opacity-50">DEL</span></button>
-                    <button onClick={handleCut} className="p-3 hover:bg-red-500/20 text-red-400 rounded-xl flex flex-col items-center gap-1 min-w-[50px]"><Scissors size={18} /><span className="text-[8px] font-black uppercase opacity-50">^X</span></button>
-                    <button onClick={handleCopy} className="p-3 hover:bg-indigo-500/20 text-indigo-400 rounded-xl flex flex-col items-center gap-1 min-w-[50px]"><Copy size={18} /><span className="text-[8px] font-black uppercase opacity-50">^C</span></button>
+                    <button onClick={handleCut} className="p-3 hover:bg-red-500/20 text-red-400 rounded-xl flex flex-col items-center gap-1 min-w-[50px]"><Scissors size={18} /><span className="text-[8px] font-black uppercase opacity-50">{KB_SEQ.CUT.display}</span></button>
+                    <button onClick={handleCopy} className="p-3 hover:bg-indigo-500/20 text-indigo-400 rounded-xl flex flex-col items-center gap-1 min-w-[50px]"><Copy size={18} /><span className="text-[8px] font-black uppercase opacity-50">{KB_SEQ.COPY.display}</span></button>
                     <button onClick={() => setSelectedEventIds([])} className="p-3 hover:bg-slate-800 text-slate-500 rounded-xl"><X size={18} /></button>
                   </>
                 ) : (
                   <>
-                    <button onClick={handleSelectAll} disabled={events.length === 0} className="p-3 disabled:opacity-30 hover:bg-indigo-500/20 text-indigo-400 rounded-xl flex flex-col items-center gap-1 min-w-[50px]"><Copy size={18} /><span className="text-[8px] font-black uppercase opacity-50">^A</span></button>
+                    <button onClick={handleSelectAll} disabled={events.length === 0} className="p-3 disabled:opacity-30 hover:bg-indigo-500/20 text-indigo-400 rounded-xl flex flex-col items-center gap-1 min-w-[50px]"><Copy size={18} /><span className="text-[8px] font-black uppercase opacity-50">{KB_SEQ.SELECT_ALL.display}</span></button>
                     {clipboard.length > 0 && (
-                      <button onClick={handlePaste} className="p-3 hover:bg-emerald-500/20 text-emerald-400 rounded-xl flex flex-col items-center gap-1 min-w-[50px]"><ClipboardPaste size={18} /><span className="text-[8px] font-black uppercase opacity-50">^V</span></button>
+                      <button onClick={handlePaste} className="p-3 hover:bg-emerald-500/20 text-emerald-400 rounded-xl flex flex-col items-center gap-1 min-w-[50px]"><ClipboardPaste size={18} /><span className="text-[8px] font-black uppercase opacity-50">{KB_SEQ.PASTE.display}</span></button>
                     )}
                   </>
                 )}
+                <div className="w-px h-8 bg-white/5 mx-1" />
+                <button
+                  onClick={() => setShowShortcuts(true)}
+                  className="p-3 hover:bg-white/5 text-slate-500 hover:text-indigo-400 rounded-xl flex flex-col items-center gap-1 min-w-[50px] transition-colors"
+                  title="Keyboard shortcuts"
+                >
+                  <HelpCircle size={18} />
+                  <span className="text-[8px] font-black uppercase opacity-50">Keys</span>
+                </button>
               </div>
             </div>
             <div className="absolute bottom-0 left-0 w-full h-1 bg-white/5 overflow-hidden">
@@ -877,6 +925,63 @@ const App: React.FC = () => {
           </div>
         </div>
       </main>
+
+      {showShortcuts && createPortal(
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center"
+          onPointerDown={() => setShowShortcuts(false)}
+        >
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+
+          {/* Panel */}
+          <div
+            className="relative z-10 w-full max-w-md mx-4 rounded-2xl border border-white/10 bg-slate-900/95 shadow-2xl overflow-hidden"
+            onPointerDown={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <HelpCircle size={16} className="text-indigo-400" />
+                <span className="text-sm font-black uppercase tracking-widest text-white">Keyboard Shortcuts</span>
+              </div>
+              <button
+                onClick={() => setShowShortcuts(false)}
+                className="text-slate-500 hover:text-white transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-5 grid grid-cols-2 gap-x-6 gap-y-5 max-h-[70vh] overflow-y-auto">
+              {SEQ_TUTORIAL_SECTIONS.map(section => (
+                <div key={section.title}>
+                  <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
+                    {section.title}
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    {section.rows.map(row => (
+                      <div key={row.display} className="flex items-center justify-between gap-3">
+                        <span className="text-[10px] font-black bg-white/8 border border-white/10 text-slate-300 px-1.5 py-0.5 rounded shrink-0 tabular-nums">
+                          {row.display}
+                        </span>
+                        <span className="text-[10px] text-slate-400 text-right leading-tight">
+                          {row.hint}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="px-5 py-3 border-t border-white/10 text-[9px] text-slate-600 uppercase tracking-widest">
+              Click anywhere outside to close
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       <style>{`
         .app-shell {
