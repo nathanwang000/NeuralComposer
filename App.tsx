@@ -452,6 +452,10 @@ const App: React.FC = () => {
     setSelectedEventIds([]);
   }, [selectedEventIds, events, pushHistory]);
 
+  const handleSelectAll = useCallback(() => {
+    setSelectedEventIds(events.map(e => e.id));
+  }, [events]);
+
   const handleMoveSelection = (deltaBeat: number, deltaPitch: number, ids: string[]) => {
     if (ids.length === 0) return;
     pushHistory(events);
@@ -522,6 +526,10 @@ const App: React.FC = () => {
             e.preventDefault();
             handleCut();
             break;
+          case 'a':
+            e.preventDefault();
+            handleSelectAll();
+            break;
           case 'c':
             e.preventDefault();
             handleCopy();
@@ -554,7 +562,7 @@ const App: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleCut, handleCopy, handlePaste, handleDelete, undo, redo, togglePlayback]);
+  }, [handleCut, handleCopy, handlePaste, handleDelete, handleSelectAll, undo, redo, togglePlayback]);
 
   const waveOptions: SynthWaveType[] = ['sine', 'square', 'sawtooth', 'triangle'];
 
@@ -676,8 +684,13 @@ const App: React.FC = () => {
                     <button onClick={handleCopy} className="p-3 hover:bg-indigo-500/20 text-indigo-400 rounded-xl flex flex-col items-center gap-1 min-w-[50px]"><Copy size={18} /><span className="text-[8px] font-black uppercase opacity-50">^C</span></button>
                     <button onClick={() => setSelectedEventIds([])} className="p-3 hover:bg-slate-800 text-slate-500 rounded-xl"><X size={18} /></button>
                   </>
-                ) : clipboard.length > 0 && (
-                    <button onClick={handlePaste} className="p-3 hover:bg-emerald-500/20 text-emerald-400 rounded-xl flex flex-col items-center gap-1 min-w-[50px]"><ClipboardPaste size={18} /><span className="text-[8px] font-black uppercase opacity-50">^V</span></button>
+                ) : (
+                  <>
+                    <button onClick={handleSelectAll} disabled={events.length === 0} className="p-3 disabled:opacity-30 hover:bg-indigo-500/20 text-indigo-400 rounded-xl flex flex-col items-center gap-1 min-w-[50px]"><Copy size={18} /><span className="text-[8px] font-black uppercase opacity-50">^A</span></button>
+                    {clipboard.length > 0 && (
+                      <button onClick={handlePaste} className="p-3 hover:bg-emerald-500/20 text-emerald-400 rounded-xl flex flex-col items-center gap-1 min-w-[50px]"><ClipboardPaste size={18} /><span className="text-[8px] font-black uppercase opacity-50">^V</span></button>
+                    )}
+                  </>
                 )}
               </div>
             </div>
