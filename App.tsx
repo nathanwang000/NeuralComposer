@@ -1,6 +1,8 @@
 
 import {
   Activity,
+  ArrowLeftRight,
+  ArrowUpDown,
   ClipboardPaste,
   Copy,
   Cpu,
@@ -498,6 +500,66 @@ const App: React.FC = () => {
     setSelectedEventIds(events.map(e => e.id));
   }, [events]);
 
+  // ---------------------------------------------------------------------------
+  // Patch-bay signal transforms.
+  // Each transform operates on the raw userInput text: it parses every
+  // [P:...,V:...,T:...,D:...] packet in order, applies the transform to the
+  // array of MidiEvents, then splices the new values back in-place so that
+  // comments and line structure are preserved.
+  // ---------------------------------------------------------------------------
+  const transformPatchBay = useCallback((fn: (evts: MidiEvent[]) => MidiEvent[]) => {
+    const regex = /\[\s*P:\s*([\d.]+)\s*,\s*V:\s*(\d+)\s*,\s*T:\s*([\d.]+)\s*,\s*D:\s*([\d.]+)\s*\]/g;
+    const parsed: MidiEvent[] = [];
+    let m: RegExpExecArray | null;
+    const src = userInput;
+    while ((m = regex.exec(src)) !== null)
+      parsed.push({ p: parseFloat(m[1]), v: parseInt(m[2]), t: parseFloat(m[3]), d: parseFloat(m[4]) });
+    if (parsed.length === 0) return;
+    const transformed = fn(parsed);
+    let i = 0;
+    setUserInput(src.replace(
+      /\[\s*P:\s*[\d.]+\s*,\s*V:\s*\d+\s*,\s*T:\s*[\d.]+\s*,\s*D:\s*[\d.]+\s*\]/g,
+      () => {
+        const e = transformed[i++];
+        const p = Math.round(Math.max(0, Math.min(127, e.p)));
+        const v = Math.round(Math.max(0, Math.min(127, e.v)));
+        return `[P:${p},V:${v},T:${e.t.toFixed(3)},D:${e.d.toFixed(3)}]`;
+      }
+    ));
+  }, [userInput]);
+
+  const patchTransforms = useMemo(() => ({
+    reverseTime: () => transformPatchBay(evts => {
+      const maxEnd = Math.max(...evts.map(e => e.t + e.d));
+      return evts.map(e => ({ ...e, t: Math.max(0, maxEnd - e.t - e.d) }));
+    }),
+    invertPitch: () => transformPatchBay(evts => {
+      const ps = evts.map(e => e.p);
+      const lo = Math.min(...ps), hi = Math.max(...ps);
+      return evts.map(e => ({ ...e, p: lo + hi - e.p }));
+    }),
+    transpose: (delta: number) => transformPatchBay(evts =>
+      evts.map(e => ({ ...e, p: e.p + delta }))
+    ),
+    widenPitch: (factor: number) => transformPatchBay(evts => {
+      const ps = evts.map(e => e.p);
+      const center = (Math.min(...ps) + Math.max(...ps)) / 2;
+      return evts.map(e => ({ ...e, p: center + (e.p - center) * factor }));
+    }),
+    normalizeVelocity: () => transformPatchBay(evts => {
+      const vs = evts.map(e => e.v);
+      const lo = Math.min(...vs), hi = Math.max(...vs);
+      if (hi === lo) return evts.map(e => ({ ...e, v: 90 }));
+      return evts.map(e => ({ ...e, v: 10 + ((e.v - lo) / (hi - lo)) * 110 }));
+    }),
+    stretchTime: (factor: number) => transformPatchBay(evts =>
+      evts.map(e => ({ ...e, t: e.t * factor, d: Math.max(0.05, e.d * factor) }))
+    ),
+    quantize: (grid: number) => transformPatchBay(evts =>
+      evts.map(e => ({ ...e, t: Math.round(e.t / grid) * grid, d: Math.max(grid, Math.round(e.d / grid) * grid) }))
+    ),
+  }), [transformPatchBay]);
+
   const handleMoveSelection = (deltaBeat: number, deltaPitch: number, ids: string[]) => {
     if (ids.length === 0) return;
     pushHistory(events);
@@ -742,7 +804,7 @@ const App: React.FC = () => {
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-48 flex-none">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-h-[12rem] flex-none">
             <div className="bg-slate-950/50 rounded-2xl border border-white/5 p-4 font-mono text-[10px] flex flex-col overflow-hidden">
                <div className="flex items-center gap-2 text-slate-500 uppercase font-black mb-2 border-b border-white/5 pb-1"><Terminal size={12} /> Neural Stream</div>
                <div className="flex-1 text-indigo-400/40 break-all overflow-y-auto custom-scrollbar italic leading-relaxed">{rawStream || "Standby..."}</div>
@@ -761,6 +823,35 @@ const App: React.FC = () => {
                   >
                     <PlusCircle size={10} /> Inject
                   </button>
+               </div>
+
+               {/* Signal transform toolbar */}
+               <div className="flex flex-wrap gap-1 mb-2 pb-2 border-b border-white/5">
+                 {/* Time */}
+                 <span className="text-[8px] font-black text-slate-600 uppercase self-center mr-0.5">T</span>
+                 <button onClick={patchTransforms.reverseTime} title="Reverse time: reflects every note's start time so T → (totalDuration − T − D). The last note becomes the first; the sequence plays backwards. Durations are unchanged." className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-indigo-500/20 hover:text-indigo-300 text-slate-400 text-[8px] font-black border border-white/5 transition-colors">
+                   <ArrowLeftRight size={9} /> Rev
+                 </button>
+                 <button onClick={() => patchTransforms.stretchTime(2)} title="Stretch ×2: multiplies every T and D by 2. Notes are twice as far apart and twice as long — same melody, half the tempo." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-indigo-500/20 hover:text-indigo-300 text-slate-400 text-[8px] font-black border border-white/5 transition-colors">×2</button>
+                 <button onClick={() => patchTransforms.stretchTime(0.5)} title="Compress ×½: multiplies every T and D by 0.5. Notes are half as far apart and half as long — same melody, double the tempo." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-indigo-500/20 hover:text-indigo-300 text-slate-400 text-[8px] font-black border border-white/5 transition-colors">×½</button>
+                 <button onClick={() => patchTransforms.quantize(0.25)} title="Quantize to ¼ beat: snaps every T to the nearest 0.25-beat grid and rounds D up to the nearest 0.25. Tightens loose timing to 16th-note resolution." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-indigo-500/20 hover:text-indigo-300 text-slate-400 text-[8px] font-black border border-white/5 transition-colors">Q¼</button>
+                 <button onClick={() => patchTransforms.quantize(0.5)} title="Quantize to ½ beat: snaps every T to the nearest 0.5-beat grid and rounds D up to the nearest 0.5. Tightens loose timing to 8th-note resolution." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-indigo-500/20 hover:text-indigo-300 text-slate-400 text-[8px] font-black border border-white/5 transition-colors">Q½</button>
+                 <div className="w-px h-4 bg-white/10 self-center mx-0.5" />
+                 {/* Pitch */}
+                 <span className="text-[8px] font-black text-slate-600 uppercase self-center mr-0.5">P</span>
+                 <button onClick={patchTransforms.invertPitch} title="Invert pitch: mirrors every note around the midpoint of the sequence's pitch range. P → (minP + maxP − P). A rising melody becomes falling; intervals are preserved in size but flipped in direction." className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-violet-500/20 hover:text-violet-300 text-slate-400 text-[8px] font-black border border-white/5 transition-colors">
+                   <ArrowUpDown size={9} /> Inv
+                 </button>
+                 <button onClick={() => patchTransforms.widenPitch(1.5)} title="Widen ×1.5: scales every pitch away from the range's centre by 1.5×. Intervals grow larger — a minor 3rd becomes roughly a tritone. Clamps to 0–127." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-violet-500/20 hover:text-violet-300 text-slate-400 text-[8px] font-black border border-white/5 transition-colors">Wide</button>
+                 <button onClick={() => patchTransforms.widenPitch(1/1.5)} title="Narrow ÷1.5: scales every pitch toward the range's centre by ÷1.5. Intervals shrink — a major 6th becomes roughly a major 3rd. Useful to compress dramatic leaps." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-violet-500/20 hover:text-violet-300 text-slate-400 text-[8px] font-black border border-white/5 transition-colors">Narr</button>
+                 <button onClick={() => patchTransforms.transpose(1)} title="Transpose +1 semitone: adds 1 to every P (e.g. C4→C#4). Clamps at 127." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-violet-500/20 hover:text-violet-300 text-slate-400 text-[8px] font-black border border-white/5 transition-colors">+1</button>
+                 <button onClick={() => patchTransforms.transpose(-1)} title="Transpose −1 semitone: subtracts 1 from every P (e.g. C4→B3). Clamps at 0." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-violet-500/20 hover:text-violet-300 text-slate-400 text-[8px] font-black border border-white/5 transition-colors">−1</button>
+                 <button onClick={() => patchTransforms.transpose(12)} title="Transpose +1 octave: adds 12 to every P. Same notes, one octave higher. Clamps at 127." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-violet-500/20 hover:text-violet-300 text-slate-400 text-[8px] font-black border border-white/5 transition-colors">+8ve</button>
+                 <button onClick={() => patchTransforms.transpose(-12)} title="Transpose −1 octave: subtracts 12 from every P. Same notes, one octave lower. Clamps at 0." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-violet-500/20 hover:text-violet-300 text-slate-400 text-[8px] font-black border border-white/5 transition-colors">−8ve</button>
+                 <div className="w-px h-4 bg-white/10 self-center mx-0.5" />
+                 {/* Velocity */}
+                 <span className="text-[8px] font-black text-slate-600 uppercase self-center mr-0.5">V</span>
+                 <button onClick={patchTransforms.normalizeVelocity} title="Normalize velocity: linearly stretches the velocity range so the quietest note → V=10 and the loudest → V=110, preserving relative dynamics. If all notes share the same velocity (no range), every note is set to V=90." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-emerald-500/20 hover:text-emerald-300 text-slate-400 text-[8px] font-black border border-white/5 transition-colors">Norm</button>
                </div>
                <textarea
                   value={userInput}
