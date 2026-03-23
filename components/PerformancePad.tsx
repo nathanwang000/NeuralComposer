@@ -1515,10 +1515,11 @@ const TOUCH_COLORS = [
     { dot: '#34d399', glow: 'rgba(16,185,129,0.22)',  ring: 'rgba(52,211,153,0.55)'  }, // emerald
 ];
 
-const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: MidiEvent[]) => void; onRecordingStart?: () => void }> = ({
+const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: MidiEvent[]) => void; onRecordingStart?: () => void; onStartPlayback?: () => void }> = ({
     bpm = 120,
     onCommitRecording,
     onRecordingStart,
+    onStartPlayback,
 }) => {
     // Keep a ref to the latest bpm so audio callbacks always see the current value
     // without needing to be re-created whenever bpm changes.
@@ -1571,6 +1572,9 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
     // Map from source-key → list of { pitch, onMs } for in-flight notes.
     const pendingNoteOnRef = useRef<Map<string, { pitch: number; onMs: number }[]>>(new Map());
     const recordedEventsRef = useRef<MidiEvent[]>([]);
+    const [autoPlayOnRecord, setAutoPlayOnRecord] = useState(true);
+    const autoPlayOnRecordRef = useRef(true);
+    useEffect(() => { autoPlayOnRecordRef.current = autoPlayOnRecord; }, [autoPlayOnRecord]);
 
     // Countdown + metronome
     const [countdownBeat, setCountdownBeat] = useState<number | null>(null); // null = not counting down
@@ -1938,6 +1942,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
               isRecordingRef.current = true;
               setIsRecording(true);
               onRecordingStart?.();
+              if (autoPlayOnRecordRef.current) onStartPlayback?.();
               if (metronomeEnabledRef.current) audioEngine.playMetronomeClick(true); // beat 1 accent
 
               // Continue metronome ticks throughout recording
@@ -3725,6 +3730,26 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                             {metronomeEnabled
                                 ? ' Audible click plays on every beat (accented on beat 1).'
                                 : ' Click sound is muted — the visual count-in still shows.'}
+                        </p>
+                    </div>
+
+                    {/* Auto-play sequencer */}
+                    <div>
+                        <div className="text-[9px] font-black uppercase tracking-widest text-indigo-400 mb-3">Sequencer Auto-Play</div>
+                        <button
+                            onClick={() => setAutoPlayOnRecord(v => !v)}
+                            className={`w-full py-2 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-colors ${
+                                autoPlayOnRecord
+                                    ? 'bg-indigo-600/80 border-indigo-400 text-white'
+                                    : 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/25'
+                            }`}
+                        >
+                            {autoPlayOnRecord ? 'Auto-Play ON' : 'Auto-Play OFF'}
+                        </button>
+                        <p className="mt-2 text-[9px] text-slate-500 leading-relaxed">
+                            {autoPlayOnRecord
+                                ? 'The piano roll will automatically start playing from the current playhead position when recording begins (after the count-in). Recorded notes will be in sync with the existing track.'
+                                : 'The piano roll stays in its current state when recording starts. Use this if you want to record freely without the backing track running.'}
                         </p>
                     </div>
 

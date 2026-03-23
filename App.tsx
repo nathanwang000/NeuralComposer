@@ -769,7 +769,17 @@ const App: React.FC = () => {
           {/* Both panels stay mounted at all times so their internal state is preserved across tab switches.
               Visibility is toggled purely with CSS (hidden / contents). */}
           <div className={mainTab === 'performance' ? 'flex-1 flex flex-col min-h-0' : 'hidden'}>
-            <PerformancePad bpm={state.tempo} onCommitRecording={handleCommitRecording} onRecordingStart={() => { recordingStartBeatRef.current = playbackBeatRef.current; }} />
+            <PerformancePad
+              bpm={state.tempo}
+              onCommitRecording={handleCommitRecording}
+              onRecordingStart={() => { recordingStartBeatRef.current = playbackBeatRef.current; }}
+              onStartPlayback={() => {
+                audioEngine.init();
+                isPausedRef.current = false;
+                setIsPaused(false);
+                setState(s => ({ ...s, isPlaying: true }));
+              }}
+            />
           </div>
           <div className={mainTab === 'sequencer' ? 'contents' : 'hidden'}>
           <div className="relative flex-1 min-h-[350px] border border-white/5 rounded-3xl overflow-hidden bg-black shadow-inner">
