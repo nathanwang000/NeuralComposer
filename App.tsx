@@ -556,6 +556,9 @@ const App: React.FC = () => {
       if (hi === lo) return evts.map(e => ({ ...e, v: 90 }));
       return evts.map(e => ({ ...e, v: 10 + ((e.v - lo) / (hi - lo)) * 110 }));
     }),
+    volShift: (delta: number) => transformPatchBay(evts =>
+      evts.map(e => ({ ...e, v: e.v + delta }))
+    ),
     stretchTime: (factor: number) => transformPatchBay(evts =>
       evts.map(e => ({ ...e, t: e.t * factor, d: Math.max(0.05, e.d * factor) }))
     ),
@@ -856,6 +859,8 @@ const App: React.FC = () => {
                  {/* Velocity */}
                  <span className="text-[8px] font-black text-slate-600 uppercase self-center mr-0.5">V</span>
                  <button onClick={patchTransforms.normalizeVelocity} title="Normalize velocity: linearly stretches the velocity range so the quietest note → V=10 and the loudest → V=110, preserving relative dynamics. If all notes share the same velocity (no range), every note is set to V=90." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-emerald-500/20 hover:text-emerald-300 text-slate-400 text-[8px] font-black border border-white/5 transition-colors">Norm</button>
+                 <button onClick={() => patchTransforms.volShift(10)} title="Volume +10: adds 10 to every velocity. Clamps at 127." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-emerald-500/20 hover:text-emerald-300 text-slate-400 text-[8px] font-black border border-white/5 transition-colors">+10</button>
+                 <button onClick={() => patchTransforms.volShift(-10)} title="Volume −10: subtracts 10 from every velocity. Clamps at 0." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-emerald-500/20 hover:text-emerald-300 text-slate-400 text-[8px] font-black border border-white/5 transition-colors">−10</button>
                </div>
                <textarea
                   value={userInput}
