@@ -131,6 +131,7 @@ const App: React.FC = () => {
 
   const [isAIStreamActive, setIsAIStreamActive] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const recordingStartBeatRef = useRef(0);
   const beatsGeneratedRef = useRef(0);
   const isGeneratingRef = useRef(false);
   const streamBufferRef = useRef("");
@@ -275,17 +276,14 @@ const App: React.FC = () => {
   const handleCommitRecording = useCallback((recordedEvents: MidiEvent[]) => {
     const stamp = Date.now();
     const newIds = recordedEvents.map((_, i) => `recorded-${stamp}-${i}`);
+    const baseOffset = recordingStartBeatRef.current;
     setEvents(prev => {
       pushHistory(prev);
-      const lastAbsoluteBeat = prev.reduce(
-        (max, e) => Math.max(max, e.beatOffset + e.event.t + e.event.d),
-        0,
-      );
       return [
         ...prev,
         ...recordedEvents.map((evt, i) => ({
           event: evt,
-          beatOffset: lastAbsoluteBeat,
+          beatOffset: baseOffset,
           id: newIds[i],
           isUser: true as const,
         })),
@@ -771,7 +769,7 @@ const App: React.FC = () => {
           {/* Both panels stay mounted at all times so their internal state is preserved across tab switches.
               Visibility is toggled purely with CSS (hidden / contents). */}
           <div className={mainTab === 'performance' ? 'flex-1 flex flex-col min-h-0' : 'hidden'}>
-            <PerformancePad bpm={state.tempo} onCommitRecording={handleCommitRecording} />
+            <PerformancePad bpm={state.tempo} onCommitRecording={handleCommitRecording} onRecordingStart={() => { recordingStartBeatRef.current = playbackBeatRef.current; }} />
           </div>
           <div className={mainTab === 'sequencer' ? 'contents' : 'hidden'}>
           <div className="relative flex-1 min-h-[350px] border border-white/5 rounded-3xl overflow-hidden bg-black shadow-inner">

@@ -1515,9 +1515,10 @@ const TOUCH_COLORS = [
     { dot: '#34d399', glow: 'rgba(16,185,129,0.22)',  ring: 'rgba(52,211,153,0.55)'  }, // emerald
 ];
 
-const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: MidiEvent[]) => void }> = ({
+const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: MidiEvent[]) => void; onRecordingStart?: () => void }> = ({
     bpm = 120,
     onCommitRecording,
+    onRecordingStart,
 }) => {
     // Keep a ref to the latest bpm so audio callbacks always see the current value
     // without needing to be re-created whenever bpm changes.
@@ -1936,6 +1937,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
               recordingStartMsRef.current = performance.now();
               isRecordingRef.current = true;
               setIsRecording(true);
+              onRecordingStart?.();
               if (metronomeEnabledRef.current) audioEngine.playMetronomeClick(true); // beat 1 accent
 
               // Continue metronome ticks throughout recording
