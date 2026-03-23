@@ -259,6 +259,10 @@ const App: React.FC = () => {
       if (curr.future.length === 0) return curr;
       const next = curr.future[0];
       setEvents(next);
+      // Select notes that were added back by this redo (present in next but not in current)
+      const currentIds = new Set(events.map(e => e.id));
+      const restoredIds = next.filter(e => !currentIds.has(e.id)).map(e => e.id);
+      if (restoredIds.length > 0) setSelectedEventIds(restoredIds);
       return { past: [...curr.past, events], future: curr.future.slice(1) };
     });
   }, [events]);
