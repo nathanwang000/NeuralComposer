@@ -13,10 +13,12 @@ interface PianoRollProps {
   currentBeat: number;
   selectedNoteIds: string[];
   selectionMarquee: SelectionBounds | null;
+  beatWidth?: number;
   onSeek?: (beat: number) => void;
   onSelectionMarqueeChange?: (bounds: SelectionBounds | null) => void;
   onSelectNotes?: (ids: string[]) => void;
   onMoveSelection?: (deltaBeat: number, deltaPitch: number, ids: string[]) => void;
+  onZoomChange?: (newBeatWidth: number) => void;
 }
 
 const PianoRoll: React.FC<PianoRollProps> = ({
@@ -24,17 +26,21 @@ const PianoRoll: React.FC<PianoRollProps> = ({
   currentBeat,
   selectedNoteIds,
   selectionMarquee,
+  beatWidth = 100,
   onSeek,
   onSelectionMarqueeChange,
   onSelectNotes,
-  onMoveSelection
+  onMoveSelection,
+  onZoomChange,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [dragStart, setDragStart] = useState<{ x: number, y: number, beat: number, pitch: number } | null>(null);
   const [dragEnd, setDragEnd] = useState<{ x: number, y: number, beat: number, pitch: number } | null>(null);
   const [isMoving, setIsMoving] = useState(false);
 
-  const beatWidth = 100;
+  // Keep a ref so the wheel handler always sees the latest value without re-registering
+  const beatWidthRef = useRef(beatWidth);
+  useEffect(() => { beatWidthRef.current = beatWidth; }, [beatWidth]);
 
   // Compute the bounding box of the currently selected notes
   const selectionBounds = useMemo(() => {
@@ -311,7 +317,22 @@ const PianoRoll: React.FC<PianoRollProps> = ({
 
     draw();
     return () => cancelAnimationFrame(animationFrame);
-  }, [events, currentBeat, dragStart, dragEnd, selectedNoteIds, selectionMarquee, selectionBounds, isMoving]);
+  }, [events, currentBeat, dragStart, dragEnd, selectedNoteIds, selectionMarquee, selectionBounds, isMoving, beatWidth]);
+
+  // Ctrl+wheel → zoom
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const handleWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+      const next = Math.max(20, Math.min(600, beatWidthRef.current * factor));
+      onZoomChange?.(next);
+    };
+    canvas.addEventListener('wheel', handleWheel, { passive: false });
+    return () => canvas.removeEventListener('wheel', handleWheel);
+  }, [onZoomChange]);
 
   return (
     <canvas

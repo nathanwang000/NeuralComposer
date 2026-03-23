@@ -29,7 +29,9 @@ import {
   Undo,
   Waves,
   X,
-  Zap
+  Zap,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -131,6 +133,8 @@ const App: React.FC = () => {
 
   const [isAIStreamActive, setIsAIStreamActive] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [beatWidth, setBeatWidth] = useState(100);
+  const clampBeatWidth = (v: number) => Math.max(20, Math.min(600, v));
   const recordingStartBeatRef = useRef(0);
   const beatsGeneratedRef = useRef(0);
   const isGeneratingRef = useRef(false);
@@ -783,7 +787,18 @@ const App: React.FC = () => {
           </div>
           <div className={mainTab === 'sequencer' ? 'contents' : 'hidden'}>
           <div className="relative flex-1 min-h-[350px] border border-white/5 rounded-3xl overflow-hidden bg-black shadow-inner">
-            <PianoRoll events={events} currentBeat={playbackBeat} selectedNoteIds={selectedEventIds} selectionMarquee={selectionMarquee} onSeek={handleSeek} onSelectionMarqueeChange={setSelectionMarquee} onSelectNotes={setSelectedEventIds} onMoveSelection={handleMoveSelection} />
+            <PianoRoll
+              events={events}
+              currentBeat={playbackBeat}
+              selectedNoteIds={selectedEventIds}
+              selectionMarquee={selectionMarquee}
+              beatWidth={beatWidth}
+              onSeek={handleSeek}
+              onSelectionMarqueeChange={setSelectionMarquee}
+              onSelectNotes={setSelectedEventIds}
+              onMoveSelection={handleMoveSelection}
+              onZoomChange={v => setBeatWidth(clampBeatWidth(v))}
+            />
             {isWarmingUp && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/95 backdrop-blur-xl z-20">
                 <Loader2 className="animate-spin text-indigo-500 mb-4" size={64} />
@@ -817,6 +832,10 @@ const App: React.FC = () => {
             {selectedEventIds.length > 0 && (
               <span className="text-[9px] text-slate-600 font-black uppercase mr-2">{selectedEventIds.length} selected</span>
             )}
+            <div className="w-px h-5 bg-white/10 mx-1" />
+            <button onClick={() => setBeatWidth(v => clampBeatWidth(v / 1.25))} title="Zoom out (Ctrl+scroll)" className="flex items-center gap-1 px-2 py-1.5 hover:bg-white/5 text-slate-500 hover:text-slate-300 rounded-xl text-[10px] font-black transition-colors"><ZoomOut size={14} /></button>
+            <button onClick={() => setBeatWidth(100)} title="Reset zoom" className="px-2 py-1.5 hover:bg-white/5 text-slate-600 hover:text-slate-300 rounded-xl text-[9px] font-black tabular-nums transition-colors">{Math.round(beatWidth / 100 * 100)}%</button>
+            <button onClick={() => setBeatWidth(v => clampBeatWidth(v * 1.25))} title="Zoom in (Ctrl+scroll)" className="flex items-center gap-1 px-2 py-1.5 hover:bg-white/5 text-slate-500 hover:text-slate-300 rounded-xl text-[10px] font-black transition-colors"><ZoomIn size={14} /></button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-h-[12rem] flex-none">
