@@ -1,5 +1,56 @@
 import { MidiEvent, SynthConfig } from '../types';
 
+// ---------------------------------------------------------------------------
+// WAV encoder — converts a Web Audio AudioBuffer to a WAV Blob (16-bit PCM).
+// No external libraries required.
+// ---------------------------------------------------------------------------
+function audioBufferToWav(buffer: AudioBuffer): Blob {
+  const numChannels = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const numSamples = buffer.length;
+  const bytesPerSample = 2; // 16-bit
+  const blockAlign = numChannels * bytesPerSample;
+  const byteRate = sampleRate * blockAlign;
+  const dataSize = numSamples * blockAlign;
+  const headerSize = 44;
+
+  const arrayBuffer = new ArrayBuffer(headerSize + dataSize);
+  const view = new DataView(arrayBuffer);
+
+  const writeStr = (offset: number, str: string) => {
+    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+  };
+  const clamp16 = (n: number) => Math.max(-32768, Math.min(32767, n));
+
+  // RIFF header
+  writeStr(0, 'RIFF');
+  view.setUint32(4, 36 + dataSize, true);
+  writeStr(8, 'WAVE');
+  writeStr(12, 'fmt ');
+  view.setUint32(16, 16, true);          // PCM chunk size
+  view.setUint16(20, 1, true);           // PCM format
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, 16, true);          // bits per sample
+  writeStr(36, 'data');
+  view.setUint32(40, dataSize, true);
+
+  // Interleaved PCM samples
+  const channels = Array.from({ length: numChannels }, (_, c) => buffer.getChannelData(c));
+  let offset = 44;
+  for (let i = 0; i < numSamples; i++) {
+    for (let c = 0; c < numChannels; c++) {
+      view.setInt16(offset, clamp16(Math.round(channels[c][i] * 32767)), true);
+      offset += 2;
+    }
+  }
+
+  return new Blob([arrayBuffer], { type: 'audio/wav' });
+}
+// ---------------------------------------------------------------------------
+
 interface ActiveVoice {
   osc: OscillatorNode;
   filter: BiquadFilterNode;
@@ -500,6 +551,114 @@ class AudioEngine {
 
   get currentTime(): number {
     return this.ctx?.currentTime || 0;
+  }
+
+  /**
+   * Offline render: synthesises every supplied event with the current baseConfig
+   * and returns a WAV Blob. No live AudioContext is touched.
+   *
+   * @param events   - absolute-beat-positioned events to render
+   * @param tempo    - BPM used for beat→seconds conversion
+   * @param legato   - whether to apply legato transitions
+   */
+  async renderToWav(
+    events: { event: MidiEvent; beatOffset: number }[],
+    tempo: number,
+    legato: boolean = false,
+  ): Promise<Blob> {
+    const sc = this.baseConfig;
+    const secondsPerBeat = 60 / tempo;
+
+    // Compute total duration (last note end + generous release tail)
+    let lastEnd = 0;
+    for (const { event, beatOffset } of events) {
+      const end = (beatOffset + event.t + event.d) * secondsPerBeat + sc.release + 0.5;
+      if (end > lastEnd) lastEnd = end;
+    }
+    const totalSeconds = Math.max(1, lastEnd);
+
+    const sampleRate = 44100;
+    const offlineCtx = new OfflineAudioContext(2, Math.ceil(sampleRate * totalSeconds), sampleRate);
+
+    const masterGain = offlineCtx.createGain();
+    masterGain.gain.value = 0.3;
+    masterGain.connect(offlineCtx.destination);
+
+    const midiToFreq = (midi: number) => 440 * Math.pow(2, (midi - 69) / 12);
+
+    // Sort by absolute start time so legato detection matches live playback
+    const sorted = [...events].sort(
+      (a, b) => (a.beatOffset + a.event.t) - (b.beatOffset + b.event.t),
+    );
+
+    let globalLastNoteEndTime = 0;
+
+    for (const { event, beatOffset } of sorted) {
+      const absoluteBeat = beatOffset + event.t;
+      const actualStart = absoluteBeat * secondsPerBeat;
+      const noteDuration = event.d * secondsPerBeat;
+      const freq = midiToFreq(event.p);
+
+      const waveCorrection = sc.waveType === 'sine' ? 1.1 : (sc.waveType === 'sawtooth' ? 0.9 : 1.0);
+      const targetVolume = (event.v / 127) * 0.4 * sc.drive * waveCorrection;
+
+      const isLegatoTransition = legato && (actualStart < globalLastNoteEndTime + 0.1);
+
+      const osc = offlineCtx.createOscillator();
+      const filter = offlineCtx.createBiquadFilter();
+      const env = offlineCtx.createGain();
+
+      osc.type = sc.waveType as OscillatorType;
+      osc.frequency.setValueAtTime(freq, actualStart);
+      osc.detune.setValueAtTime(sc.detune, actualStart);
+
+      const filterEnvAmount = sc.cutoff * 1.5;
+      filter.type = 'lowpass';
+      filter.Q.setValueAtTime(sc.resonance, actualStart);
+      filter.frequency.setValueAtTime(sc.cutoff, actualStart);
+
+      if (isLegatoTransition) {
+        filter.frequency.setValueAtTime(sc.cutoff + filterEnvAmount * 0.5, actualStart);
+        filter.frequency.exponentialRampToValueAtTime(sc.cutoff, actualStart + sc.decay);
+      } else {
+        filter.frequency.exponentialRampToValueAtTime(
+          Math.min(20000, sc.cutoff + filterEnvAmount), actualStart + sc.attack,
+        );
+        filter.frequency.exponentialRampToValueAtTime(sc.cutoff, actualStart + sc.attack + sc.decay);
+      }
+
+      const attackEnd = actualStart + sc.attack;
+      const decayEnd = attackEnd + sc.decay;
+      const releaseStart = actualStart + noteDuration;
+      const releaseEnd = releaseStart + sc.release;
+
+      env.gain.cancelScheduledValues(actualStart);
+
+      if (isLegatoTransition) {
+        env.gain.setValueAtTime(0, actualStart);
+        env.gain.linearRampToValueAtTime(targetVolume, actualStart + 0.02);
+        env.gain.setValueAtTime(targetVolume, releaseStart);
+      } else {
+        env.gain.setValueAtTime(0, actualStart);
+        env.gain.linearRampToValueAtTime(targetVolume, attackEnd);
+        env.gain.exponentialRampToValueAtTime(Math.max(0.001, targetVolume * sc.sustain), decayEnd);
+        env.gain.setValueAtTime(targetVolume * sc.sustain, releaseStart);
+      }
+
+      env.gain.exponentialRampToValueAtTime(0.001, releaseEnd);
+
+      osc.connect(filter);
+      filter.connect(env);
+      env.connect(masterGain);
+
+      osc.start(actualStart);
+      osc.stop(Math.min(releaseEnd + 0.1, totalSeconds));
+
+      if (releaseEnd > globalLastNoteEndTime) globalLastNoteEndTime = releaseEnd;
+    }
+
+    const buffer = await offlineCtx.startRendering();
+    return audioBufferToWav(buffer);
   }
 
   /**

@@ -8,6 +8,7 @@ import {
   Cpu,
   Disc,
   Download,
+  FileAudio,
   Gauge,
   HelpCircle,
   Loader2,
@@ -134,6 +135,7 @@ const App: React.FC = () => {
   const [isAIStreamActive, setIsAIStreamActive] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [beatWidth, setBeatWidth] = useState(100);
+  const [isExporting, setIsExporting] = useState(false);
   const clampBeatWidth = (v: number) => Math.max(20, Math.min(600, v));
   const recordingStartBeatRef = useRef(0);
   const beatsGeneratedRef = useRef(0);
@@ -429,6 +431,27 @@ const App: React.FC = () => {
     }));
     setEvents(prev => [...prev, ...newEvents]);
     setUserInput("");
+  };
+
+  const handleExportWav = async () => {
+    if (events.length === 0 || isExporting) return;
+    setIsExporting(true);
+    try {
+      const blob = await audioEngine.renderToWav(events, state.tempo, state.legatoMode);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `neural-composer-${Date.now()}.wav`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('WAV export failed', e);
+      alert(`Export failed: ${e instanceof Error ? e.message : 'Unknown error'}`);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const handleDownload = () => {
@@ -832,6 +855,16 @@ const App: React.FC = () => {
             {selectedEventIds.length > 0 && (
               <span className="text-[9px] text-slate-600 font-black uppercase mr-2">{selectedEventIds.length} selected</span>
             )}
+            <div className="w-px h-5 bg-white/10 mx-1" />
+            <button
+              onClick={handleExportWav}
+              disabled={events.length === 0 || isExporting}
+              title="Export audio as WAV using current synth settings"
+              className="flex items-center gap-1.5 px-3 py-1.5 disabled:opacity-30 hover:bg-emerald-500/10 text-slate-400 hover:text-emerald-400 rounded-xl text-[10px] font-black uppercase transition-colors"
+            >
+              {isExporting ? <Loader2 size={14} className="animate-spin" /> : <FileAudio size={14} />}
+              {isExporting ? 'Rendering…' : 'WAV'}
+            </button>
             <div className="w-px h-5 bg-white/10 mx-1" />
             <button onClick={() => setBeatWidth(v => clampBeatWidth(v / 1.25))} title="Zoom out (Ctrl+scroll)" className="flex items-center gap-1 px-2 py-1.5 hover:bg-white/5 text-slate-500 hover:text-slate-300 rounded-xl text-[10px] font-black transition-colors"><ZoomOut size={14} /></button>
             <button onClick={() => setBeatWidth(100)} title="Reset zoom" className="px-2 py-1.5 hover:bg-white/5 text-slate-600 hover:text-slate-300 rounded-xl text-[9px] font-black tabular-nums transition-colors">{Math.round(beatWidth / 100 * 100)}%</button>
