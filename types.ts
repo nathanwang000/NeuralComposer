@@ -155,5 +155,78 @@ export const SYNTH_PRESETS: Record<string, SynthConfig> = {
     sustain: 0.0,
     release: 0.1,
     drive: 1.7
+  },
+  // ── Percussive ──────────────────────────────────────────────────────────────
+  "Kick Drum": {
+    // Deep thud: low cutoff shapes the punch; drive adds body; zero sustain
+    waveType: 'triangle',
+    detune: 0,
+    cutoff: 320,
+    resonance: 6,
+    attack: 0.001,
+    decay: 0.25,
+    sustain: 0.0,
+    release: 0.15,
+    drive: 1.8
+  },
+  "Snare Hit": {
+    // Bright crack: square at mid-high cutoff with a touch of resonance
+    waveType: 'square',
+    detune: 0,
+    cutoff: 3800,
+    resonance: 5,
+    attack: 0.001,
+    decay: 0.12,
+    sustain: 0.0,
+    release: 0.08,
+    drive: 1.5
+  },
+  "Rim Shot": {
+    // Tight click: very short decay, high cutoff, punchy drive
+    waveType: 'square',
+    detune: 0,
+    cutoff: 6000,
+    resonance: 12,
+    attack: 0.001,
+    decay: 0.06,
+    sustain: 0.0,
+    release: 0.04,
+    drive: 1.6
+  },
+  "Marimba": {
+    // Wooden mallet: triangle wave, fast decay, slight resonance warmth
+    waveType: 'triangle',
+    detune: 0,
+    cutoff: 4200,
+    resonance: 2,
+    attack: 0.001,
+    decay: 0.35,
+    sustain: 0.0,
+    release: 0.2,
+    drive: 1.0
+  },
+  "Steel Drum": {
+    // Bright metallic ping: high resonance sings on the transient
+    waveType: 'triangle',
+    detune: 4,
+    cutoff: 5000,
+    resonance: 14,
+    attack: 0.001,
+    decay: 0.5,
+    sustain: 0.0,
+    release: 0.3,
+    drive: 1.1
+  },
+  "Tabla": {
+    // Warm finger drum: sawtooth filtered low, resonant bloom, moderate decay
+    waveType: 'sawtooth',
+    detune: 0,
+    cutoff: 900,
+    resonance: 9,
+    attack: 0.001,
+    decay: 0.28,
+    sustain: 0.0,
+    release: 0.18,
+    drive: 1.3
   }
 };
