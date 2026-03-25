@@ -1111,7 +1111,7 @@ const App: React.FC = () => {
           {/* ── Multi-track stacked piano roll ── */}
           {/* Each track is a fixed 320px lane; the container scrolls vertically
               so adding many tracks never squashes the canvas area. */}
-          <div className="relative flex flex-col border border-white/5 rounded-3xl overflow-hidden bg-black shadow-inner" style={{ minHeight: '500px', flex: 1 }}>
+          <div className="relative flex flex-col border border-white/5 rounded-3xl overflow-hidden bg-black shadow-inner" style={{ minHeight: '350px', flex: 1 }}>
             {/* Scrollable track stack */}
             <div className="flex-1 overflow-y-auto custom-scrollbar">
               {tracks.map((track) => (

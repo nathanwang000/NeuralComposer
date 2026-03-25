@@ -260,6 +260,93 @@ Bars and chord changes are annotated with comments for readability:
 [P:62, V:95, T:3.0, D:1.0], [P:60, V:95, T:4.0, D:1.0], [P:65, V:95, T:5.0, D:1.0],
 ```
 
+### Multi-Voice / Multi-Track Format
+
+A single `.txt` file can contain **multiple voices** (tracks), each separated by a `[voice:N ...]` header block. When loaded, the app creates one track per voice and routes each block's note events to it.
+
+#### Voice Header Syntax
+
+```
+[voice:N name:"Display Name" preset:"Preset Name"]
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `voice:N` | Yes | Voice index (1-based integer). Determines track order. |
+| `name:"..."` | No | Human-readable label shown in the track sidebar. |
+| `preset:"..."` | No | Synth preset to apply (see list below). Defaults to Grand Piano. |
+
+#### Synth Parameter Overrides
+
+Any `SynthConfig` field can be appended to the header to override individual preset values:
+
+```
+[voice:2 name:"Acid Lead" preset:"Crystal Lead" cutoff:1200 resonance:15 drive:1.8]
+```
+
+Available override parameters:
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `waveType` | `sine` \| `square` \| `sawtooth` \| `triangle` | Oscillator waveform |
+| `detune` | Float (cents) | Oscillator detune in cents |
+| `cutoff` | Float (Hz) | Filter cutoff frequency |
+| `resonance` | Float | Filter resonance / Q |
+| `attack` | Float (s) | Envelope attack time in seconds |
+| `decay` | Float (s) | Envelope decay time in seconds |
+| `sustain` | Float (0–1) | Envelope sustain level |
+| `release` | Float (s) | Envelope release time in seconds |
+| `drive` | Float | Pre-filter overdrive multiplier |
+
+#### Built-in Presets
+
+| Preset Name | Character |
+|-------------|-----------|
+| `"Grand Piano"` | Bright triangle — clean piano articulation |
+| `"Crystal Lead"` | Square wave — sharp synth lead |
+| `"Deep Bass"` | Sawtooth — punchy low-end bass |
+| `"Ghostly Pad"` | Sine — slow-attack atmospheric pad |
+| `"Neon Pluck"` | Sawtooth — resonant staccato pluck |
+| `"Warm Rhodes"` | Triangle — mellow electric piano |
+| `"Soft Strings"` | Sawtooth — slow strings ensemble |
+| `"Acid Bass"` | Sawtooth — high-resonance acid bass |
+
+> **Tip:** Open the **Synth** panel for any track and click **Copy Voice Header** to get a pre-filled `[voice:N ...]` header with the current settings, ready to paste into a file.
+
+#### Note Events Within a Voice Block
+
+All standard MIDI note events after a `[voice:N ...]` header belong to that voice, until the next voice header or end of file.
+
+```
+[voice:1 name:"Lead" preset:"Crystal Lead"]
+# Am7 (T:0–4)
+[P:64,V:70,T:0.000,D:0.500] [P:69,V:82,T:1.500,D:0.500]
+
+[voice:2 name:"Piano" preset:"Warm Rhodes"]
+# Rootless voicing
+[P:52,V:65,T:0.000,D:2.000] [P:57,V:62,T:0.000,D:2.000]
+
+[voice:3 name:"Bass" preset:"Deep Bass"]
+# Walking quarter notes
+[P:45,V:80,T:0.000,D:1.000] [P:47,V:78,T:1.000,D:1.000]
+```
+
+#### Full Multi-Voice Example
+
+```
+# Jazz Trio — Fly Me to the Moon
+# Voice 1: melody lead, Voice 2: piano comp, Voice 3: walking bass
+
+[voice:1 name:"Lead" preset:"Crystal Lead"]
+[P:69,V:80,T:0.000,D:1.000] [P:67,V:78,T:1.000,D:1.000] [P:65,V:76,T:2.000,D:2.000]
+
+[voice:2 name:"Piano" preset:"Warm Rhodes"]
+[P:52,V:65,T:0.000,D:2.000] [P:55,V:62,T:0.000,D:2.000] [P:60,V:60,T:0.000,D:2.000]
+
+[voice:3 name:"Bass" preset:"Deep Bass"]
+[P:45,V:85,T:0.000,D:1.000] [P:47,V:80,T:1.000,D:1.000] [P:48,V:78,T:2.000,D:1.000] [P:50,V:80,T:3.000,D:1.000]
+```
+
 ---
 
 ## Format Comparison
