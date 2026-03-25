@@ -1,16 +1,25 @@
-[voice:1 name:"Track 1" preset:"Grand Piano"]
+# Key: A Natural Minor | ~16 beats | Melancholy mood
+# Harmony: Am → F → C → E (i → VI → III → VII, unresolved ending for yearning feel)
+
+# --- Voice 1: Melody (recorded, Grand Piano) ---
+# A sparse, searching phrase that climbs from A3 up to G4 then settles — restless and unresolved
+[voice:1 name:"Track 1" preset:"Warm Rhodes"]
+# --- Phrase 1: T:0–4 — Am, circling around A3/C4 ---
 [P:57,V:100,T:0.000,D:0.448]
 [P:60,V:100,T:1.083,D:0.818]
 [P:60,V:100,T:2.591,D:0.482]
 [P:57,V:100,T:3.564,D:0.242]
+# --- Phrase 2: T:4–8 — Fmaj, ascent to E4 ---
 [P:60,V:100,T:4.036,D:0.511]
 [P:64,V:100,T:5.044,D:0.981]
 [P:64,V:100,T:6.562,D:0.653]
 [P:62,V:100,T:7.569,D:0.307]
+# --- Phrase 3: T:8–12 — Cmaj, reaching up to F4 ---
 [P:64,V:100,T:8.043,D:0.368]
 [P:65,V:100,T:9.030,D:0.726]
 [P:65,V:100,T:10.529,D:0.629]
 [P:65,V:100,T:11.520,D:0.266]
+# --- Phrase 4: T:12–16 — E dominant, peaks at G4 then falls back, unresolved ---
 [P:67,V:100,T:12.006,D:0.273]
 [P:65,V:100,T:12.503,D:0.196]
 [P:64,V:100,T:13.014,D:0.245]
@@ -19,8 +28,19 @@
 [P:57,V:100,T:14.501,D:0.224]
 [P:60,V:100,T:15.104,D:0.496]
 
+# --- Voice 2: Bass (Deep Bass) ---
+# Slow, sustained root notes anchoring each chord change — minimal movement, heavy gravity
 [voice:2 name:"Bass" preset:"Deep Bass"]
-[P:45,V:68,T:0.000,D:4.500]
-[P:41,V:68,T:4.000,D:4.500]
-[P:36,V:68,T:8.000,D:4.500]
-[P:40,V:68,T:12.000,D:3.600]
+[P:45,V:68,T:0.000,D:4.500]   # A2 — Am root
+[P:41,V:68,T:4.000,D:4.500]   # F2 — Fmaj root, step down into longing
+[P:36,V:68,T:8.000,D:4.500]   # C2 — Cmaj root, open and hollow
+[P:40,V:68,T:12.000,D:3.600]  # E2 — dominant, unresolved tension; no return home
+
+# --- Voice 3: Ghostly Pad (atmospheric inner voices) ---
+# Chord dyads in the mid-register with slow swell — fills the space between melody and bass,
+# adding harmonic warmth and a sense of suspended grief
+[voice:3 preset:"Ghostly Pad"]
+[P:57,V:58,T:0.000,D:5.000] [P:64,V:55,T:0.000,D:5.000]   # Am: A3 + E4
+[P:53,V:58,T:4.000,D:5.000] [P:60,V:55,T:4.000,D:5.000]   # Fmaj: F3 + C4 — bittersweet brightening
+[P:48,V:58,T:8.000,D:5.000] [P:55,V:55,T:8.000,D:5.000]   # Cmaj: C3 + G3 — open, airy sorrow
+[P:52,V:58,T:12.000,D:4.000] [P:59,V:55,T:12.000,D:4.000] # Em color: E3 + B3 — kept minor for ache, avoids V major resolution
