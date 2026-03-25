@@ -1291,12 +1291,7 @@ const App: React.FC = () => {
             </div>
 
             {/* Add track — always visible at the bottom of the stack */}
-            <button
-              onClick={addTrack}
-              className="flex-none flex items-center justify-center gap-1.5 py-2 border-t border-white/5 text-slate-700 hover:text-slate-400 hover:bg-white/[0.03] transition-colors text-[9px] font-black uppercase tracking-widest"
-            >
-              <Plus size={11} /> Add Track
-            </button>
+            {/* Moved to toolbar — removed from here */}
 
             {isWarmingUp && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/95 backdrop-blur-xl z-20">
@@ -1358,12 +1353,14 @@ const App: React.FC = () => {
               {isExporting ? 'Rendering…' : 'WAV'}
             </button>
             <div className="w-px h-5 bg-white/10 mx-1" />
+            <button onClick={addTrack} title="Add a new track" className="flex items-center gap-1 px-2.5 py-1.5 hover:bg-white/5 text-slate-500 hover:text-slate-300 rounded-xl text-[10px] font-black uppercase transition-colors"><Plus size={13} /> Track</button>
+            <div className="w-px h-5 bg-white/10 mx-1" />
             <button onClick={() => setBeatWidth(v => clampBeatWidth(v / 1.25))} title="Zoom out (Ctrl+scroll)" className="flex items-center gap-1 px-2 py-1.5 hover:bg-white/5 text-slate-500 hover:text-slate-300 rounded-xl text-[10px] font-black transition-colors"><ZoomOut size={14} /></button>
             <button onClick={() => setBeatWidth(100)} title="Reset zoom" className="px-2 py-1.5 hover:bg-white/5 text-slate-600 hover:text-slate-300 rounded-xl text-[9px] font-black tabular-nums transition-colors">{Math.round(beatWidth / 100 * 100)}%</button>
             <button onClick={() => setBeatWidth(v => clampBeatWidth(v * 1.25))} title="Zoom in (Ctrl+scroll)" className="flex items-center gap-1 px-2 py-1.5 hover:bg-white/5 text-slate-500 hover:text-slate-300 rounded-xl text-[10px] font-black transition-colors"><ZoomIn size={14} /></button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-h-[12rem] flex-none">
+          <div className="grid grid-cols-[1fr_3fr] gap-4 min-h-[12rem] flex-none">
             <div className="bg-slate-950/50 rounded-2xl border border-white/5 p-4 font-mono text-[10px] flex flex-col overflow-hidden">
                <div className="flex items-center gap-2 text-slate-500 uppercase font-black mb-2 border-b border-white/5 pb-1"><Terminal size={12} /> Neural Stream</div>
                <div className="flex-1 text-indigo-400/40 break-all overflow-y-auto custom-scrollbar italic leading-relaxed">{rawStream || "Standby..."}</div>
