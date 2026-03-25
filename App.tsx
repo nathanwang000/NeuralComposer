@@ -1697,7 +1697,7 @@ const App: React.FC = () => {
                         <div className="space-y-3">
                             <div className="space-y-1">
                                 <div className="flex justify-between text-[8px] font-bold text-slate-600 uppercase"><span>Cutoff</span><span>{activeTrack.synthConfig.cutoff}Hz</span></div>
-                                <input type="range" min="100" max="8000" value={activeTrack.synthConfig.cutoff} onChange={e => updateSynth('cutoff', parseInt(e.target.value))} className="w-full accent-indigo-500 h-1 bg-slate-800 rounded-full appearance-none" />
+                                <input type="range" min="10" max="8000" value={activeTrack.synthConfig.cutoff} onChange={e => updateSynth('cutoff', parseInt(e.target.value))} className="w-full accent-indigo-500 h-1 bg-slate-800 rounded-full appearance-none" />
                             </div>
                             <div className="space-y-1">
                                 <div className="flex justify-between text-[8px] font-bold text-slate-600 uppercase"><span>Resonance</span><span>{activeTrack.synthConfig.resonance.toFixed(1)}</span></div>
