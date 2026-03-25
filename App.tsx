@@ -184,19 +184,28 @@ const parseSynthParams = (paramStr: string): Partial<SynthConfig> | null => {
   return Object.keys(result).length > 0 ? (result as Partial<SynthConfig>) : null;
 };
 
-/** Extract MidiEvents from a text section (voice-header tokens already stripped). */
-const parseNoteEvents = (section: string): { event: MidiEvent; comment?: string }[] => {
+/** Extract MidiEvents from a text section (voice-header tokens already stripped).
+ * Returns the parsed events plus any trailing comment lines that had no following
+ * note in this section (so callers can carry them forward to the next block).
+ */
+const parseNoteEvents = (section: string): { events: { event: MidiEvent; comment?: string }[]; trailingComment?: string } => {
   const results: { event: MidiEvent; comment?: string }[] = [];
   const lines = section.split('\n');
   let pendingComment: string | undefined;
 
   for (const line of lines) {
     const trimmed = line.trim();
-    if (trimmed.startsWith('#')) { pendingComment = trimmed; continue; }
+    // Accumulate consecutive comment lines instead of overwriting so that
+    // e.g. "# --- Voice 2 ---\n# Slow, sustained..." both survive.
+    if (trimmed.startsWith('#')) {
+      pendingComment = pendingComment ? pendingComment + '\n' + trimmed : trimmed;
+      continue;
+    }
 
     const noteRegex = /\[\s*P:\s*([\d.]+)\s*,\s*V:\s*(\d+)\s*,\s*T:\s*([\d.]+)\s*,\s*D:\s*([\d.]+)\s*\]/g;
     let m;
     let found = false;
+    const firstNoteIdx = results.length; // index of first note pushed on this line
     while ((m = noteRegex.exec(trimmed)) !== null) {
       results.push({
         event: { p: parseFloat(m[1]), v: parseInt(m[2]), t: parseFloat(m[3]), d: parseFloat(m[4]) },
@@ -205,9 +214,21 @@ const parseNoteEvents = (section: string): { event: MidiEvent; comment?: string 
       pendingComment = undefined;
       found = true;
     }
+
+    // Capture inline trailing comment, e.g. `[P:45,...] # A2 — Am root`
+    if (found) {
+      const inlineMatch = trimmed.match(/\]\s*(#.+)$/);
+      if (inlineMatch) {
+        const first = results[firstNoteIdx];
+        const inline = inlineMatch[1].trim();
+        first.comment = first.comment ? first.comment + '\n' + inline : inline;
+      }
+    }
   }
 
-  return results;
+  // Any remaining pendingComment had no following note in this section —
+  // return it so the caller can transfer it to the next block.
+  return { events: results, trailingComment: pendingComment };
 };
 
 /**
@@ -281,7 +302,7 @@ const parseVoiceBlocks = (input: string): VoiceBlock[] => {
 
   // No headers → legacy flat format: one block, track 0
   if (headerMatches.length === 0) {
-    const events = parseNoteEvents(input);
+    const { events } = parseNoteEvents(input);
     return events.length > 0 ? [{ voiceIndex: 0, synthOverride: null, events }] : [];
   }
 
@@ -295,14 +316,28 @@ const parseVoiceBlocks = (input: string): VoiceBlock[] => {
     .filter(l => l.startsWith('#'))
     .join('\n');
 
+  // Carry inter-block comments forward: comment lines orphaned at the end of
+  // one block's section (they appear before the next [voice:N] header in the
+  // source, so the slice puts them in the previous block) are transferred to
+  // the first event of the next block so nothing is silently dropped.
+  let carryoverComment: string | undefined;
   const blocks = headerMatches.map((header, i) => {
     const sectionStart = header.pos + header.len;
     const sectionEnd = i + 1 < headerMatches.length ? headerMatches[i + 1].pos : input.length;
     const section = input.slice(sectionStart, sectionEnd);
+    const { events, trailingComment } = parseNoteEvents(section);
+
+    // Prepend comment carried over from the previous block, if any
+    if (carryoverComment && events.length > 0) {
+      const first = events[0];
+      events[0] = { ...first, comment: first.comment ? carryoverComment + '\n' + first.comment : carryoverComment };
+    }
+    carryoverComment = trailingComment;
+
     return {
       voiceIndex: header.voiceIndex,
       synthOverride: parseSynthParams(header.params),
-      events: parseNoteEvents(section),
+      events,
     };
   }).filter(b => b.events.length > 0);
 
