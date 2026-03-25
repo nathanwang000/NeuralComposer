@@ -1360,7 +1360,7 @@ const App: React.FC = () => {
             <button onClick={() => setBeatWidth(v => clampBeatWidth(v * 1.25))} title="Zoom in (Ctrl+scroll)" className="flex items-center gap-1 px-2 py-1.5 hover:bg-white/5 text-slate-500 hover:text-slate-300 rounded-xl text-[10px] font-black transition-colors"><ZoomIn size={14} /></button>
           </div>
 
-          <div className="grid grid-cols-[1fr_3fr] gap-4 min-h-[12rem] flex-none">
+          <div className="grid grid-cols-[1fr_3fr] gap-4 h-[12rem] flex-none">
             <div className="bg-slate-950/50 rounded-2xl border border-white/5 p-4 font-mono text-[10px] flex flex-col overflow-hidden">
                <div className="flex items-center gap-2 text-slate-500 uppercase font-black mb-2 border-b border-white/5 pb-1"><Terminal size={12} /> Neural Stream</div>
                <div className="flex-1 text-indigo-400/40 break-all overflow-y-auto custom-scrollbar italic leading-relaxed">{rawStream || "Standby..."}</div>
