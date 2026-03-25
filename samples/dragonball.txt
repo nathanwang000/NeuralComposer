@@ -1,57 +1,147 @@
 # Dragon Ball Z - Cha-La Head-Cha-La (Colorized)
-# Key: C Major | Two voices + diatonic 3rd harmonies + bass anchors
-# Dynamics: soft pickup → building → forte climax at T:25
+# Key: C Major | 3 independent voices with different rhythmic characters:
+#   MELODY    — punchy short notes, original rhythm
+#   UPPER     — same original upper line, short and articulated
+#   INNER PAD — slow, long sustained notes that bridge across melody changes,
+#               often anticipating the next phrase by 0.25–0.5 beats
+#   BASS      — walking / syncopated, entirely its own rhythmic timeline
+# Dynamics: soft solo pickup → mf → f → ff climax
 
-# --- Pickup (mp, breathe in) ---
+# === Pickup (solo melody — bare, no accompaniment) ===
 [P:60,V:72,T:0.000,D:0.500]
 [P:62,V:76,T:1.000,D:0.500]
 [P:63,V:80,T:2.000,D:0.500]
 
-# --- Phrase 1: E major feel, strident entry (mf) ---
-# bass C3 anchors the phrase
-[P:48,V:72,T:3.000,D:2.000]
-[P:64,V:85,T:3.000,D:1.500] [P:76,V:92,T:3.000,D:1.500] [P:72,V:66,T:3.000,D:1.500]
-[P:64,V:83,T:5.000,D:0.500] [P:76,V:90,T:5.000,D:1.000] [P:72,V:64,T:5.000,D:1.000]
-[P:59,V:80,T:6.000,D:0.500] [P:77,V:88,T:6.000,D:0.500] [P:74,V:63,T:6.000,D:0.500]
-[P:64,V:85,T:6.500,D:1.500] [P:76,V:92,T:6.500,D:1.500] [P:72,V:66,T:6.500,D:1.500]
-[P:64,V:83,T:8.500,D:0.500] [P:76,V:90,T:8.500,D:1.000] [P:72,V:64,T:8.500,D:1.000]
-[P:62,V:82,T:9.500,D:0.500] [P:74,V:88,T:9.500,D:0.500] [P:71,V:63,T:9.500,D:0.500]
-[P:59,V:80,T:10.000,D:0.500] [P:72,V:85,T:10.000,D:0.500] [P:69,V:61,T:10.000,D:0.500]
-[P:60,V:82,T:10.500,D:0.500] [P:71,V:85,T:10.500,D:0.500] [P:67,V:61,T:10.500,D:0.500]
+# === Phrase 1: C/E feel, strident entry ===
+# INNER PAD anticipates by 0.25 — enters before melody lands, holds 3+ beats
+[P:72,V:58,T:2.750,D:3.250]
+# BASS: walking quarter-note line, bounces C→G→E→G→A→B→C
+[P:48,V:80,T:3.000,D:0.750]
+[P:55,V:70,T:4.000,D:0.500]
+[P:52,V:68,T:4.500,D:0.500]
+[P:55,V:68,T:5.000,D:0.500]
+[P:57,V:72,T:5.500,D:0.500]
+[P:47,V:75,T:6.000,D:0.500]
+[P:48,V:78,T:6.500,D:1.000]
+[P:43,V:72,T:7.500,D:1.000]
+[P:52,V:70,T:8.500,D:0.500]
+[P:55,V:68,T:9.000,D:0.500]
+[P:57,V:72,T:9.500,D:0.500]
+[P:55,V:68,T:10.000,D:0.500]
+[P:52,V:70,T:10.500,D:0.500]
+# MELODY (original rhythm)
+[P:64,V:85,T:3.000,D:1.500]
+[P:64,V:83,T:5.000,D:0.500]
+[P:59,V:80,T:6.000,D:0.500]
+[P:64,V:85,T:6.500,D:1.500]
+[P:64,V:83,T:8.500,D:0.500]
+[P:62,V:82,T:9.500,D:0.500]
+[P:59,V:80,T:10.000,D:0.500]
+[P:60,V:82,T:10.500,D:0.500]
+# UPPER (original rhythm)
+[P:76,V:92,T:3.000,D:1.500]
+[P:76,V:90,T:5.000,D:1.000]
+[P:77,V:88,T:6.000,D:0.500]
+[P:76,V:92,T:6.500,D:1.500]
+[P:76,V:90,T:8.500,D:1.000]
+[P:74,V:88,T:9.500,D:0.500]
+[P:72,V:85,T:10.000,D:0.500]
+[P:71,V:85,T:10.500,D:0.500]
+# INNER PAD continues — shifts to B4 mid-phrase, then slides to G4 as phrase descends
+[P:71,V:56,T:6.000,D:2.500]
+[P:67,V:54,T:8.500,D:2.500]
 
-# --- Phrase 2: Am resolve, warm and settled (mf) ---
-# bass A2 gives a minor-flavored foundation
-[P:45,V:75,T:11.000,D:2.500]
-[P:57,V:85,T:11.000,D:1.000] [P:69,V:92,T:11.000,D:1.500] [P:65,V:67,T:11.000,D:1.500]
-[P:57,V:80,T:13.000,D:0.500] [P:69,V:88,T:13.000,D:0.500] [P:65,V:63,T:13.000,D:0.500]
-[P:52,V:78,T:14.000,D:0.500] [P:71,V:88,T:14.000,D:0.500] [P:67,V:63,T:14.000,D:0.500]
+# === Phrase 2: Am resolve — warm, spacious ===
+# INNER PAD: E4 held for 2.5 beats → G4 for 1.75 → back to E4 for 2.75
+#            slow shapes under the fast melody
+[P:64,V:60,T:11.000,D:2.500]
+[P:67,V:58,T:13.500,D:1.750]
+[P:64,V:60,T:15.250,D:2.750]
+# BASS: syncopated, sparse — hits land off the melody's beat
+[P:45,V:82,T:11.000,D:1.000]
+[P:52,V:68,T:12.000,D:0.500]
+[P:45,V:72,T:12.500,D:0.500]
+[P:48,V:70,T:13.000,D:0.500]
+[P:52,V:68,T:13.500,D:0.500]
+[P:45,V:75,T:14.000,D:1.500]
+[P:48,V:68,T:15.500,D:0.500]
+[P:43,V:72,T:16.000,D:0.500]
+[P:45,V:68,T:16.500,D:0.500]
+[P:47,V:74,T:17.000,D:0.500]
+[P:48,V:76,T:17.500,D:0.500]
+# MELODY
+[P:57,V:85,T:11.000,D:1.000]
+[P:57,V:80,T:13.000,D:0.500]
+[P:52,V:78,T:14.000,D:0.500]
 [P:57,V:80,T:14.500,D:1.000]
-# bass C3 re-enters under the rising C5
-[P:48,V:70,T:15.000,D:1.500]
-[P:72,V:90,T:15.000,D:1.000] [P:69,V:66,T:15.000,D:1.000]
 [P:57,V:80,T:16.000,D:0.500]
-[P:72,V:90,T:16.500,D:0.500] [P:69,V:66,T:16.500,D:0.500]
-[P:59,V:85,T:17.000,D:0.500] [P:74,V:93,T:17.000,D:0.500] [P:71,V:68,T:17.000,D:0.500]
+[P:59,V:85,T:17.000,D:0.500]
+[P:60,V:90,T:18.000,D:0.500]
+# UPPER
+[P:69,V:92,T:11.000,D:1.500]
+[P:69,V:88,T:13.000,D:0.500]
+[P:71,V:88,T:14.000,D:0.500]
+[P:72,V:90,T:15.000,D:1.000]
+[P:72,V:90,T:16.500,D:0.500]
+[P:74,V:93,T:17.000,D:0.500]
+[P:76,V:97,T:18.000,D:0.500]
 
-# --- Phrase 3: Rising arc, building energy (f) ---
-# bass C3 drives the ascent
-[P:48,V:78,T:18.000,D:2.000]
-[P:60,V:90,T:18.000,D:0.500] [P:76,V:97,T:18.000,D:0.500] [P:72,V:73,T:18.000,D:0.500]
-[P:62,V:93,T:19.000,D:1.500] [P:74,V:100,T:19.000,D:1.500] [P:71,V:76,T:19.000,D:1.500]
-[P:50,V:80,T:19.000,D:1.500]
-[P:62,V:90,T:21.000,D:0.500] [P:74,V:97,T:21.000,D:0.500] [P:71,V:74,T:21.000,D:0.500]
-[P:57,V:90,T:22.000,D:0.500] [P:76,V:100,T:22.000,D:0.500] [P:72,V:76,T:22.000,D:0.500]
-[P:50,V:82,T:22.500,D:2.000]
-[P:62,V:93,T:22.500,D:1.500] [P:74,V:102,T:22.500,D:1.500] [P:71,V:78,T:22.500,D:1.500]
-[P:62,V:90,T:24.500,D:0.500] [P:74,V:99,T:24.500,D:0.500] [P:71,V:76,T:24.500,D:0.500]
+# === Phrase 3: Rising arc — building (f) ===
+# INNER PAD anticipates by 0.25 — A4 held, then B4 shifts mid-phrase, then back to A4
+[P:69,V:65,T:17.750,D:2.500]
+[P:71,V:63,T:20.250,D:2.500]
+[P:69,V:65,T:22.750,D:2.250]
+# BASS: energized walking line — more frequent hits, quarter-note drive
+[P:48,V:82,T:18.000,D:0.500]
+[P:50,V:72,T:18.500,D:0.500]
+[P:50,V:78,T:19.000,D:1.000]
+[P:48,V:74,T:20.000,D:0.500]
+[P:55,V:72,T:20.500,D:0.500]
+[P:53,V:70,T:21.000,D:0.500]
+[P:55,V:72,T:21.500,D:0.500]
+[P:45,V:78,T:22.000,D:0.500]
+[P:50,V:76,T:22.500,D:1.000]
+[P:48,V:74,T:23.500,D:0.500]
+[P:43,V:78,T:24.000,D:0.500]
+[P:45,V:72,T:24.500,D:0.500]
+# MELODY
+[P:62,V:93,T:19.000,D:1.500]
+[P:62,V:90,T:21.000,D:0.500]
+[P:57,V:90,T:22.000,D:0.500]
+[P:62,V:93,T:22.500,D:1.500]
+[P:62,V:90,T:24.500,D:0.500]
+# UPPER
+[P:74,V:100,T:19.000,D:1.500]
+[P:74,V:97,T:21.000,D:0.500]
+[P:76,V:100,T:22.000,D:0.500]
+[P:74,V:102,T:22.500,D:1.500]
+[P:74,V:99,T:24.500,D:0.500]
 
-# --- Climax: high G5 burst, then cascade down (ff) ---
-[P:79,V:110,T:25.000,D:0.500] [P:76,V:84,T:25.000,D:0.500]
-[P:60,V:92,T:25.500,D:0.500] [P:77,V:107,T:25.500,D:0.500] [P:74,V:82,T:25.500,D:0.500]
-[P:59,V:89,T:26.000,D:0.500] [P:76,V:105,T:26.000,D:0.500] [P:72,V:80,T:26.000,D:0.500]
-[P:64,V:91,T:26.500,D:0.500] [P:77,V:105,T:26.500,D:0.500] [P:74,V:80,T:26.500,D:0.500]
+# === Climax: G5 burst → cascading descent (ff) ===
+# INNER PAD: B4 held as a sustained pedal through the entire cascade
+[P:72,V:62,T:24.750,D:0.500]
+[P:71,V:65,T:25.000,D:2.500]
+# BASS: dramatic drops, G2→A2→G2→B2 leading to final C
+[P:43,V:88,T:25.000,D:0.500]
+[P:45,V:80,T:25.500,D:0.500]
+[P:43,V:82,T:26.000,D:0.500]
+[P:47,V:86,T:26.500,D:0.500]
+# MELODY
+[P:60,V:92,T:25.500,D:0.500]
+[P:59,V:89,T:26.000,D:0.500]
+[P:64,V:91,T:26.500,D:0.500]
+# UPPER cascade
+[P:79,V:110,T:25.000,D:0.500]
+[P:77,V:107,T:25.500,D:0.500]
+[P:76,V:105,T:26.000,D:0.500]
+[P:77,V:105,T:26.500,D:0.500]
 
-# --- Final note: C bass + full chord hold ---
-[P:48,V:84,T:27.000,D:3.500]
-[P:62,V:90,T:27.000,D:3.500] [P:79,V:110,T:27.000,D:3.000] [P:76,V:85,T:27.000,D:3.000]
+# === Final: open C suspension, voices land at different times ===
+# Bass lands first on the downbeat
+[P:48,V:88,T:27.000,D:4.000]
+# Melody and inner pad land on the downbeat
+[P:62,V:90,T:27.000,D:3.500]
+[P:67,V:62,T:27.000,D:2.500]
+# Upper voice hits last — G5 crown
+[P:79,V:110,T:27.000,D:3.000]
 
