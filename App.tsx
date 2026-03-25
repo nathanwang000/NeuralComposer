@@ -1175,7 +1175,7 @@ const App: React.FC = () => {
                         onChange={e => { e.stopPropagation(); updateTrackVolume(track.id, parseFloat(e.target.value)); }}
                         title={`Volume: ${Math.round(track.volume * 100)}%`}
                         className="w-full h-1 appearance-none rounded-full bg-slate-800 cursor-pointer"
-                        style={{ accentColor: track.color }}
+                        style={{ accentColor: track.color, '--thumb-color': track.color } as React.CSSProperties}
                       />
                     </div>
 
@@ -1603,7 +1603,7 @@ const App: React.FC = () => {
         .custom-scrollbar::-webkit-scrollbar { width: 3px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 10px; width: 10px; border-radius: 50%; background: #6366f1; cursor: pointer; border: 2px solid #000; box-shadow: 0 0 10px #6366f1; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 10px; width: 10px; border-radius: 50%; background: var(--thumb-color, #6366f1); cursor: pointer; border: 2px solid #000; box-shadow: 0 0 10px var(--thumb-color, #6366f1); }
       `}</style>
     </div>
   );
