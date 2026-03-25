@@ -368,11 +368,49 @@ const App: React.FC = () => {
   const [isAIStreamActive, setIsAIStreamActive] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [beatWidth, setBeatWidth] = useState(100);
+  // trackHeight is a percentage of the scroll-container viewport (100% = fills it).
+  // trackHeights stores per-track overrides as the same unit.
+  const [trackHeight, setTrackHeight] = useState(100);
+  const [trackHeights, setTrackHeights] = useState<Record<string, number>>({});
+  const clampTrackHeight = (v: number) => Math.max(10, Math.min(200, v));
+  const trackResizeDragRef = useRef<{ trackId: string; startY: number; startHeightPct: number } | null>(null);
+  const containerHeightRef = useRef(400); // live pixel height of the scroll container
+  const trackScrollContainerRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   // Detect touch/coarse-pointer device to show the Select Mode button
   const isTouchDevice = useMemo(() => typeof window !== 'undefined' && (navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches), []);
   const clampBeatWidth = (v: number) => Math.max(20, Math.min(600, v));
+
+  // Keep containerHeightRef in sync with the scroll container's rendered size
+  // so the drag-resize math always converts pixels → % correctly.
+  useEffect(() => {
+    const el = trackScrollContainerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(entries => {
+      containerHeightRef.current = entries[0].contentRect.height || 400;
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Per-track drag resize — wired to window so fast mouse moves don't drop
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      const drag = trackResizeDragRef.current;
+      if (!drag) return;
+      const deltaPct = (e.clientY - drag.startY) / containerHeightRef.current * 100;
+      const newPct = clampTrackHeight(drag.startHeightPct + deltaPct);
+      setTrackHeights(prev => ({ ...prev, [drag.trackId]: newPct }));
+    };
+    const onUp = () => { trackResizeDragRef.current = null; };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, []);
   const recordingStartBeatRef = useRef(0);
   const beatsGeneratedRef = useRef(0);
   const isGeneratingRef = useRef(false);
@@ -1188,16 +1226,21 @@ const App: React.FC = () => {
               so adding many tracks never squashes the canvas area. */}
           <div className="relative flex flex-col border border-white/5 rounded-3xl overflow-hidden bg-black shadow-inner" style={{ minHeight: '350px', flex: 1 }}>
             {/* Scrollable track stack */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar">
+            <div className="flex-1 overflow-y-auto custom-scrollbar" ref={trackScrollContainerRef}>
               {tracks.map((track) => (
                 <div
                   key={track.id}
-                  className="flex border-b border-white/5 last:border-b-0"
-                  style={{ height: '320px' }}
+                  className="relative flex border-b border-white/5 last:border-b-0"
+                  style={{ height: `${(trackHeights[track.id] ?? trackHeight)}%` }}
                 >
                   {/* Track header sidebar — fixed 44px wide, taller for controls */}
                   <div
-                    className={`flex-none w-44 flex flex-col gap-1 p-2 border-r border-white/5 cursor-pointer transition-colors ${activeTrackId === track.id ? 'bg-white/5' : 'hover:bg-white/[0.03]'}`}
+                    className={`flex-none w-44 flex flex-col gap-1 p-2 border-r cursor-pointer transition-colors ${
+                      activeTrackId === track.id
+                        ? 'bg-white/[0.07] border-r-2'
+                        : 'border-white/5 hover:bg-white/[0.03]'
+                    }`}
+                    style={activeTrackId === track.id ? { borderRightColor: track.color, borderLeftColor: track.color, borderLeft: `3px solid ${track.color}` } : undefined}
                     onClick={() => setActiveTrackId(track.id)}
                   >
                     {/* Row 1: colour dot + name + remove */}
@@ -1286,6 +1329,21 @@ const App: React.FC = () => {
                       selectMode={selectMode}
                     />
                   </div>
+                  {/* Drag handle — resize this track vertically */}
+                  <div
+                    className="absolute bottom-0 left-0 right-0 h-1.5 cursor-ns-resize group/handle z-10"
+                    title="Drag to resize this track"
+                    onMouseDown={e => {
+                      e.preventDefault();
+                      trackResizeDragRef.current = {
+                        trackId: track.id,
+                        startY: e.clientY,
+                        startHeightPct: trackHeights[track.id] ?? trackHeight,
+                      };
+                    }}
+                  >
+                    <div className="w-full h-px bg-white/5 group-hover/handle:bg-cyan-500/40 transition-colors" />
+                  </div>
                 </div>
               ))}
             </div>
@@ -1354,6 +1412,10 @@ const App: React.FC = () => {
             </button>
             <div className="w-px h-5 bg-white/10 mx-1" />
             <button onClick={addTrack} title="Add a new track" className="flex items-center gap-1 px-2.5 py-1.5 hover:bg-white/5 text-slate-500 hover:text-slate-300 rounded-xl text-[10px] font-black uppercase transition-colors"><Plus size={13} /> Track</button>
+            <div className="w-px h-5 bg-white/10 mx-1" />
+            <button onClick={() => { setTrackHeight(v => clampTrackHeight(Math.round(v / 1.25))); setTrackHeights({}); }} title="Shrink all tracks (Y zoom out)" className="flex items-center gap-1 px-2 py-1.5 hover:bg-white/5 text-slate-500 hover:text-slate-300 rounded-xl text-[10px] font-black transition-colors"><ZoomOut size={14} /></button>
+            <button onClick={() => { setTrackHeight(100); setTrackHeights({}); }} title="Reset track height (33% = ~3 tracks fill viewport)" className="px-2 py-1.5 hover:bg-white/5 text-slate-600 hover:text-slate-300 rounded-xl text-[9px] font-black tabular-nums transition-colors">{Math.round(trackHeight)}%↕</button>
+            <button onClick={() => { setTrackHeight(v => clampTrackHeight(Math.round(v * 1.25))); setTrackHeights({}); }} title="Grow all tracks (Y zoom in)" className="flex items-center gap-1 px-2 py-1.5 hover:bg-white/5 text-slate-500 hover:text-slate-300 rounded-xl text-[10px] font-black transition-colors"><ZoomIn size={14} /></button>
             <div className="w-px h-5 bg-white/10 mx-1" />
             <button onClick={() => setBeatWidth(v => clampBeatWidth(v / 1.25))} title="Zoom out (Ctrl+scroll)" className="flex items-center gap-1 px-2 py-1.5 hover:bg-white/5 text-slate-500 hover:text-slate-300 rounded-xl text-[10px] font-black transition-colors"><ZoomOut size={14} /></button>
             <button onClick={() => setBeatWidth(100)} title="Reset zoom" className="px-2 py-1.5 hover:bg-white/5 text-slate-600 hover:text-slate-300 rounded-xl text-[9px] font-black tabular-nums transition-colors">{Math.round(beatWidth / 100 * 100)}%</button>
