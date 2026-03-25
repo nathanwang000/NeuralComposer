@@ -43,7 +43,7 @@ import SynthVisualizer from './components/SynthVisualizer';
 import TimeNavigator from './components/TimeNavigator';
 import { audioEngine } from './services/audioEngine';
 import { composer } from './services/geminiComposer';
-import { CompositionState, MidiEvent, MusicGenre, SYNTH_PRESETS, SynthConfig, SynthWaveType } from './types';
+import { CompositionState, MidiEvent, MusicGenre, SYNTH_PRESETS, SynthConfig, SynthWaveType, Track, TRACK_COLORS } from './types';
 
 // ---------------------------------------------------------------------------
 // KB_SEQ — single source of truth for every sequencer keyboard shortcut.
@@ -90,9 +90,161 @@ interface AppEvent {
   event: MidiEvent;
   beatOffset: number;
   id: string;
+  /** Which Track this event belongs to */
+  trackId: string;
   isUser?: boolean;
   comment?: string;
 }
+
+// ---------------------------------------------------------------------------
+// Track helpers — pure functions, no React state, easy to unit-test.
+// ---------------------------------------------------------------------------
+
+/** Build a fresh Track with sensible defaults. */
+const createDefaultTrack = (id: string, name: string, color: string, presetName = 'Grand Piano'): Track => ({
+  id,
+  name,
+  color,
+  synthConfig: { ...SYNTH_PRESETS[presetName] },
+  muted: false,
+  volume: 1,
+});
+
+/**
+ * Return the name of the best-matching preset for a SynthConfig, or `null` if
+ * the config doesn't exactly match any preset. Used for the voice-header export.
+ */
+const findPresetName = (config: SynthConfig): string | null => {
+  for (const [name, preset] of Object.entries(SYNTH_PRESETS)) {
+    if (JSON.stringify(preset) === JSON.stringify(config)) return name;
+  }
+  return null;
+};
+
+/**
+ * Serialise a SynthConfig as a voice-header fragment.
+ * If it matches a named preset, emits `preset:"Name"` plus any overrides.
+ * Otherwise emits all nine params explicitly.
+ */
+const serializeSynthConfig = (config: SynthConfig): string => {
+  const presetName = findPresetName(config);
+  if (presetName) return `preset:"${presetName}"`;
+  const { waveType, detune, cutoff, resonance, attack, decay, sustain, release, drive } = config;
+  return `wave:${waveType} detune:${detune} cutoff:${cutoff} resonance:${resonance} attack:${attack} decay:${decay} sustain:${sustain} release:${release} drive:${drive}`;
+};
+
+// ---------------------------------------------------------------------------
+// Voice block parser
+//
+// Syntax understood by the Manual Patch Bay textarea:
+//
+//   [voice:1 name:"Lead" preset:"Grand Piano" cutoff:5500]
+//   [P:60,V:100,T:0,D:1] ...
+//
+//   [voice:2 name:"Bass" preset:"Deep Bass"]
+//   [P:40,V:90,T:0,D:2] ...
+//
+// Rules:
+//   - voice:N is 1-based (maps to track index N-1).
+//   - preset sets the base SynthConfig; individual params override it.
+//   - Supported param keys: wave, detune, cutoff, resonance, attack, decay,
+//     sustain, release, drive.
+//   - If no voice headers are present, all notes go to voice 1 (track 0).
+//   - Backward-compatible with old flat-format files (no voice headers).
+// ---------------------------------------------------------------------------
+
+interface VoiceBlock {
+  /** 0-based track index */
+  voiceIndex: number;
+  /** Partial SynthConfig derived from the block header; null if no params */
+  synthOverride: Partial<SynthConfig> | null;
+  events: { event: MidiEvent; comment?: string }[];
+}
+
+/** Parse key:value pairs (including quoted strings) from a voice header body. */
+const parseSynthParams = (paramStr: string): Partial<SynthConfig> | null => {
+  const result: Record<string, any> = {};
+
+  // preset:"Name" — load the named preset as the base
+  const presetMatch = paramStr.match(/preset:"([^"]+)"/);
+  if (presetMatch && SYNTH_PRESETS[presetMatch[1]]) {
+    Object.assign(result, SYNTH_PRESETS[presetMatch[1]]);
+  }
+
+  // Individual param overrides: wave:sawtooth  cutoff:2800  attack:0.001 …
+  const kvRegex = /\b(wave|detune|cutoff|resonance|attack|decay|sustain|release|drive):([^\s\]"]+)/g;
+  let m;
+  while ((m = kvRegex.exec(paramStr)) !== null) {
+    const [, key, val] = m;
+    if (key === 'wave') result['waveType'] = val as SynthWaveType;
+    else result[key] = parseFloat(val);
+  }
+
+  return Object.keys(result).length > 0 ? (result as Partial<SynthConfig>) : null;
+};
+
+/** Extract MidiEvents from a text section (voice-header tokens already stripped). */
+const parseNoteEvents = (section: string): { event: MidiEvent; comment?: string }[] => {
+  const results: { event: MidiEvent; comment?: string }[] = [];
+  const lines = section.split('\n');
+  let pendingComment: string | undefined;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('#')) { pendingComment = trimmed; continue; }
+
+    const noteRegex = /\[\s*P:\s*([\d.]+)\s*,\s*V:\s*(\d+)\s*,\s*T:\s*([\d.]+)\s*,\s*D:\s*([\d.]+)\s*\]/g;
+    let m;
+    let found = false;
+    while ((m = noteRegex.exec(trimmed)) !== null) {
+      results.push({
+        event: { p: parseFloat(m[1]), v: parseInt(m[2]), t: parseFloat(m[3]), d: parseFloat(m[4]) },
+        comment: found ? undefined : pendingComment,
+      });
+      pendingComment = undefined;
+      found = true;
+    }
+  }
+
+  return results;
+};
+
+/**
+ * Split `input` into voice blocks. Returns one VoiceBlock per [voice:N ...]
+ * header found. Falls back to a single block at voiceIndex 0 if none found.
+ */
+const parseVoiceBlocks = (input: string): VoiceBlock[] => {
+  // Regex matches the entire [voice:N …] token so we can split by it
+  const headerRegex = /\[voice:(\d+)([^\]]*)\]/g;
+
+  const headerMatches: { voiceIndex: number; params: string; pos: number; len: number }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = headerRegex.exec(input)) !== null) {
+    headerMatches.push({
+      voiceIndex: parseInt(m[1]) - 1, // 1-based → 0-based
+      params: m[2],
+      pos: m.index,
+      len: m[0].length,
+    });
+  }
+
+  // No headers → legacy flat format: one block, track 0
+  if (headerMatches.length === 0) {
+    const events = parseNoteEvents(input);
+    return events.length > 0 ? [{ voiceIndex: 0, synthOverride: null, events }] : [];
+  }
+
+  return headerMatches.map((header, i) => {
+    const sectionStart = header.pos + header.len;
+    const sectionEnd = i + 1 < headerMatches.length ? headerMatches[i + 1].pos : input.length;
+    const section = input.slice(sectionStart, sectionEnd);
+    return {
+      voiceIndex: header.voiceIndex,
+      synthOverride: parseSynthParams(header.params),
+      events: parseNoteEvents(section),
+    };
+  }).filter(b => b.events.length > 0);
+};
 
 const App: React.FC = () => {
   const navigate = useNavigate();
@@ -111,7 +263,16 @@ const App: React.FC = () => {
     legatoMode: false
   });
 
-  const [synthConfig, setSynthConfig] = useState<SynthConfig>(SYNTH_PRESETS["Grand Piano"]);
+  // ---------------------------------------------------------------------------
+  // Multi-track state — the source of truth for all voice / synth configuration.
+  // ---------------------------------------------------------------------------
+  const [tracks, setTracks] = useState<Track[]>([
+    createDefaultTrack('track-1', 'Track 1', TRACK_COLORS[0], 'Grand Piano'),
+  ]);
+  /** ID of the track whose synth panel is shown in the Voice tab */
+  const [activeTrackId, setActiveTrackId] = useState<string>('track-1');
+  /** ID of the track that performance pad recordings are written to */
+  const [recordingTrackId, setRecordingTrackId] = useState<string>('track-1');
 
   const [playbackBeat, setPlaybackBeat] = useState(0);
   const [isPaused, setIsPaused] = useState(true);
@@ -128,7 +289,7 @@ const App: React.FC = () => {
 
   const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
   const [selectionMarquee, setSelectionMarquee] = useState<SelectionBounds | null>(null);
-  const [clipboard, setClipboard] = useState<{ event: MidiEvent; relativeBeat: number; comment?: string }[]>([]);
+  const [clipboard, setClipboard] = useState<{ event: MidiEvent; relativeBeat: number; trackId: string; comment?: string }[]>([]);
 
   const [history, setHistory] = useState<{ past: typeof events[], future: typeof events[] }>({ past: [], future: [] });
 
@@ -181,14 +342,11 @@ const App: React.FC = () => {
         pendingComments.push(trimmedLine);
         return;
       }
-
-      // Skip empty lines (but keep pending comments)
       if (!trimmedLine) return;
 
-      const codePart = line.split('#')[0];
-
-      // If line contains only comments or whitespace
-      if (!codePart.trim()) return;
+      // Strip voice-block headers — they are valid syntax, not note packets
+      const codePart = line.split('#')[0].replace(/\[voice:\d+[^\]]*\]/g, '').trim();
+      if (!codePart) return; // line was only a voice header or comment
 
       const packetRegex = /\[[^\]]*\]?/g;
       let match;
@@ -230,9 +388,12 @@ const App: React.FC = () => {
     return { errors, validEvents };
   }, [userInput]);
 
+  // Keep the audio engine's "default" config in sync with the active track so
+  // the performance pad always uses that track's sound.
+  const activeTrack = tracks.find(t => t.id === activeTrackId) ?? tracks[0];
   useEffect(() => {
-    audioEngine.updateConfig(synthConfig);
-  }, [synthConfig]);
+    audioEngine.updateConfig(activeTrack.synthConfig);
+  }, [activeTrack.synthConfig]);
 
   useEffect(() => {
     setTempBpm(state.tempo.toString());
@@ -291,13 +452,14 @@ const App: React.FC = () => {
           event: evt,
           beatOffset: baseOffset,
           id: newIds[i],
+          trackId: recordingTrackId,
           isUser: true as const,
         })),
       ];
     });
     setSelectedEventIds(newIds);
     setMainTab('sequencer');
-  }, [pushHistory]);
+  }, [pushHistory, recordingTrackId]);
 
   const generateNextStream = async () => {
     if (!isAIStreamActive || isGeneratingRef.current) return;
@@ -354,11 +516,24 @@ const App: React.FC = () => {
         setPlaybackBeat(playbackBeatRef.current);
         const currentBeat = playbackBeatRef.current;
 
+        // Build a fast lookup so each note can find its track config in O(1)
+        const trackMap = new Map<string, Track>(tracks.map(t => [t.id, t]));
+
         events.forEach(item => {
           const absoluteStart = item.beatOffset + item.event.t;
           if (absoluteStart >= currentBeat - 0.2 && absoluteStart < currentBeat + 0.5) {
             if (!scheduledNoteIds.current.has(item.id)) {
-              audioEngine.scheduleNote(item.event, absoluteStart, currentBeat, state.legatoMode);
+              const track = trackMap.get(item.trackId);
+              if (!track || !track.muted) {
+                audioEngine.scheduleNote(
+                  item.event,
+                  absoluteStart,
+                  currentBeat,
+                  state.legatoMode,
+                  track?.synthConfig,
+                  track?.volume ?? 1,
+                );
+              }
               scheduledNoteIds.current.add(item.id);
             }
           }
@@ -368,7 +543,7 @@ const App: React.FC = () => {
     };
     animationId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animationId);
-  }, [state.isPlaying, events, state.tempo, state.legatoMode, isAIStreamActive]);
+  }, [state.isPlaying, events, tracks, state.tempo, state.legatoMode, isAIStreamActive]);
 
   const parseAndStore = (textChunk: string, baseBeatOffset: number) => {
     streamBufferRef.current += textChunk;
@@ -376,9 +551,11 @@ const App: React.FC = () => {
     const regex = /\[\s*P:\s*([\d.]+)\s*,\s*V:\s*(\d+)\s*,\s*T:\s*([\d.]+)\s*,\s*D:\s*([\d.]+)\s*\]/g;
     let match;
     const newMidiEvents: AppEvent[] = [];
+    // AI generates into whichever track is currently active
+    const aiTrackId = activeTrackId;
     while ((match = regex.exec(streamBufferRef.current)) !== null) {
       const event: MidiEvent = { p: parseFloat(match[1]), v: parseInt(match[2]), t: parseFloat(match[3]), d: parseFloat(match[4]) };
-      newMidiEvents.push({ event, beatOffset: baseBeatOffset, id: `note-${baseBeatOffset}-${match.index}-${event.p}` });
+      newMidiEvents.push({ event, beatOffset: baseBeatOffset, id: `note-${baseBeatOffset}-${match.index}-${event.p}`, trackId: aiTrackId });
     }
     if (newMidiEvents.length > 0) {
       streamBufferRef.current = streamBufferRef.current.replace(/\[\s*P:\s*[\d.]+\s*,\s*V:\s*\d+\s*,\s*T:\s*[\d.]+\s*,\s*D:\s*[\d.]+\s*\]/g, "");
@@ -389,7 +566,7 @@ const App: React.FC = () => {
   const handleInitializeAI = async () => {
     audioEngine.init();
     audioEngine.setTempo(state.tempo);
-    audioEngine.updateConfig(synthConfig);
+    audioEngine.updateConfig(activeTrack.synthConfig);
     beatsGeneratedRef.current = 0;
     playbackBeatRef.current = 0;
     scheduledNoteIds.current.clear();
@@ -422,14 +599,44 @@ const App: React.FC = () => {
     if (validation.validEvents.length === 0 || validation.errors.length > 0) return;
     pushHistory(events);
     const baseOffset = playbackBeatRef.current;
-    const newEvents = validation.validEvents.map((item, idx) => ({
-      event: item.event,
-      beatOffset: baseOffset,
-      id: `user-${baseOffset}-${idx}-${Date.now()}`,
-      isUser: true,
-      comment: item.comment
-    }));
+    const blocks = parseVoiceBlocks(userInput);
+    const stamp = Date.now();
+    let globalIdx = 0;
+
+    // Build a mutable copy of tracks so we can auto-create or patch configs
+    let updatedTracks = [...tracks];
+    const newEvents: AppEvent[] = [];
+
+    blocks.forEach(({ voiceIndex, synthOverride, events: blockEvents }) => {
+      // Auto-create tracks if the voice index exceeds what we have
+      while (updatedTracks.length <= voiceIndex) {
+        const idx = updatedTracks.length;
+        const color = TRACK_COLORS[idx % TRACK_COLORS.length];
+        updatedTracks.push(createDefaultTrack(`track-${stamp}-${idx}`, `Track ${idx + 1}`, color));
+      }
+
+      let track = updatedTracks[voiceIndex];
+      // Apply synth overrides declared in the voice header
+      if (synthOverride) {
+        track = { ...track, synthConfig: { ...track.synthConfig, ...synthOverride } };
+        updatedTracks[voiceIndex] = track;
+      }
+
+      blockEvents.forEach(item => {
+        newEvents.push({
+          event: item.event,
+          beatOffset: baseOffset,
+          id: `user-${stamp}-${globalIdx++}`,
+          trackId: track.id,
+          isUser: true,
+          comment: item.comment,
+        });
+      });
+    });
+
+    setTracks(updatedTracks);
     setEvents(prev => [...prev, ...newEvents]);
+    setSelectedEventIds(newEvents.map(e => e.id));
     setUserInput("");
   };
 
@@ -437,7 +644,14 @@ const App: React.FC = () => {
     if (events.length === 0 || isExporting) return;
     setIsExporting(true);
     try {
-      const blob = await audioEngine.renderToWav(events, state.tempo, state.legatoMode);
+      const trackMap = new Map<string, Track>(tracks.map(t => [t.id, t]));
+      const renderEvents = events
+        .filter(e => !(trackMap.get(e.trackId)?.muted))
+        .map(e => ({
+          ...e,
+          synthConfig: trackMap.get(e.trackId)?.synthConfig,
+        }));
+      const blob = await audioEngine.renderToWav(renderEvents, state.tempo, state.legatoMode);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -456,11 +670,19 @@ const App: React.FC = () => {
 
   const handleDownload = () => {
     const sortedEvents = [...events].sort((a, b) => (a.beatOffset + a.event.t) - (b.beatOffset + b.event.t));
-    let output = `# Neural Composer Export\n# Genre: ${state.genre}\n# Tempo: ${state.tempo}\n# Date: ${new Date().toLocaleString()}\n\n`;
-    sortedEvents.forEach(e => {
-       if (e.comment) output += `\n${e.comment}\n`;
-       output += `[P:${e.event.p},V:${e.event.v},T:${(e.beatOffset + e.event.t).toFixed(3)},D:${e.event.d.toFixed(3)}]\n`;
+    let output = `# Neural Composer Export\n# Genre: ${state.genre}\n# Tempo: ${state.tempo}\n# Date: ${new Date().toLocaleString()}\n`;
+
+    // Emit one voice block per track, each with their synth config, then their notes.
+    tracks.forEach((track, idx) => {
+      const trackEvents = sortedEvents.filter(e => e.trackId === track.id);
+      if (trackEvents.length === 0) return;
+      output += `\n[voice:${idx + 1} name:"${track.name}" ${serializeSynthConfig(track.synthConfig)}]\n`;
+      trackEvents.forEach(e => {
+        if (e.comment) output += `\n${e.comment}\n`;
+        output += `[P:${e.event.p},V:${e.event.v},T:${(e.beatOffset + e.event.t).toFixed(3)},D:${e.event.d.toFixed(3)}]\n`;
+      });
     });
+
     const blob = new Blob([output], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -486,13 +708,32 @@ const App: React.FC = () => {
     const clipboardData = selectedEvents.map(item => ({
       event: { ...item.event },
       relativeBeat: (item.beatOffset + item.event.t) - minBeat,
+      trackId: item.trackId,
       comment: item.comment
     }));
     setClipboard(clipboardData);
-    const clipboardText = clipboardData.map(item =>
-      `${item.comment ? `\n${item.comment}\n` : ''}[P:${item.event.p},V:${item.event.v},T:${item.relativeBeat.toFixed(3)},D:${item.event.d.toFixed(3)}]`
-    ).join(' ');
-    navigator.clipboard.writeText(clipboardText).catch(err => console.error(err));
+
+    // Build clipboard text with voice block headers so pasting into the
+    // Manual Patch Bay textarea preserves per-track routing.
+    const byTrack = new Map<string, typeof clipboardData>();
+    clipboardData.forEach(item => {
+      if (!byTrack.has(item.trackId)) byTrack.set(item.trackId, []);
+      byTrack.get(item.trackId)!.push(item);
+    });
+    let clipboardText = '';
+    byTrack.forEach((items, tid) => {
+      const trackIdx = tracks.findIndex(t => t.id === tid);
+      const track = tracks[trackIdx];
+      if (track) {
+        clipboardText += `[voice:${trackIdx + 1} name:"${track.name}" ${serializeSynthConfig(track.synthConfig)}]\n`;
+      }
+      items.forEach(item => {
+        if (item.comment) clipboardText += `${item.comment}\n`;
+        clipboardText += `[P:${item.event.p},V:${item.event.v},T:${item.relativeBeat.toFixed(3)},D:${item.event.d.toFixed(3)}]\n`;
+      });
+      clipboardText += '\n';
+    });
+    navigator.clipboard.writeText(clipboardText.trim()).catch(err => console.error(err));
   }, [selectedEventIds, events]);
 
   const handleCut = useCallback(() => {
@@ -511,6 +752,7 @@ const App: React.FC = () => {
       event: { ...item.event, t: item.relativeBeat },
       beatOffset: pasteBaseBeat,
       id: `paste-${pasteBaseBeat}-${idx}-${Date.now()}`,
+      trackId: item.trackId,
       isUser: true,
       comment: item.comment
     }));
@@ -637,15 +879,54 @@ const App: React.FC = () => {
 
   const handleTestNote = () => {
     audioEngine.init();
-    audioEngine.updateConfig(synthConfig);
+    audioEngine.updateConfig(activeTrack.synthConfig);
     audioEngine.scheduleNote(testNote, 0, 0);
   };
 
   const bufferRemaining = Math.max(0, beatsGeneratedRef.current - playbackBeat);
   const totalViewRange = Math.max(beatsGeneratedRef.current, playbackBeat + 32, 128);
 
+  /** Update a single synth param on the currently-active track. */
   const updateSynth = (key: keyof SynthConfig, val: any) => {
-    setSynthConfig(prev => ({ ...prev, [key]: val }));
+    setTracks(prev => prev.map(t =>
+      t.id === activeTrackId ? { ...t, synthConfig: { ...t.synthConfig, [key]: val } } : t
+    ));
+  };
+
+  /** Apply a full SynthConfig preset to the currently-active track. */
+  const applyPresetToActiveTrack = (config: SynthConfig) => {
+    setTracks(prev => prev.map(t =>
+      t.id === activeTrackId ? { ...t, synthConfig: { ...config } } : t
+    ));
+  };
+
+  // ---------------------------------------------------------------------------
+  // Track management
+  // ---------------------------------------------------------------------------
+  const addTrack = () => {
+    const id = `track-${Date.now()}`;
+    const color = TRACK_COLORS[tracks.length % TRACK_COLORS.length];
+    setTracks(prev => [...prev, createDefaultTrack(id, `Track ${prev.length + 1}`, color)]);
+  };
+
+  const removeTrack = (id: string) => {
+    if (tracks.length <= 1) return; // always keep at least one track
+    setTracks(prev => prev.filter(t => t.id !== id));
+    setEvents(prev => prev.filter(e => e.trackId !== id));
+    if (activeTrackId === id) setActiveTrackId(tracks.find(t => t.id !== id)?.id ?? '');
+    if (recordingTrackId === id) setRecordingTrackId(tracks.find(t => t.id !== id)?.id ?? '');
+  };
+
+  const updateTrackName = (id: string, name: string) => {
+    setTracks(prev => prev.map(t => t.id === id ? { ...t, name } : t));
+  };
+
+  const toggleTrackMute = (id: string) => {
+    setTracks(prev => prev.map(t => t.id === id ? { ...t, muted: !t.muted } : t));
+  };
+
+  const updateTrackVolume = (id: string, volume: number) => {
+    setTracks(prev => prev.map(t => t.id === id ? { ...t, volume } : t));
   };
 
   // Keyboard Shortcuts Effect
@@ -795,7 +1076,25 @@ const App: React.FC = () => {
         <div className="lg:col-span-9 flex flex-col gap-4 min-h-0">
           {/* Both panels stay mounted at all times so their internal state is preserved across tab switches.
               Visibility is toggled purely with CSS (hidden / contents). */}
-          <div className={mainTab === 'performance' ? 'flex-1 flex flex-col min-h-0' : 'hidden'}>
+          <div className={mainTab === 'performance' ? 'flex-1 flex flex-col min-h-0 gap-2' : 'hidden'}>
+            {/* Recording target track selector */}
+            <div className="flex-none flex items-center gap-2 px-2 py-1.5 bg-slate-900/40 border border-white/5 rounded-2xl">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Rec →</span>
+              <div className="flex gap-1 flex-wrap">
+                {tracks.map(track => (
+                  <button
+                    key={track.id}
+                    onClick={() => setRecordingTrackId(track.id)}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-black transition-all ${recordingTrackId === track.id ? 'text-white border border-white/20' : 'text-slate-600 hover:text-slate-300 border border-transparent'}`}
+                    style={{ background: recordingTrackId === track.id ? `${track.color}22` : undefined, borderColor: recordingTrackId === track.id ? `${track.color}66` : undefined }}
+                  >
+                    <div className="w-1.5 h-1.5 rounded-full" style={{ background: track.color }} />
+                    {track.name}
+                  </button>
+                ))}
+              </div>
+            </div>
             <PerformancePad
               bpm={state.tempo}
               onCommitRecording={handleCommitRecording}
@@ -809,19 +1108,120 @@ const App: React.FC = () => {
             />
           </div>
           <div className={mainTab === 'sequencer' ? 'contents' : 'hidden'}>
-          <div className="relative flex-1 min-h-[350px] border border-white/5 rounded-3xl overflow-hidden bg-black shadow-inner">
-            <PianoRoll
-              events={events}
-              currentBeat={playbackBeat}
-              selectedNoteIds={selectedEventIds}
-              selectionMarquee={selectionMarquee}
-              beatWidth={beatWidth}
-              onSeek={handleSeek}
-              onSelectionMarqueeChange={setSelectionMarquee}
-              onSelectNotes={setSelectedEventIds}
-              onMoveSelection={handleMoveSelection}
-              onZoomChange={v => setBeatWidth(clampBeatWidth(v))}
-            />
+          {/* ── Multi-track stacked piano roll ── */}
+          {/* Each track is a fixed 180px lane; the container scrolls vertically
+              so adding many tracks never squashes the canvas area. */}
+          <div className="relative flex flex-col border border-white/5 rounded-3xl overflow-hidden bg-black shadow-inner" style={{ minHeight: '350px', flex: 1 }}>
+            {/* Scrollable track stack */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar">
+              {tracks.map((track) => (
+                <div
+                  key={track.id}
+                  className="flex border-b border-white/5 last:border-b-0"
+                  style={{ height: '180px' }}
+                >
+                  {/* Track header sidebar — fixed 44px wide, taller for controls */}
+                  <div
+                    className={`flex-none w-44 flex flex-col gap-1 p-2 border-r border-white/5 cursor-pointer transition-colors ${activeTrackId === track.id ? 'bg-white/5' : 'hover:bg-white/[0.03]'}`}
+                    onClick={() => setActiveTrackId(track.id)}
+                  >
+                    {/* Row 1: colour dot + name + remove */}
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2.5 h-2.5 rounded-full flex-none" style={{ background: track.color }} />
+                      <input
+                        value={track.name}
+                        onChange={e => updateTrackName(track.id, e.target.value)}
+                        onClick={e => e.stopPropagation()}
+                        className="flex-1 min-w-0 bg-transparent text-[10px] font-black text-white truncate focus:outline-none focus:ring-1 focus:ring-white/20 rounded px-0.5"
+                      />
+                      {tracks.length > 1 && (
+                        <button
+                          title="Remove track"
+                          onClick={e => { e.stopPropagation(); removeTrack(track.id); }}
+                          className="p-0.5 rounded text-slate-700 hover:text-red-400 transition-colors flex-none"
+                        >
+                          <X size={10} />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Row 2: mute toggle */}
+                    <button
+                      title={track.muted ? 'Unmute' : 'Mute'}
+                      onClick={e => { e.stopPropagation(); toggleTrackMute(track.id); }}
+                      className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[8px] font-black uppercase transition-colors border ${
+                        track.muted
+                          ? 'text-red-400 bg-red-500/10 border-red-500/20'
+                          : 'text-slate-600 hover:text-slate-300 border-white/5 hover:bg-white/5'
+                      }`}
+                    >
+                      {track.muted
+                        ? <><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg> Muted</>
+                        : <><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg> Live</>
+                      }
+                    </button>
+
+                    {/* Row 3: volume slider + % label */}
+                    <div className="flex flex-col gap-0.5" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[7px] font-black text-slate-600 uppercase">Vol</span>
+                        <span className="text-[7px] font-black tabular-nums" style={{ color: track.color }}>
+                          {Math.round(track.volume * 100)}%
+                        </span>
+                      </div>
+                      <input
+                        type="range" min="0" max="1" step="0.05"
+                        value={track.volume}
+                        onChange={e => { e.stopPropagation(); updateTrackVolume(track.id, parseFloat(e.target.value)); }}
+                        title={`Volume: ${Math.round(track.volume * 100)}%`}
+                        className="w-full h-1 appearance-none rounded-full bg-slate-800 cursor-pointer"
+                        style={{ accentColor: track.color }}
+                      />
+                    </div>
+
+                    {/* Row 4: rec target indicator + AI indicator */}
+                    <div className="flex items-center gap-1.5 mt-auto">
+                      {recordingTrackId === track.id && (
+                        <span className="flex items-center gap-1 text-[7px] text-red-400 font-black uppercase">
+                          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" /> REC
+                        </span>
+                      )}
+                      {activeTrackId === track.id && (
+                        <span className="flex items-center gap-1 text-[7px] font-black uppercase" style={{ color: track.color }}>
+                          <Zap size={8} /> AI
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Piano roll canvas for this track */}
+                  <div className="flex-1 relative">
+                    <PianoRoll
+                      events={events.filter(e => e.trackId === track.id)}
+                      currentBeat={playbackBeat}
+                      selectedNoteIds={selectedEventIds}
+                      selectionMarquee={selectionMarquee}
+                      beatWidth={beatWidth}
+                      trackColor={track.color}
+                      onSeek={handleSeek}
+                      onSelectionMarqueeChange={setSelectionMarquee}
+                      onSelectNotes={setSelectedEventIds}
+                      onMoveSelection={handleMoveSelection}
+                      onZoomChange={v => setBeatWidth(clampBeatWidth(v))}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Add track — always visible at the bottom of the stack */}
+            <button
+              onClick={addTrack}
+              className="flex-none flex items-center justify-center gap-1.5 py-2 border-t border-white/5 text-slate-700 hover:text-slate-400 hover:bg-white/[0.03] transition-colors text-[9px] font-black uppercase tracking-widest"
+            >
+              <Plus size={11} /> Add Track
+            </button>
+
             {isWarmingUp && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/95 backdrop-blur-xl z-20">
                 <Loader2 className="animate-spin text-indigo-500 mb-4" size={64} />
@@ -990,6 +1390,42 @@ const App: React.FC = () => {
                 </div>
             ) : (
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+                    {/* ── Track selector ── */}
+                    <section>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"><Music size={12}/> Tracks</div>
+                        <button
+                          onClick={addTrack}
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-[8px] font-black uppercase transition-colors border border-indigo-500/20"
+                        >
+                          <Plus size={9} /> Add
+                        </button>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        {tracks.map(track => (
+                          <div key={track.id} className="flex items-center gap-1">
+                            <button
+                              onClick={() => setActiveTrackId(track.id)}
+                              className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border text-[10px] font-black transition-all ${activeTrackId === track.id ? 'border-white/20 bg-white/5 text-white' : 'border-transparent text-slate-500 hover:text-slate-300 hover:bg-white/[0.03]'}`}
+                            >
+                              <div className="w-2 h-2 rounded-full flex-none" style={{ background: track.color }} />
+                              <span className="truncate">{track.name}</span>
+                              {track.muted && <span className="ml-auto text-[8px] text-red-400 uppercase">muted</span>}
+                            </button>
+                            {tracks.length > 1 && (
+                              <button
+                                title="Remove track"
+                                onClick={() => removeTrack(track.id)}
+                                className="p-1.5 rounded-lg text-slate-700 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                              >
+                                <X size={10} />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+
                     <section>
                       <div className="flex flex-col gap-3 mb-4">
                         <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"><Activity size={12}/> Analysis</div>
@@ -1016,31 +1452,45 @@ const App: React.FC = () => {
                             </button>
                         </div>
                       </div>
-                      <SynthVisualizer config={synthConfig} />
+                      <SynthVisualizer config={activeTrack.synthConfig} />
 
+                      {/* Presets */}
                       <div className="grid grid-cols-2 gap-2 mb-6">
                         {Object.keys(SYNTH_PRESETS).map(name => (
                           <button
                             key={name}
-                            onClick={() => setSynthConfig(SYNTH_PRESETS[name])}
-                            className={`px-2 py-1.5 rounded-lg text-[7px] font-black uppercase border transition-all ${JSON.stringify(synthConfig) === JSON.stringify(SYNTH_PRESETS[name]) ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-900/50 border-white/5 text-slate-500 hover:text-slate-300'}`}
+                            onClick={() => applyPresetToActiveTrack(SYNTH_PRESETS[name])}
+                            className={`px-2 py-1.5 rounded-lg text-[7px] font-black uppercase border transition-all ${JSON.stringify(activeTrack.synthConfig) === JSON.stringify(SYNTH_PRESETS[name]) ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-900/50 border-white/5 text-slate-500 hover:text-slate-300'}`}
                           >
                             {name}
                           </button>
                         ))}
                       </div>
+
+                      {/* Copy-to-text helper */}
+                      <button
+                        title="Copy a ready-to-paste voice header for this track to the clipboard"
+                        onClick={() => {
+                          const idx = tracks.findIndex(t => t.id === activeTrackId);
+                          const header = `[voice:${idx + 1} name:"${activeTrack.name}" ${serializeSynthConfig(activeTrack.synthConfig)}]`;
+                          navigator.clipboard.writeText(header).catch(() => {});
+                        }}
+                        className="w-full flex items-center justify-center gap-1.5 py-2 bg-slate-900/50 hover:bg-indigo-500/10 border border-white/5 hover:border-indigo-500/30 text-slate-500 hover:text-indigo-400 rounded-xl text-[9px] font-black uppercase transition-all mb-1"
+                      >
+                        <Copy size={10} /> Copy Voice Header
+                      </button>
                     </section>
 
                     <section className="space-y-4 p-4 bg-black/40 rounded-2xl border border-white/5">
                         <div className="flex items-center gap-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2"><Waves size={14}/> Oscillator</div>
                         <div className="grid grid-cols-2 gap-2">
                             {waveOptions.map(type => (
-                                <button key={type} onClick={() => updateSynth('waveType', type)} className={`px-2 py-2 rounded-lg text-[8px] font-bold uppercase border transition-all ${synthConfig.waveType === type ? 'bg-indigo-600 border-indigo-500 text-white shadow-[0_0_10px_rgba(99,102,241,0.5)]' : 'bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-700'}`}>{type}</button>
+                                <button key={type} onClick={() => updateSynth('waveType', type)} className={`px-2 py-2 rounded-lg text-[8px] font-bold uppercase border transition-all ${activeTrack.synthConfig.waveType === type ? 'bg-indigo-600 border-indigo-500 text-white shadow-[0_0_10px_rgba(99,102,241,0.5)]' : 'bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-700'}`}>{type}</button>
                             ))}
                         </div>
                         <div className="space-y-1">
-                            <div className="flex justify-between text-[8px] font-bold text-slate-600 uppercase"><span>Detune</span><span>{synthConfig.detune}</span></div>
-                            <input type="range" min="-50" max="50" value={synthConfig.detune} onChange={e => updateSynth('detune', parseInt(e.target.value))} className="w-full accent-indigo-500 h-1 bg-slate-800 rounded-full appearance-none" />
+                            <div className="flex justify-between text-[8px] font-bold text-slate-600 uppercase"><span>Detune</span><span>{activeTrack.synthConfig.detune}</span></div>
+                            <input type="range" min="-50" max="50" value={activeTrack.synthConfig.detune} onChange={e => updateSynth('detune', parseInt(e.target.value))} className="w-full accent-indigo-500 h-1 bg-slate-800 rounded-full appearance-none" />
                         </div>
                     </section>
 
@@ -1048,12 +1498,12 @@ const App: React.FC = () => {
                         <div className="flex items-center gap-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2"><SlidersHorizontal size={14}/> VCF Filter</div>
                         <div className="space-y-3">
                             <div className="space-y-1">
-                                <div className="flex justify-between text-[8px] font-bold text-slate-600 uppercase"><span>Cutoff</span><span>{synthConfig.cutoff}Hz</span></div>
-                                <input type="range" min="100" max="8000" value={synthConfig.cutoff} onChange={e => updateSynth('cutoff', parseInt(e.target.value))} className="w-full accent-indigo-500 h-1 bg-slate-800 rounded-full appearance-none" />
+                                <div className="flex justify-between text-[8px] font-bold text-slate-600 uppercase"><span>Cutoff</span><span>{activeTrack.synthConfig.cutoff}Hz</span></div>
+                                <input type="range" min="100" max="8000" value={activeTrack.synthConfig.cutoff} onChange={e => updateSynth('cutoff', parseInt(e.target.value))} className="w-full accent-indigo-500 h-1 bg-slate-800 rounded-full appearance-none" />
                             </div>
                             <div className="space-y-1">
-                                <div className="flex justify-between text-[8px] font-bold text-slate-600 uppercase"><span>Resonance</span><span>{synthConfig.resonance.toFixed(1)}</span></div>
-                                <input type="range" min="0" max="20" step="0.5" value={synthConfig.resonance} onChange={e => updateSynth('resonance', parseFloat(e.target.value))} className="w-full accent-indigo-500 h-1 bg-slate-800 rounded-full appearance-none" />
+                                <div className="flex justify-between text-[8px] font-bold text-slate-600 uppercase"><span>Resonance</span><span>{activeTrack.synthConfig.resonance.toFixed(1)}</span></div>
+                                <input type="range" min="0" max="20" step="0.5" value={activeTrack.synthConfig.resonance} onChange={e => updateSynth('resonance', parseFloat(e.target.value))} className="w-full accent-indigo-500 h-1 bg-slate-800 rounded-full appearance-none" />
                             </div>
                         </div>
                     </section>
@@ -1069,7 +1519,7 @@ const App: React.FC = () => {
                             ].map(p => (
                                 <div key={p.key} className="space-y-1">
                                     <div className="flex justify-between text-[7px] font-bold text-slate-600 uppercase"><span>{p.label}</span></div>
-                                    <input type="range" min={p.min} max={p.max} step={p.step} value={synthConfig[p.key as keyof SynthConfig] as number} onChange={e => updateSynth(p.key as keyof SynthConfig, parseFloat(e.target.value))} className="w-full accent-indigo-500 h-1 bg-slate-800 rounded-full appearance-none" />
+                                    <input type="range" min={p.min} max={p.max} step={p.step} value={activeTrack.synthConfig[p.key as keyof SynthConfig] as number} onChange={e => updateSynth(p.key as keyof SynthConfig, parseFloat(e.target.value))} className="w-full accent-indigo-500 h-1 bg-slate-800 rounded-full appearance-none" />
                                 </div>
                             ))}
                         </div>

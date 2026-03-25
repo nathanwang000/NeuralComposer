@@ -1,6 +1,18 @@
 
 export type SynthWaveType = 'sine' | 'square' | 'sawtooth' | 'triangle';
 
+/** Ordered colour palette for auto-assigning track colours. */
+export const TRACK_COLORS = [
+  '#6366f1', // indigo   (default track 1)
+  '#22d3ee', // cyan
+  '#f59e0b', // amber
+  '#10b981', // emerald
+  '#f43f5e', // rose
+  '#a78bfa', // violet
+  '#fb923c', // orange
+  '#34d399', // green
+] as const;
+
 export interface MidiEvent {
   p: number; // Pitch (MIDI note 0-127, supports floats for microtonal/bends)
   v: number; // Velocity (0-127)
@@ -28,6 +40,22 @@ export interface SynthConfig {
   sustain: number;
   release: number;
   drive: number;
+}
+
+// ---------------------------------------------------------------------------
+// Track — the core multi-voice building block. Each track owns its own synth
+// config and event history. TRACK_COLORS provides an auto-assign palette so
+// new tracks always get a distinct colour without extra configuration.
+// ---------------------------------------------------------------------------
+export interface Track {
+  id: string;
+  name: string;
+  /** CSS colour string — use TRACK_COLORS for consistency */
+  color: string;
+  synthConfig: SynthConfig;
+  muted: boolean;
+  /** Per-track output gain multiplier, 0–1 */
+  volume: number;
 }
 
 export enum MusicGenre {

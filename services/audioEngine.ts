@@ -200,7 +200,13 @@ class AudioEngine {
   // Track the end time of the last note to detect legato phrases (for potential future use or global legato logic)
   private globalLastNoteEndTime: number = 0;
 
-  scheduleNote(event: MidiEvent, eventAbsoluteBeat: number, currentPlaybackBeat: number, legato: boolean = false) {
+  /**
+   * Schedule a single MIDI event for future playback.
+   * `config` overrides the engine's global baseConfig — pass a track's own
+   * SynthConfig here so each track can have its own sound.
+   * `trackVolume` (0–1) is the per-track gain multiplier; defaults to 1.
+   */
+  scheduleNote(event: MidiEvent, eventAbsoluteBeat: number, currentPlaybackBeat: number, legato: boolean = false, config?: SynthConfig, trackVolume: number = 1) {
     if (!this.ctx || !this.masterGain || this.ctx.state !== 'running') return;
 
     const secondsPerBeat = 60 / this.tempo;
@@ -214,15 +220,16 @@ class AudioEngine {
     const actualStart = Math.max(playAt, this.ctx.currentTime);
     const freq = this.midiToFreq(event.p);
 
-    // Waveform compensation: use baseConfig so pad overrides don't affect sequencer volume.
-    const waveCorrection = this.baseConfig.waveType === 'sine' ? 1.1 : (this.baseConfig.waveType === 'sawtooth' ? 0.9 : 1.0);
-    const targetVolume = (event.v / 127) * 0.4 * this.baseConfig.drive * waveCorrection;
+    // Use the supplied per-track config when available; fall back to baseConfig
+    // so the performance-pad synth panel still controls untracked notes.
+    const sc = config ?? this.baseConfig;
+
+    const waveCorrection = sc.waveType === 'sine' ? 1.1 : (sc.waveType === 'sawtooth' ? 0.9 : 1.0);
+    // Clamp trackVolume so a value outside 0–1 can't blow up the gain
+    const vol = Math.max(0, Math.min(1, trackVolume));
+    const targetVolume = (event.v / 127) * 0.4 * sc.drive * waveCorrection * vol;
 
     // --- Polyphonic Legato Logic ---
-    // Instead of reusing oscillators (which kills polyphony), we start a NEW oscillator for every note.
-    // "Legato" here means: if we are close to the previous note, we skip the attack phase
-    // and start directly at the sustain level to simulate a connected phrase.
-
     const isLegatoTransition = legato && (actualStart < this.globalLastNoteEndTime + 0.1);
 
     // Nodes
@@ -231,9 +238,6 @@ class AudioEngine {
     const env = this.ctx.createGain();
 
     // 1. Configure Oscillator
-    // Use baseConfig (App.tsx synth panel) so pad transient overrides (detune,
-    // cutoff, etc.) do not bleed into sequencer playback.
-    const sc = this.baseConfig;
     osc.type = sc.waveType as OscillatorType;
     osc.frequency.setValueAtTime(freq, actualStart);
     osc.detune.setValueAtTime(sc.detune, actualStart);
@@ -554,24 +558,26 @@ class AudioEngine {
   }
 
   /**
-   * Offline render: synthesises every supplied event with the current baseConfig
-   * and returns a WAV Blob. No live AudioContext is touched.
+   * Offline render: synthesises every supplied event and returns a WAV Blob.
+   * Each event may carry its own `synthConfig` (from a Track); events without
+   * one fall back to the engine's current baseConfig.
+   * No live AudioContext is touched.
    *
    * @param events   - absolute-beat-positioned events to render
    * @param tempo    - BPM used for beat→seconds conversion
    * @param legato   - whether to apply legato transitions
    */
   async renderToWav(
-    events: { event: MidiEvent; beatOffset: number }[],
+    events: { event: MidiEvent; beatOffset: number; synthConfig?: SynthConfig }[],
     tempo: number,
     legato: boolean = false,
   ): Promise<Blob> {
-    const sc = this.baseConfig;
     const secondsPerBeat = 60 / tempo;
 
     // Compute total duration (last note end + generous release tail)
     let lastEnd = 0;
-    for (const { event, beatOffset } of events) {
+    for (const { event, beatOffset, synthConfig } of events) {
+      const sc = synthConfig ?? this.baseConfig;
       const end = (beatOffset + event.t + event.d) * secondsPerBeat + sc.release + 0.5;
       if (end > lastEnd) lastEnd = end;
     }
@@ -593,7 +599,8 @@ class AudioEngine {
 
     let globalLastNoteEndTime = 0;
 
-    for (const { event, beatOffset } of sorted) {
+    for (const { event, beatOffset, synthConfig: trackConfig } of sorted) {
+      const sc = trackConfig ?? this.baseConfig;
       const absoluteBeat = beatOffset + event.t;
       const actualStart = absoluteBeat * secondsPerBeat;
       const noteDuration = event.d * secondsPerBeat;

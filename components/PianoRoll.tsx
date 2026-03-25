@@ -14,6 +14,8 @@ interface PianoRollProps {
   selectedNoteIds: string[];
   selectionMarquee: SelectionBounds | null;
   beatWidth?: number;
+  /** Hex / CSS colour for this track's notes. Falls back to cyan for user notes. */
+  trackColor?: string;
   onSeek?: (beat: number) => void;
   onSelectionMarqueeChange?: (bounds: SelectionBounds | null) => void;
   onSelectNotes?: (ids: string[]) => void;
@@ -27,6 +29,7 @@ const PianoRoll: React.FC<PianoRollProps> = ({
   selectedNoteIds,
   selectionMarquee,
   beatWidth = 100,
+  trackColor = '#22d3ee',
   onSeek,
   onSelectionMarqueeChange,
   onSelectNotes,
@@ -250,10 +253,12 @@ const PianoRoll: React.FC<PianoRollProps> = ({
         const isActive = currentBeat >= absoluteBeatStart && currentBeat <= absoluteBeatEnd;
 
         if (isUser) {
-          ctx.fillStyle = isSelected ? '#ef4444' : (isActive ? '#22d3ee' : 'rgba(8, 145, 178, 0.4)');
+          ctx.fillStyle = isSelected ? '#ef4444' : (isActive ? trackColor : `${trackColor}66`);
           ctx.shadowBlur = isSelected ? 20 : (isActive ? 15 : 5);
-          ctx.shadowColor = isSelected ? '#ef4444' : '#22d3ee';
+          ctx.shadowColor = isSelected ? '#ef4444' : trackColor;
         } else {
+          // AI-generated notes: derive a subtle hue shift from trackColor so they
+          // remain visually distinct from user notes while staying in-family.
           const hue = (event.p * 13) % 360;
           ctx.fillStyle = isSelected
             ? '#ef4444'
