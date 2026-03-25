@@ -211,6 +211,56 @@ const parseNoteEvents = (section: string): { event: MidiEvent; comment?: string 
 };
 
 /**
+ * Removes the given event IDs from the event list while keeping structural
+ * comments intact. A comment attached to a deleted event is transferred to
+ * the nearest surviving event on the same track (successor preferred,
+ * predecessor as fallback). This ensures that section labels like
+ * "# Bar 1: Fmaj9" survive even when every note in the bar is deleted.
+ */
+function deleteEventsPreservingComments(
+  allEvents: AppEvent[],
+  idsToDelete: ReadonlySet<string>
+): AppEvent[] {
+  // Work in beat order so successor/predecessor lookups are straightforward
+  const sorted = [...allEvents].sort(
+    (a, b) => (a.beatOffset + a.event.t) - (b.beatOffset + b.event.t)
+  );
+
+  // Map: targetId → extra comment string to prepend onto that event
+  const transfers = new Map<string, string>();
+
+  for (const ev of sorted) {
+    if (!idsToDelete.has(ev.id) || !ev.comment) continue;
+    const beat = ev.beatOffset + ev.event.t;
+
+    // Prefer the nearest surviving event at-or-after this beat on the same track
+    let target = sorted.find(
+      o => !idsToDelete.has(o.id) && o.trackId === ev.trackId &&
+           (o.beatOffset + o.event.t) >= beat
+    );
+    // Fall back to the nearest surviving event before this beat on the same track
+    if (!target) {
+      for (let i = sorted.length - 1; i >= 0; i--) {
+        const o = sorted[i];
+        if (!idsToDelete.has(o.id) && o.trackId === ev.trackId) { target = o; break; }
+      }
+    }
+    if (!target) continue; // entire track deleted — comment is gone
+
+    const prev = transfers.get(target.id);
+    transfers.set(target.id, prev ? prev + '\n' + ev.comment : ev.comment);
+  }
+
+  return allEvents
+    .filter(ev => !idsToDelete.has(ev.id))
+    .map(ev => {
+      const extra = transfers.get(ev.id);
+      if (!extra) return ev;
+      return { ...ev, comment: ev.comment ? extra + '\n' + ev.comment : extra };
+    });
+}
+
+/**
  * Split `input` into voice blocks. Returns one VoiceBlock per [voice:N ...]
  * header found. Falls back to a single block at voiceIndex 0 if none found.
  */
@@ -235,7 +285,17 @@ const parseVoiceBlocks = (input: string): VoiceBlock[] => {
     return events.length > 0 ? [{ voiceIndex: 0, synthOverride: null, events }] : [];
   }
 
-  return headerMatches.map((header, i) => {
+  // Any text before the first [voice:N] header may contain file-level
+  // comments (title, key, tempo notes). Capture them and prepend to the
+  // first event of the first block so they survive the round-trip.
+  const preamble = input.slice(0, headerMatches[0].pos);
+  const preambleComments = preamble
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l.startsWith('#'))
+    .join('\n');
+
+  const blocks = headerMatches.map((header, i) => {
     const sectionStart = header.pos + header.len;
     const sectionEnd = i + 1 < headerMatches.length ? headerMatches[i + 1].pos : input.length;
     const section = input.slice(sectionStart, sectionEnd);
@@ -245,6 +305,17 @@ const parseVoiceBlocks = (input: string): VoiceBlock[] => {
       events: parseNoteEvents(section),
     };
   }).filter(b => b.events.length > 0);
+
+  // Attach preamble comments to the first event of the first block
+  if (preambleComments && blocks[0]?.events.length > 0) {
+    const first = blocks[0].events[0];
+    blocks[0].events[0] = {
+      ...first,
+      comment: first.comment ? preambleComments + '\n' + first.comment : preambleComments,
+    };
+  }
+
+  return blocks;
 };
 
 const App: React.FC = () => {
@@ -744,7 +815,7 @@ const App: React.FC = () => {
     if (selectedEventIds.length === 0) return;
     pushHistory(events);
     handleCopy();
-    setEvents(prev => prev.filter(item => !selectedEventIds.includes(item.id)));
+    setEvents(prev => deleteEventsPreservingComments(prev, new Set(selectedEventIds)));
     setSelectedEventIds([]);
   }, [selectedEventIds, events, handleCopy, pushHistory]);
 
@@ -767,7 +838,7 @@ const App: React.FC = () => {
   const handleDelete = useCallback(() => {
     if (selectedEventIds.length === 0) return;
     pushHistory(events);
-    setEvents(prev => prev.filter(item => !selectedEventIds.includes(item.id)));
+    setEvents(prev => deleteEventsPreservingComments(prev, new Set(selectedEventIds)));
     setSelectedEventIds([]);
   }, [selectedEventIds, events, pushHistory]);
 
