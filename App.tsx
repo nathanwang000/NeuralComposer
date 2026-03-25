@@ -1331,7 +1331,7 @@ const App: React.FC = () => {
                   </div>
                   {/* Drag handle — resize this track vertically */}
                   <div
-                    className="absolute bottom-0 left-0 right-0 h-1.5 cursor-ns-resize group/handle z-10"
+                    className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize group/handle z-10 flex items-center"
                     title="Drag to resize this track"
                     onMouseDown={e => {
                       e.preventDefault();
@@ -1342,7 +1342,7 @@ const App: React.FC = () => {
                       };
                     }}
                   >
-                    <div className="w-full h-px bg-white/5 group-hover/handle:bg-cyan-500/40 transition-colors" />
+                    <div className="w-full h-[2px] bg-white/20 group-hover/handle:bg-cyan-500/70 transition-colors shadow-[0_0_4px_rgba(255,255,255,0.1)]" />
                   </div>
                 </div>
               ))}
