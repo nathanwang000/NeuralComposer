@@ -14,6 +14,7 @@ import {
   Loader2,
   Mic,
   Minus,
+  MousePointer2,
   Music,
   Pause,
   Play,
@@ -297,6 +298,9 @@ const App: React.FC = () => {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [beatWidth, setBeatWidth] = useState(100);
   const [isExporting, setIsExporting] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  // Detect touch/coarse-pointer device to show the Select Mode button
+  const isTouchDevice = useMemo(() => typeof window !== 'undefined' && (navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches), []);
   const clampBeatWidth = (v: number) => Math.max(20, Math.min(600, v));
   const recordingStartBeatRef = useRef(0);
   const beatsGeneratedRef = useRef(0);
@@ -1208,6 +1212,7 @@ const App: React.FC = () => {
                       onSelectNotes={setSelectedEventIds}
                       onMoveSelection={handleMoveSelection}
                       onZoomChange={v => setBeatWidth(clampBeatWidth(v))}
+                      selectMode={selectMode}
                     />
                   </div>
                 </div>
@@ -1236,6 +1241,22 @@ const App: React.FC = () => {
 
           {/* ── Sequencer edit toolbar ── */}
           <div className="flex-none flex flex-wrap items-center gap-1 bg-slate-900/60 backdrop-blur-md border border-white/5 rounded-2xl px-2 py-1.5">
+            {isTouchDevice && (
+              <>
+                <button
+                  onClick={() => setSelectMode(v => !v)}
+                  title={selectMode ? 'Exit Select Mode' : 'Select Mode: tap notes to select, drag to box-select'}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-colors border ${
+                    selectMode
+                      ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40'
+                      : 'bg-transparent text-slate-500 border-transparent hover:bg-white/5'
+                  }`}
+                >
+                  <MousePointer2 size={13} /> {selectMode ? 'Selecting' : 'Select'}
+                </button>
+                <div className="w-px h-5 bg-white/10 mx-1" />
+              </>
+            )}
             <button onClick={undo} disabled={history.past.length === 0} className="flex items-center gap-1.5 px-3 py-1.5 disabled:opacity-30 hover:bg-white/5 text-slate-400 rounded-xl text-[10px] font-black uppercase transition-colors"><Undo size={14} /> Undo</button>
             <button onClick={redo} disabled={history.future.length === 0} className="flex items-center gap-1.5 px-3 py-1.5 disabled:opacity-30 hover:bg-white/5 text-slate-400 rounded-xl text-[10px] font-black uppercase transition-colors"><Redo size={14} /> Redo</button>
             <div className="w-px h-5 bg-white/10 mx-1" />

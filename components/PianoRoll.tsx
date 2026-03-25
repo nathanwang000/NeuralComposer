@@ -16,6 +16,8 @@ interface PianoRollProps {
   beatWidth?: number;
   /** Hex / CSS colour for this track's notes. Falls back to cyan for user notes. */
   trackColor?: string;
+  /** When true, touch interactions select/deselect notes instead of seeking. */
+  selectMode?: boolean;
   onSeek?: (beat: number) => void;
   onSelectionMarqueeChange?: (bounds: SelectionBounds | null) => void;
   onSelectNotes?: (ids: string[]) => void;
@@ -30,6 +32,7 @@ const PianoRoll: React.FC<PianoRollProps> = ({
   selectionMarquee,
   beatWidth = 100,
   trackColor = '#22d3ee',
+  selectMode = false,
   onSeek,
   onSelectionMarqueeChange,
   onSelectNotes,
@@ -324,6 +327,107 @@ const PianoRoll: React.FC<PianoRollProps> = ({
     return () => cancelAnimationFrame(animationFrame);
   }, [events, currentBeat, dragStart, dragEnd, selectedNoteIds, selectionMarquee, selectionBounds, isMoving, beatWidth]);
 
+  // ── Touch handlers (select mode only) ─────────────────────────────────────
+  // Converts a touch clientX/Y into scaled canvas coordinates + music coords.
+  const getCanvasCoords = (clientX: number, clientY: number, canvas: HTMLCanvasElement) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = (clientX - rect.left) * (canvas.width / rect.width);
+    const y = (clientY - rect.top) * (canvas.height / rect.height);
+    return { x, y, ...getMusicCoords(x, y, canvas) };
+  };
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (!selectMode) return;
+    e.preventDefault();
+    const canvas = canvasRef.current;
+    if (!canvas || e.touches.length === 0) return;
+    const touch = e.touches[0];
+    const coords = getCanvasCoords(touch.clientX, touch.clientY, canvas);
+    if (selectionBounds && isInsideRect(coords.beat, coords.pitch, selectionBounds)) {
+      setIsMoving(true);
+      setDragStart(coords);
+    } else {
+      setIsMoving(false);
+      setDragStart(coords);
+      setDragEnd(null);
+      // Don't clear selection yet — wait for touchend to decide tap vs drag
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (!selectMode) return;
+    e.preventDefault();
+    if (!dragStart || !canvasRef.current || e.touches.length === 0) return;
+    const canvas = canvasRef.current;
+    const touch = e.touches[0];
+    const coords = getCanvasCoords(touch.clientX, touch.clientY, canvas);
+    setDragEnd(coords);
+    if (!isMoving && onSelectionMarqueeChange) {
+      onSelectionMarqueeChange({
+        startBeat: Math.min(dragStart.beat, coords.beat),
+        endBeat:   Math.max(dragStart.beat, coords.beat),
+        minPitch:  Math.min(dragStart.pitch, coords.pitch),
+        maxPitch:  Math.max(dragStart.pitch, coords.pitch),
+      });
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (!selectMode) return;
+    e.preventDefault();
+    if (!dragStart) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const touch = e.changedTouches[0];
+    const coords = getCanvasCoords(touch.clientX, touch.clientY, canvas);
+    // Use a wider tap threshold for fingers
+    const isClick = !dragEnd || (Math.abs(dragEnd.x - dragStart.x) < 15 && Math.abs(dragEnd.y - dragStart.y) < 15);
+    if (isMoving) {
+      if (!isClick && onMoveSelection) {
+        onMoveSelection(coords.beat - dragStart.beat, coords.pitch - dragStart.pitch, selectedNoteIds);
+      }
+      setIsMoving(false);
+    } else {
+      if (isClick) {
+        // Tap → toggle the note under the finger
+        if (onSelectionMarqueeChange) onSelectionMarqueeChange(null);
+        const tappedNote = events.find(({ event, beatOffset }) => {
+          const absStart = beatOffset + event.t;
+          const absEnd = absStart + event.d;
+          return dragStart.beat >= absStart && dragStart.beat <= absEnd && event.p === dragStart.pitch;
+        });
+        if (tappedNote && onSelectNotes) {
+          if (selectedNoteIds.includes(tappedNote.id)) {
+            onSelectNotes(selectedNoteIds.filter(id => id !== tappedNote.id));
+          } else {
+            onSelectNotes([...selectedNoteIds, tappedNote.id]);
+          }
+        }
+      } else {
+        // Drag → box-select
+        if (onSelectionMarqueeChange) onSelectionMarqueeChange(null);
+        if (onSelectNotes) {
+          const sel = {
+            startBeat: Math.min(dragStart.beat, coords.beat),
+            endBeat:   Math.max(dragStart.beat, coords.beat),
+            minPitch:  Math.min(dragStart.pitch, coords.pitch),
+            maxPitch:  Math.max(dragStart.pitch, coords.pitch),
+          };
+          onSelectNotes(
+            events.filter(({ event, beatOffset }) => {
+              const s = beatOffset + event.t;
+              const en = s + event.d;
+              return s < sel.endBeat && en > sel.startBeat &&
+                     event.p >= sel.minPitch && event.p <= sel.maxPitch;
+            }).map(n => n.id)
+          );
+        }
+      }
+    }
+    setDragStart(null);
+    setDragEnd(null);
+  };
+
   // Ctrl+wheel → zoom
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -350,9 +454,12 @@ const PianoRoll: React.FC<PianoRollProps> = ({
         setDragEnd(null);
         setIsMoving(false);
       }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
       onContextMenu={(e) => e.preventDefault()}
-      className="w-full h-full rounded-lg bg-black cursor-crosshair select-none"
-      style={{ userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
+      className={`w-full h-full rounded-lg bg-black select-none ${selectMode ? 'cursor-pointer' : 'cursor-crosshair'}`}
+      style={{ userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', touchAction: selectMode ? 'none' : 'auto' }}
       width={1600}
       height={800}
     />
