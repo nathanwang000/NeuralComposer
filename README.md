@@ -310,6 +310,12 @@ Available override parameters:
 | `"Warm Rhodes"` | Triangle — mellow electric piano |
 | `"Soft Strings"` | Sawtooth — slow strings ensemble |
 | `"Acid Bass"` | Sawtooth — high-resonance acid bass |
+| `"Kick Drum"` | Triangle — deep thud with punchy drive |
+| `"Snare Hit"` | Square wave — bright crack with mid-high bite |
+| `"Rim Shot"` | Square wave — tight click, very short decay |
+| `"Marimba"` | Triangle — wooden mallet, fast decay |
+| `"Steel Drum"` | Triangle — bright metallic ping with high resonance |
+| `"Tabla"` | Sawtooth — warm finger drum with resonant bloom |
 
 > **Tip:** Open the **Synth** panel for any track and click **Copy Voice Header** to get a pre-filled `[voice:N ...]` header with the current settings, ready to paste into a file.
 
