@@ -7,6 +7,8 @@
 #   BASS      — walking / syncopated, entirely its own rhythmic timeline
 # Dynamics: soft solo pickup → mf → f → ff climax
 
+[voice:1 name:"Track 1" preset:"Warm Rhodes"]
+
 # === Pickup (solo melody — bare, no accompaniment) ===
 [P:60,V:72,T:0.000,D:0.500]
 [P:62,V:76,T:1.000,D:0.500]
@@ -55,8 +57,6 @@
 # INNER PAD: E4 held for 2.5 beats → G4 for 1.75 → back to E4 for 2.75
 #            slow shapes under the fast melody
 [P:64,V:60,T:11.000,D:2.500]
-[P:67,V:58,T:13.500,D:1.750]
-[P:64,V:60,T:15.250,D:2.750]
 # BASS: syncopated, sparse — hits land off the melody's beat
 [P:45,V:82,T:11.000,D:1.000]
 [P:52,V:68,T:12.000,D:0.500]
@@ -85,12 +85,6 @@
 [P:72,V:90,T:16.500,D:0.500]
 [P:74,V:93,T:17.000,D:0.500]
 [P:76,V:97,T:18.000,D:0.500]
-
-# === Phrase 3: Rising arc — building (f) ===
-# INNER PAD anticipates by 0.25 — A4 held, then B4 shifts mid-phrase, then back to A4
-[P:69,V:65,T:17.750,D:2.500]
-[P:71,V:63,T:20.250,D:2.500]
-[P:69,V:65,T:22.750,D:2.250]
 # BASS: energized walking line — more frequent hits, quarter-note drive
 [P:48,V:82,T:18.000,D:0.500]
 [P:50,V:72,T:18.500,D:0.500]
@@ -116,11 +110,6 @@
 [P:76,V:100,T:22.000,D:0.500]
 [P:74,V:102,T:22.500,D:1.500]
 [P:74,V:99,T:24.500,D:0.500]
-
-# === Climax: G5 burst → cascading descent (ff) ===
-# INNER PAD: B4 held as a sustained pedal through the entire cascade
-[P:72,V:62,T:24.750,D:0.500]
-[P:71,V:65,T:25.000,D:2.500]
 # BASS: dramatic drops, G2→A2→G2→B2 leading to final C
 [P:43,V:88,T:25.000,D:0.500]
 [P:45,V:80,T:25.500,D:0.500]
@@ -135,8 +124,6 @@
 [P:77,V:107,T:25.500,D:0.500]
 [P:76,V:105,T:26.000,D:0.500]
 [P:77,V:105,T:26.500,D:0.500]
-
-# === Final: open C suspension, voices land at different times ===
 # Bass lands first on the downbeat
 [P:48,V:88,T:27.000,D:4.000]
 # Melody and inner pad land on the downbeat
@@ -144,4 +131,3 @@
 [P:67,V:62,T:27.000,D:2.500]
 # Upper voice hits last — G5 crown
 [P:79,V:110,T:27.000,D:3.000]
-
