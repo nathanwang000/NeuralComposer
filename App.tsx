@@ -1109,16 +1109,16 @@ const App: React.FC = () => {
           </div>
           <div className={mainTab === 'sequencer' ? 'contents' : 'hidden'}>
           {/* ── Multi-track stacked piano roll ── */}
-          {/* Each track is a fixed 180px lane; the container scrolls vertically
+          {/* Each track is a fixed 320px lane; the container scrolls vertically
               so adding many tracks never squashes the canvas area. */}
-          <div className="relative flex flex-col border border-white/5 rounded-3xl overflow-hidden bg-black shadow-inner" style={{ minHeight: '350px', flex: 1 }}>
+          <div className="relative flex flex-col border border-white/5 rounded-3xl overflow-hidden bg-black shadow-inner" style={{ minHeight: '500px', flex: 1 }}>
             {/* Scrollable track stack */}
             <div className="flex-1 overflow-y-auto custom-scrollbar">
               {tracks.map((track) => (
                 <div
                   key={track.id}
                   className="flex border-b border-white/5 last:border-b-0"
-                  style={{ height: '180px' }}
+                  style={{ height: '320px' }}
                 >
                   {/* Track header sidebar — fixed 44px wide, taller for controls */}
                   <div
