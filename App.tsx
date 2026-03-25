@@ -733,7 +733,7 @@ const App: React.FC = () => {
       });
       clipboardText += '\n';
     });
-    navigator.clipboard.writeText(clipboardText.trim()).catch(err => console.error(err));
+    navigator.clipboard?.writeText(clipboardText.trim()).catch(err => console.error(err));
   }, [selectedEventIds, events]);
 
   const handleCut = useCallback(() => {
