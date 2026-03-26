@@ -915,6 +915,15 @@ const CHORD_PRESETS: { label: string; description: string; sequence: string }[] 
     description: 'E Phrygian flamenco-style i → bII',
     sequence: 'E3+G3+B3+E4@0.04b, F3+A3+C4+F4@0.04b, E3+G3+B3+E4@0.04b, F3+A3+C4+F4@0.12b, E3+G3+B3+E4@0.04b',
   },
+  {
+    label: 'Pop Ballad',
+    description: 'I–V–vi–IV in C • Chorus (open power) → Outro (descending resolution)',
+    sequence:
+`[Chorus]
+C3+G3+C4+E4@0.05b, G3+B3+D4+G4@0.05b, A2+E3+A3+C4@0.05b, F3+C4+F4+A4@0.05b
+[Outro]
+C3+G3+E4+B4@0.09b, A2+E3+C4+G4@0.09b, D3+G3+B3+D4@0.09b, C3+E3+G3+E4@0.09b`,
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -1554,7 +1563,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
 
     // Sequence
     const [sequenceInput, setSequenceInput] = useState(
-        () => CHORD_PRESETS.find(p => p.label === 'Jazz ii-V-I')?.sequence ?? CHORD_PRESETS[0]?.sequence ?? 'C4+E4+G4+B4@0.1b'
+        () => CHORD_PRESETS.find(p => p.label === 'Pop Ballad')?.sequence ?? CHORD_PRESETS[0]?.sequence ?? 'C4+E4+G4+B4@0.1b'
     );
     const [chordSequence, setChordSequence] = useState<ChordStep[]>([]);
     const [sections, setSections] = useState<Section[]>([]);
