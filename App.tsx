@@ -1450,59 +1450,59 @@ const App: React.FC = () => {
                 <div className="w-px h-5 bg-white/10 mx-1" />
               </>
             )}
-            <button onClick={undo} disabled={history.past.length === 0} className="flex items-center gap-1.5 px-3 py-1.5 disabled:opacity-30 hover:bg-white/5 text-slate-400 rounded-xl text-[10px] font-black uppercase transition-colors"><Undo size={14} /> Undo</button>
-            <button onClick={redo} disabled={history.future.length === 0} className="flex items-center gap-1.5 px-3 py-1.5 disabled:opacity-30 hover:bg-white/5 text-slate-400 rounded-xl text-[10px] font-black uppercase transition-colors"><Redo size={14} /> Redo</button>
+            <button onClick={undo} disabled={history.past.length === 0} className="flex items-center gap-1.5 px-3 py-1.5 disabled:opacity-30 hover:bg-white/5 text-slate-400 rounded-xl text-xs font-black uppercase transition-colors"><Undo size={14} /> Undo</button>
+            <button onClick={redo} disabled={history.future.length === 0} className="flex items-center gap-1.5 px-3 py-1.5 disabled:opacity-30 hover:bg-white/5 text-slate-400 rounded-xl text-xs font-black uppercase transition-colors"><Redo size={14} /> Redo</button>
             <div className="w-px h-5 bg-white/10 mx-1" />
-            <button onClick={handleSelectAll} disabled={events.length === 0} className="flex items-center gap-1.5 px-3 py-1.5 disabled:opacity-30 hover:bg-indigo-500/10 text-slate-400 hover:text-indigo-400 rounded-xl text-[10px] font-black uppercase transition-colors"><Copy size={14} /> All</button>
+            <button onClick={handleSelectAll} disabled={events.length === 0} className="flex items-center gap-1.5 px-3 py-1.5 disabled:opacity-30 hover:bg-indigo-500/10 text-slate-400 hover:text-indigo-400 rounded-xl text-xs font-black uppercase transition-colors"><Copy size={14} /> All</button>
             {selectedEventIds.length > 0 && (
               <>
-                <button onClick={handleCopy} className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-indigo-500/10 text-indigo-400 rounded-xl text-[10px] font-black uppercase transition-colors"><Copy size={14} /> Copy</button>
-                <button onClick={handleCut} className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-red-500/10 text-red-400 rounded-xl text-[10px] font-black uppercase transition-colors"><Scissors size={14} /> Cut</button>
-                <button onClick={handleDelete} className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-red-500/10 text-red-400 rounded-xl text-[10px] font-black uppercase transition-colors"><Trash2 size={14} /> Del</button>
+                <button onClick={handleCopy} className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-indigo-500/10 text-indigo-400 rounded-xl text-xs font-black uppercase transition-colors"><Copy size={14} /> Copy</button>
+                <button onClick={handleCut} className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-red-500/10 text-red-400 rounded-xl text-xs font-black uppercase transition-colors"><Scissors size={14} /> Cut</button>
+                <button onClick={handleDelete} className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-red-500/10 text-red-400 rounded-xl text-xs font-black uppercase transition-colors"><Trash2 size={14} /> Del</button>
                 <button onClick={() => setSelectedEventIds([])} className="flex items-center gap-1.5 px-2 py-1.5 hover:bg-white/5 text-slate-600 hover:text-slate-400 rounded-xl transition-colors"><X size={14} /></button>
               </>
             )}
             {clipboard.length > 0 && (
-              <button onClick={handlePaste} className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-emerald-500/10 text-emerald-400 rounded-xl text-[10px] font-black uppercase transition-colors"><ClipboardPaste size={14} /> Paste</button>
+              <button onClick={handlePaste} className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-emerald-500/10 text-emerald-400 rounded-xl text-xs font-black uppercase transition-colors"><ClipboardPaste size={14} /> Paste</button>
             )}
             <div className="ml-auto" />
             {selectedEventIds.length > 0 && (
-              <span className="text-[9px] text-slate-600 font-black uppercase mr-2">{selectedEventIds.length} selected</span>
+              <span className="text-[10px] text-slate-600 font-black uppercase mr-2">{selectedEventIds.length} selected</span>
             )}
             <div className="w-px h-5 bg-white/10 mx-1" />
             <button
               onClick={handleExportWav}
               disabled={events.length === 0 || isExporting}
               title="Export audio as WAV using current synth settings"
-              className="flex items-center gap-1.5 px-3 py-1.5 disabled:opacity-30 hover:bg-emerald-500/10 text-slate-400 hover:text-emerald-400 rounded-xl text-[10px] font-black uppercase transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 disabled:opacity-30 hover:bg-emerald-500/10 text-slate-400 hover:text-emerald-400 rounded-xl text-xs font-black uppercase transition-colors"
             >
               {isExporting ? <Loader2 size={14} className="animate-spin" /> : <FileAudio size={14} />}
               {isExporting ? 'Rendering…' : 'WAV'}
             </button>
             <div className="w-px h-5 bg-white/10 mx-1" />
-            <button onClick={addTrack} title="Add a new track" className="flex items-center gap-1 px-2.5 py-1.5 hover:bg-white/5 text-slate-500 hover:text-slate-300 rounded-xl text-[10px] font-black uppercase transition-colors"><Plus size={13} /> Track</button>
+            <button onClick={addTrack} title="Add a new track" className="flex items-center gap-1 px-2.5 py-1.5 hover:bg-white/5 text-slate-500 hover:text-slate-300 rounded-xl text-xs font-black uppercase transition-colors"><Plus size={13} /> Track</button>
             <div className="w-px h-5 bg-white/10 mx-1" />
-            <button onClick={() => { setTrackHeight(v => clampTrackHeight(Math.round(v / 1.25))); setTrackHeights({}); }} title="Shrink all tracks (Y zoom out)" className="flex items-center gap-1 px-2 py-1.5 hover:bg-white/5 text-slate-500 hover:text-slate-300 rounded-xl text-[10px] font-black transition-colors"><ZoomOut size={14} /></button>
-            <button onClick={() => { setTrackHeight(100); setTrackHeights({}); }} title="Reset track height (33% = ~3 tracks fill viewport)" className="px-2 py-1.5 hover:bg-white/5 text-slate-600 hover:text-slate-300 rounded-xl text-[9px] font-black tabular-nums transition-colors">{Math.round(trackHeight)}%↕️</button>
-            <button onClick={() => { setTrackHeight(v => clampTrackHeight(Math.round(v * 1.25))); setTrackHeights({}); }} title="Grow all tracks (Y zoom in)" className="flex items-center gap-1 px-2 py-1.5 hover:bg-white/5 text-slate-500 hover:text-slate-300 rounded-xl text-[10px] font-black transition-colors"><ZoomIn size={14} /></button>
+            <button onClick={() => { setTrackHeight(v => clampTrackHeight(Math.round(v / 1.25))); setTrackHeights({}); }} title="Shrink all tracks (Y zoom out)" className="flex items-center gap-1 px-2 py-1.5 hover:bg-white/5 text-slate-500 hover:text-slate-300 rounded-xl text-xs font-black transition-colors"><ZoomOut size={14} /></button>
+            <button onClick={() => { setTrackHeight(100); setTrackHeights({}); }} title="Reset track height (33% = ~3 tracks fill viewport)" className="px-2 py-1.5 hover:bg-white/5 text-slate-600 hover:text-slate-300 rounded-xl text-[10px] font-black tabular-nums transition-colors">{Math.round(trackHeight)}%↕️</button>
+            <button onClick={() => { setTrackHeight(v => clampTrackHeight(Math.round(v * 1.25))); setTrackHeights({}); }} title="Grow all tracks (Y zoom in)" className="flex items-center gap-1 px-2 py-1.5 hover:bg-white/5 text-slate-500 hover:text-slate-300 rounded-xl text-xs font-black transition-colors"><ZoomIn size={14} /></button>
             <div className="w-px h-5 bg-white/10 mx-1" />
-            <button onClick={() => setBeatWidth(v => clampBeatWidth(v / 1.25))} title="Zoom out (Ctrl+scroll)" className="flex items-center gap-1 px-2 py-1.5 hover:bg-white/5 text-slate-500 hover:text-slate-300 rounded-xl text-[10px] font-black transition-colors"><ZoomOut size={14} /></button>
-            <button onClick={() => setBeatWidth(100)} title="Reset zoom" className="px-2 py-1.5 hover:bg-white/5 text-slate-600 hover:text-slate-300 rounded-xl text-[9px] font-black tabular-nums transition-colors">{Math.round(beatWidth / 100 * 100)}%↔️</button>
-            <button onClick={() => setBeatWidth(v => clampBeatWidth(v * 1.25))} title="Zoom in (Ctrl+scroll)" className="flex items-center gap-1 px-2 py-1.5 hover:bg-white/5 text-slate-500 hover:text-slate-300 rounded-xl text-[10px] font-black transition-colors"><ZoomIn size={14} /></button>
+            <button onClick={() => setBeatWidth(v => clampBeatWidth(v / 1.25))} title="Zoom out (Ctrl+scroll)" className="flex items-center gap-1 px-2 py-1.5 hover:bg-white/5 text-slate-500 hover:text-slate-300 rounded-xl text-xs font-black transition-colors"><ZoomOut size={14} /></button>
+            <button onClick={() => setBeatWidth(100)} title="Reset zoom" className="px-2 py-1.5 hover:bg-white/5 text-slate-600 hover:text-slate-300 rounded-xl text-[10px] font-black tabular-nums transition-colors">{Math.round(beatWidth / 100 * 100)}%↔️</button>
+            <button onClick={() => setBeatWidth(v => clampBeatWidth(v * 1.25))} title="Zoom in (Ctrl+scroll)" className="flex items-center gap-1 px-2 py-1.5 hover:bg-white/5 text-slate-500 hover:text-slate-300 rounded-xl text-xs font-black transition-colors"><ZoomIn size={14} /></button>
           </div>
 
           <div className="grid grid-cols-[1fr_3fr] gap-4 h-[12rem] flex-none">
-            <div className={`rounded-2xl border p-4 font-mono text-[10px] flex flex-col overflow-hidden ${currentTheme.light ? 'bg-[#dcd5c4] border-black/[.09]' : 'bg-slate-950/50 border-white/5'}`}>
-               <div className="flex items-center gap-2 text-slate-500 uppercase font-black mb-2 border-b border-white/5 pb-1"><Terminal size={12} /> Neural Stream</div>
+            <div className={`rounded-2xl border p-4 font-mono text-xs flex flex-col overflow-hidden ${currentTheme.light ? 'bg-[#dcd5c4] border-black/[.09]' : 'bg-slate-950/50 border-white/5'}`}>
+               <div className="flex items-center gap-2 text-slate-500 uppercase font-black text-xs mb-2 border-b border-white/5 pb-1"><Terminal size={12} /> Neural Stream</div>
                <div className="flex-1 text-indigo-400/40 break-all overflow-y-auto custom-scrollbar italic leading-relaxed">{rawStream || "Standby..."}</div>
             </div>
             <div className={`rounded-2xl border p-4 flex flex-col overflow-hidden group transition-all ${currentTheme.light ? 'bg-[#dcd5c4] border-black/[.09] hover:border-indigo-400/30' : 'bg-slate-950/80 border-indigo-500/10 hover:border-indigo-500/30'}`}>
                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2 text-indigo-400 uppercase font-black text-[10px]"><Cpu size={12} /> Manual Patch Bay</div>
+                  <div className="flex items-center gap-2 text-indigo-400 uppercase font-black text-xs"><Cpu size={12} /> Manual Patch Bay</div>
                   <button
                     onClick={handleInjectUserNotes}
                     disabled={validation.validEvents.length === 0 || validation.errors.length > 0}
-                    className={`px-3 py-1 rounded-lg font-black text-[9px] uppercase flex items-center gap-1 transition-all ${
+                    className={`px-3 py-1 rounded-lg font-black text-[10px] uppercase flex items-center gap-1 transition-all ${
                       validation.validEvents.length > 0 && validation.errors.length === 0
                         ? 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-500/20'
                         : `${currentTheme.light ? 'bg-black/[.1] text-stone-400 cursor-not-allowed border border-black/[.12]' : 'bg-slate-800 text-slate-600 cursor-not-allowed border border-white/5'}`
@@ -1515,32 +1515,32 @@ const App: React.FC = () => {
                {/* Signal transform toolbar */}
                <div className="flex flex-wrap gap-1 mb-2 pb-2 border-b border-white/5">
                  {/* Time */}
-                 <span className="text-[8px] font-black text-slate-600 uppercase self-center mr-0.5">T</span>
-                 <button onClick={patchTransforms.reverseTime} title="Reverse time: reflects every note's start time so T → (totalDuration − T − D). The last note becomes the first; the sequence plays backwards. Durations are unchanged." className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-indigo-500/20 hover:text-indigo-300 text-slate-400 text-[8px] font-black border border-white/5 transition-colors">
+                 <span className="text-[10px] font-black text-slate-600 uppercase self-center mr-0.5">T</span>
+                 <button onClick={patchTransforms.reverseTime} title="Reverse time: reflects every note's start time so T → (totalDuration − T − D). The last note becomes the first; the sequence plays backwards. Durations are unchanged." className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-indigo-500/20 hover:text-indigo-300 text-slate-400 text-[10px] font-black border border-white/5 transition-colors">
                    <ArrowLeftRight size={9} /> Rev
                  </button>
-                 <button onClick={() => patchTransforms.stretchTime(2)} title="Stretch ×2: multiplies every T and D by 2. Notes are twice as far apart and twice as long — same melody, half the tempo." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-indigo-500/20 hover:text-indigo-300 text-slate-400 text-[8px] font-black border border-white/5 transition-colors">×2</button>
-                 <button onClick={() => patchTransforms.stretchTime(0.5)} title="Compress ×½: multiplies every T and D by 0.5. Notes are half as far apart and half as long — same melody, double the tempo." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-indigo-500/20 hover:text-indigo-300 text-slate-400 text-[8px] font-black border border-white/5 transition-colors">×½</button>
-                 <button onClick={() => patchTransforms.quantize(0.25)} title="Quantize to ¼ beat: snaps every T to the nearest 0.25-beat grid and rounds D up to the nearest 0.25. Tightens loose timing to 16th-note resolution." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-indigo-500/20 hover:text-indigo-300 text-slate-400 text-[8px] font-black border border-white/5 transition-colors">Q¼</button>
-                 <button onClick={() => patchTransforms.quantize(0.5)} title="Quantize to ½ beat: snaps every T to the nearest 0.5-beat grid and rounds D up to the nearest 0.5. Tightens loose timing to 8th-note resolution." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-indigo-500/20 hover:text-indigo-300 text-slate-400 text-[8px] font-black border border-white/5 transition-colors">Q½</button>
+                 <button onClick={() => patchTransforms.stretchTime(2)} title="Stretch ×2: multiplies every T and D by 2. Notes are twice as far apart and twice as long — same melody, half the tempo." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-indigo-500/20 hover:text-indigo-300 text-slate-400 text-[10px] font-black border border-white/5 transition-colors">×2</button>
+                 <button onClick={() => patchTransforms.stretchTime(0.5)} title="Compress ×½: multiplies every T and D by 0.5. Notes are half as far apart and half as long — same melody, double the tempo." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-indigo-500/20 hover:text-indigo-300 text-slate-400 text-[10px] font-black border border-white/5 transition-colors">×½</button>
+                 <button onClick={() => patchTransforms.quantize(0.25)} title="Quantize to ¼ beat: snaps every T to the nearest 0.25-beat grid and rounds D up to the nearest 0.25. Tightens loose timing to 16th-note resolution." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-indigo-500/20 hover:text-indigo-300 text-slate-400 text-[10px] font-black border border-white/5 transition-colors">Q¼</button>
+                 <button onClick={() => patchTransforms.quantize(0.5)} title="Quantize to ½ beat: snaps every T to the nearest 0.5-beat grid and rounds D up to the nearest 0.5. Tightens loose timing to 8th-note resolution." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-indigo-500/20 hover:text-indigo-300 text-slate-400 text-[10px] font-black border border-white/5 transition-colors">Q½</button>
                  <div className="w-px h-4 bg-white/10 self-center mx-0.5" />
                  {/* Pitch */}
-                 <span className="text-[8px] font-black text-slate-600 uppercase self-center mr-0.5">P</span>
-                 <button onClick={patchTransforms.invertPitch} title="Invert pitch: mirrors every note around the midpoint of the sequence's pitch range. P → (minP + maxP − P). A rising melody becomes falling; intervals are preserved in size but flipped in direction." className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-violet-500/20 hover:text-violet-300 text-slate-400 text-[8px] font-black border border-white/5 transition-colors">
+                 <span className="text-[10px] font-black text-slate-600 uppercase self-center mr-0.5">P</span>
+                 <button onClick={patchTransforms.invertPitch} title="Invert pitch: mirrors every note around the midpoint of the sequence's pitch range. P → (minP + maxP − P). A rising melody becomes falling; intervals are preserved in size but flipped in direction." className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-violet-500/20 hover:text-violet-300 text-slate-400 text-[10px] font-black border border-white/5 transition-colors">
                    <ArrowUpDown size={9} /> Inv
                  </button>
-                 <button onClick={() => patchTransforms.widenPitch(1.5)} title="Widen ×1.5: scales every pitch away from the range's centre by 1.5×. Intervals grow larger — a minor 3rd becomes roughly a tritone. Clamps to 0–127." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-violet-500/20 hover:text-violet-300 text-slate-400 text-[8px] font-black border border-white/5 transition-colors">Wide</button>
-                 <button onClick={() => patchTransforms.widenPitch(1/1.5)} title="Narrow ÷1.5: scales every pitch toward the range's centre by ÷1.5. Intervals shrink — a major 6th becomes roughly a major 3rd. Useful to compress dramatic leaps." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-violet-500/20 hover:text-violet-300 text-slate-400 text-[8px] font-black border border-white/5 transition-colors">Narr</button>
-                 <button onClick={() => patchTransforms.transpose(1)} title="Transpose +1 semitone: adds 1 to every P (e.g. C4→C#4). Clamps at 127." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-violet-500/20 hover:text-violet-300 text-slate-400 text-[8px] font-black border border-white/5 transition-colors">+1</button>
-                 <button onClick={() => patchTransforms.transpose(-1)} title="Transpose −1 semitone: subtracts 1 from every P (e.g. C4→B3). Clamps at 0." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-violet-500/20 hover:text-violet-300 text-slate-400 text-[8px] font-black border border-white/5 transition-colors">−1</button>
-                 <button onClick={() => patchTransforms.transpose(12)} title="Transpose +1 octave: adds 12 to every P. Same notes, one octave higher. Clamps at 127." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-violet-500/20 hover:text-violet-300 text-slate-400 text-[8px] font-black border border-white/5 transition-colors">+8ve</button>
-                 <button onClick={() => patchTransforms.transpose(-12)} title="Transpose −1 octave: subtracts 12 from every P. Same notes, one octave lower. Clamps at 0." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-violet-500/20 hover:text-violet-300 text-slate-400 text-[8px] font-black border border-white/5 transition-colors">−8ve</button>
+                 <button onClick={() => patchTransforms.widenPitch(1.5)} title="Widen ×1.5: scales every pitch away from the range's centre by 1.5×. Intervals grow larger — a minor 3rd becomes roughly a tritone. Clamps to 0–127." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-violet-500/20 hover:text-violet-300 text-slate-400 text-[10px] font-black border border-white/5 transition-colors">Wide</button>
+                 <button onClick={() => patchTransforms.widenPitch(1/1.5)} title="Narrow ÷1.5: scales every pitch toward the range's centre by ÷1.5. Intervals shrink — a major 6th becomes roughly a major 3rd. Useful to compress dramatic leaps." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-violet-500/20 hover:text-violet-300 text-slate-400 text-[10px] font-black border border-white/5 transition-colors">Narr</button>
+                 <button onClick={() => patchTransforms.transpose(1)} title="Transpose +1 semitone: adds 1 to every P (e.g. C4→C#4). Clamps at 127." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-violet-500/20 hover:text-violet-300 text-slate-400 text-[10px] font-black border border-white/5 transition-colors">+1</button>
+                 <button onClick={() => patchTransforms.transpose(-1)} title="Transpose −1 semitone: subtracts 1 from every P (e.g. C4→B3). Clamps at 0." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-violet-500/20 hover:text-violet-300 text-slate-400 text-[10px] font-black border border-white/5 transition-colors">−1</button>
+                 <button onClick={() => patchTransforms.transpose(12)} title="Transpose +1 octave: adds 12 to every P. Same notes, one octave higher. Clamps at 127." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-violet-500/20 hover:text-violet-300 text-slate-400 text-[10px] font-black border border-white/5 transition-colors">+8ve</button>
+                 <button onClick={() => patchTransforms.transpose(-12)} title="Transpose −1 octave: subtracts 12 from every P. Same notes, one octave lower. Clamps at 0." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-violet-500/20 hover:text-violet-300 text-slate-400 text-[10px] font-black border border-white/5 transition-colors">−8ve</button>
                  <div className="w-px h-4 bg-white/10 self-center mx-0.5" />
                  {/* Velocity */}
-                 <span className="text-[8px] font-black text-slate-600 uppercase self-center mr-0.5">V</span>
-                 <button onClick={patchTransforms.normalizeVelocity} title="Normalize velocity: linearly stretches the velocity range so the quietest note → V=10 and the loudest → V=110, preserving relative dynamics. If all notes share the same velocity (no range), every note is set to V=90." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-emerald-500/20 hover:text-emerald-300 text-slate-400 text-[8px] font-black border border-white/5 transition-colors">Norm</button>
-                 <button onClick={() => patchTransforms.volShift(10)} title="Volume +10: adds 10 to every velocity. Clamps at 127." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-emerald-500/20 hover:text-emerald-300 text-slate-400 text-[8px] font-black border border-white/5 transition-colors">+10</button>
-                 <button onClick={() => patchTransforms.volShift(-10)} title="Volume −10: subtracts 10 from every velocity. Clamps at 0." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-emerald-500/20 hover:text-emerald-300 text-slate-400 text-[8px] font-black border border-white/5 transition-colors">−10</button>
+                 <span className="text-[10px] font-black text-slate-600 uppercase self-center mr-0.5">V</span>
+                 <button onClick={patchTransforms.normalizeVelocity} title="Normalize velocity: linearly stretches the velocity range so the quietest note → V=10 and the loudest → V=110, preserving relative dynamics. If all notes share the same velocity (no range), every note is set to V=90." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-emerald-500/20 hover:text-emerald-300 text-slate-400 text-[10px] font-black border border-white/5 transition-colors">Norm</button>
+                 <button onClick={() => patchTransforms.volShift(10)} title="Volume +10: adds 10 to every velocity. Clamps at 127." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-emerald-500/20 hover:text-emerald-300 text-slate-400 text-[10px] font-black border border-white/5 transition-colors">+10</button>
+                 <button onClick={() => patchTransforms.volShift(-10)} title="Volume −10: subtracts 10 from every velocity. Clamps at 0." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-emerald-500/20 hover:text-emerald-300 text-slate-400 text-[10px] font-black border border-white/5 transition-colors">−10</button>
                </div>
                <textarea
                   value={userInput}
@@ -1563,7 +1563,7 @@ const App: React.FC = () => {
                {validation.errors.length > 0 && (
                   <div className="mt-2 px-2 max-h-16 overflow-y-auto custom-scrollbar">
                     {validation.errors.map((err, i) => (
-                      <div key={i} className="text-[9px] text-red-400 font-mono mb-0.5">• {err.message}</div>
+                      <div key={i} className="text-[10px] text-red-400 font-mono mb-0.5">• {err.message}</div>
                     ))}
                   </div>
                )}
@@ -1575,38 +1575,38 @@ const App: React.FC = () => {
         <div className="lg:col-span-3 flex flex-col h-full min-h-0">
           <div className={`p-4 rounded-3xl border flex-1 flex flex-col overflow-hidden ${currentTheme.light ? 'bg-[#e0d9cb]/60 border-black/[.07]' : 'bg-slate-900/20 border-white/5'}`}>
             <div className="flex gap-2 mb-6 border-b border-white/5 pb-2 flex-none">
-                <button onClick={() => setRightPanelTab('session')} className={`flex-1 py-2 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${rightPanelTab === 'session' ? 'bg-indigo-500/20 text-indigo-400' : 'text-slate-600 hover:text-slate-400'}`}>Session</button>
-                <button onClick={() => setRightPanelTab('synth')} className={`flex-1 py-2 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${rightPanelTab === 'synth' ? 'bg-indigo-500/20 text-indigo-400' : 'text-slate-600 hover:text-slate-400'}`}>Voice</button>
+                <button onClick={() => setRightPanelTab('session')} className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${rightPanelTab === 'session' ? 'bg-indigo-500/20 text-indigo-400' : 'text-slate-600 hover:text-slate-400'}`}>Session</button>
+                <button onClick={() => setRightPanelTab('synth')} className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${rightPanelTab === 'synth' ? 'bg-indigo-500/20 text-indigo-400' : 'text-slate-600 hover:text-slate-400'}`}>Voice</button>
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
             {rightPanelTab === 'session' ? (
                 <div className="space-y-6">
                   <div className={`p-5 rounded-2xl border ${currentTheme.light ? 'bg-[#dcd5c4]/70 border-black/[.09]' : 'bg-black/40 border-white/5'}`}>
-                     <div className="text-[10px] font-bold text-slate-600 uppercase mb-2">Playhead</div>
+                     <div className="text-xs font-bold text-slate-600 uppercase mb-2">Playhead</div>
                      <div className="text-4xl font-black text-white tabular-nums tracking-tighter mb-2">{Math.floor(playbackBeat / 4)}.<span className="text-indigo-500">{(Math.floor(playbackBeat % 4) + 1)}</span></div>
                      <TimeNavigator currentBeat={playbackBeat} totalBeats={totalViewRange} onSeek={handleSeek} />
                   </div>
                   <div className={`p-5 rounded-2xl border ${currentTheme.light ? 'bg-[#dcd5c4]/70 border-black/[.09]' : 'bg-black/40 border-white/5'}`}>
-                     <div className="text-[10px] font-bold text-slate-600 uppercase mb-2">Composition History</div>
+                     <div className="text-xs font-bold text-slate-600 uppercase mb-2">Composition History</div>
                      <div className="flex items-baseline gap-1 mb-1">
                         <div className="text-3xl font-black tabular-nums tracking-tighter text-indigo-400">{events.filter(e => e.isUser).length}</div>
-                        <span className="text-[10px] text-slate-700 font-black uppercase">M</span>
+                        <span className="text-xs text-slate-700 font-black uppercase">M</span>
                         <span className="mx-2 text-slate-800">|</span>
                         <div className="text-3xl font-black tabular-nums tracking-tighter text-indigo-800">{events.filter(e => !e.isUser).length}</div>
-                        <span className="text-[10px] text-slate-700 font-black uppercase">N</span>
+                        <span className="text-xs text-slate-700 font-black uppercase">N</span>
                      </div>
-                     <button onClick={handleDownload} className="w-full mt-4 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-lg border border-indigo-500/20 text-[10px] font-bold uppercase"><Download size={12} className="inline mr-2" /> Export</button>
+                     <button onClick={handleDownload} className="w-full mt-4 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-lg border border-indigo-500/20 text-xs font-bold uppercase"><Download size={12} className="inline mr-2" /> Export</button>
                   </div>
 
                   <div className={`p-5 rounded-2xl border ${currentTheme.light ? 'bg-[#dcd5c4]/70 border-black/[.09]' : 'bg-black/40 border-white/5'}`}>
-                     <div className="text-[10px] font-bold text-slate-600 uppercase mb-2">Sample Compositions</div>
+                     <div className="text-xs font-bold text-slate-600 uppercase mb-2">Sample Compositions</div>
                      <div className="space-y-2">
                         {SAMPLE_FILES.map((file) => (
                            <button
                               key={file}
                               onClick={() => loadSample(file)}
-                              className={`w-full py-2 px-3 rounded-lg border text-[10px] font-mono text-left truncate transition-colors flex items-center gap-2 ${currentTheme.light ? 'bg-[#d4ccb8] hover:bg-[#c9c0a8] text-stone-600 hover:text-stone-900 border-black/[.1]' : 'bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border-white/5'}`}
+                              className={`w-full py-2 px-3 rounded-lg border text-xs font-mono text-left truncate transition-colors flex items-center gap-2 ${currentTheme.light ? 'bg-[#d4ccb8] hover:bg-[#c9c0a8] text-stone-600 hover:text-stone-900 border-black/[.1]' : 'bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border-white/5'}`}
                            >
                               <Music size={12} />
                               {file}
@@ -1616,8 +1616,8 @@ const App: React.FC = () => {
                   </div>
 
                   <div className="mt-auto p-4 bg-indigo-500/5 rounded-2xl border border-indigo-500/10">
-                     <div className="text-[9px] font-black text-indigo-400 uppercase mb-2 flex items-center gap-2"><Sparkles size={10} /> Creative Direction for AI</div>
-                     <textarea value={creativeDirection} onChange={(e) => setCreativeDirection(e.target.value)} placeholder="e.g. Add erratic fills..." className={`w-full border rounded-lg p-2 text-[10px] h-24 focus:outline-none ${currentTheme.light ? 'bg-black/[.06] border-indigo-400/20 text-stone-700' : 'bg-slate-900/50 border-indigo-500/10 text-slate-300'}`} />
+                     <div className="text-xs font-black text-indigo-400 uppercase mb-2 flex items-center gap-2"><Sparkles size={10} /> Creative Direction for AI</div>
+                     <textarea value={creativeDirection} onChange={(e) => setCreativeDirection(e.target.value)} placeholder="e.g. Add erratic fills..." className={`w-full border rounded-lg p-2 text-xs h-24 focus:outline-none ${currentTheme.light ? 'bg-black/[.06] border-indigo-400/20 text-stone-700' : 'bg-slate-900/50 border-indigo-500/10 text-slate-300'}`} />
                   </div>
                 </div>
             ) : (
@@ -1625,10 +1625,10 @@ const App: React.FC = () => {
                     {/* ── Track selector ── */}
                     <section>
                       <div className="flex items-center justify-between mb-2">
-                        <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"><Music size={12}/> Tracks</div>
+                        <div className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"><Music size={12}/> Tracks</div>
                         <button
                           onClick={addTrack}
-                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-[8px] font-black uppercase transition-colors border border-indigo-500/20"
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase transition-colors border border-indigo-500/20"
                         >
                           <Plus size={9} /> Add
                         </button>
@@ -1638,11 +1638,11 @@ const App: React.FC = () => {
                           <div key={track.id} className="flex items-center gap-1">
                             <button
                               onClick={() => setActiveTrackId(track.id)}
-                              className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border text-[10px] font-black transition-all ${activeTrackId === track.id ? 'border-white/20 bg-white/5 text-white' : 'border-transparent text-slate-500 hover:text-slate-300 hover:bg-white/[0.03]'}`}
+                              className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-black transition-all ${activeTrackId === track.id ? 'border-white/20 bg-white/5 text-white' : 'border-transparent text-slate-500 hover:text-slate-300 hover:bg-white/[0.03]'}`}
                             >
                               <div className="w-2 h-2 rounded-full flex-none" style={{ background: track.color }} />
                               <span className="truncate">{track.name}</span>
-                              {track.muted && <span className="ml-auto text-[8px] text-red-400 uppercase">muted</span>}
+                              {track.muted && <span className="ml-auto text-[10px] text-red-400 uppercase">muted</span>}
                             </button>
                             {tracks.length > 1 && (
                               <button
@@ -1660,25 +1660,25 @@ const App: React.FC = () => {
 
                     <section>
                       <div className="flex flex-col gap-3 mb-4">
-                        <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"><Activity size={12}/> Analysis</div>
+                        <div className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"><Activity size={12}/> Analysis</div>
                         <div className="flex items-center gap-2 bg-black/40 p-1.5 rounded-xl border border-white/5">
                              <div className="grid grid-cols-3 gap-1 flex-1">
                                 <div className="relative group">
-                                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[8px] font-bold text-slate-500">P</span>
-                                  <input type="number" value={testNote.p} onChange={(e) => setTestNote(curr => ({...curr, p: Math.min(127, Math.max(0, parseInt(e.target.value) || 0))}))} className="w-full bg-slate-900 border border-white/5 rounded-lg py-1 pl-5 pr-1 text-[9px] font-mono text-center focus:outline-none focus:border-indigo-500/50" />
+                                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-500">P</span>
+                                  <input type="number" value={testNote.p} onChange={(e) => setTestNote(curr => ({...curr, p: Math.min(127, Math.max(0, parseInt(e.target.value) || 0))}))} className="w-full bg-slate-900 border border-white/5 rounded-lg py-1 pl-5 pr-1 text-[11px] font-mono text-center focus:outline-none focus:border-indigo-500/50" />
                                 </div>
                                 <div className="relative group">
-                                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[8px] font-bold text-slate-500">V</span>
-                                  <input type="number" value={testNote.v} onChange={(e) => setTestNote(curr => ({...curr, v: Math.min(127, Math.max(0, parseInt(e.target.value) || 0))}))} className="w-full bg-slate-900 border border-white/5 rounded-lg py-1 pl-5 pr-1 text-[9px] font-mono text-center focus:outline-none focus:border-indigo-500/50" />
+                                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-500">V</span>
+                                  <input type="number" value={testNote.v} onChange={(e) => setTestNote(curr => ({...curr, v: Math.min(127, Math.max(0, parseInt(e.target.value) || 0))}))} className="w-full bg-slate-900 border border-white/5 rounded-lg py-1 pl-5 pr-1 text-[11px] font-mono text-center focus:outline-none focus:border-indigo-500/50" />
                                 </div>
                                 <div className="relative group">
-                                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[8px] font-bold text-slate-500">D</span>
-                                  <input type="number" step="0.1" value={testNote.d} onChange={(e) => setTestNote(curr => ({...curr, d: Math.max(0.1, parseFloat(e.target.value) || 0.1)}))} className="w-full bg-slate-900 border border-white/5 rounded-lg py-1 pl-5 pr-1 text-[9px] font-mono text-center focus:outline-none focus:border-indigo-500/50" />
+                                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-500">D</span>
+                                  <input type="number" step="0.1" value={testNote.d} onChange={(e) => setTestNote(curr => ({...curr, d: Math.max(0.1, parseFloat(e.target.value) || 0.1)}))} className="w-full bg-slate-900 border border-white/5 rounded-lg py-1 pl-5 pr-1 text-[11px] font-mono text-center focus:outline-none focus:border-indigo-500/50" />
                                 </div>
                              </div>
                              <button
                               onClick={handleTestNote}
-                              className="flex-none px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg border border-indigo-400 text-[9px] font-black uppercase transition-all active:scale-95 shadow-lg shadow-indigo-500/20"
+                              className="flex-none px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg border border-indigo-400 text-xs font-black uppercase transition-all active:scale-95 shadow-lg shadow-indigo-500/20"
                             >
                               <Music size={12}/>
                             </button>
@@ -1692,7 +1692,7 @@ const App: React.FC = () => {
                           <button
                             key={name}
                             onClick={() => applyPresetToActiveTrack(SYNTH_PRESETS[name])}
-                            className={`px-2 py-1.5 rounded-lg text-[7px] font-black uppercase border transition-all ${JSON.stringify(activeTrack.synthConfig) === JSON.stringify(SYNTH_PRESETS[name]) ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-900/50 border-white/5 text-slate-500 hover:text-slate-300'}`}
+                            className={`px-2 py-1.5 rounded-lg text-[10px] font-black uppercase border transition-all ${JSON.stringify(activeTrack.synthConfig) === JSON.stringify(SYNTH_PRESETS[name]) ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-900/50 border-white/5 text-slate-500 hover:text-slate-300'}`}
                           >
                             {name}
                           </button>
@@ -1707,41 +1707,41 @@ const App: React.FC = () => {
                           const header = `[voice:${idx + 1} name:"${activeTrack.name}" ${serializeSynthConfig(activeTrack.synthConfig)}]`;
                           navigator.clipboard.writeText(header).catch(() => {});
                         }}
-                        className="w-full flex items-center justify-center gap-1.5 py-2 bg-slate-900/50 hover:bg-indigo-500/10 border border-white/5 hover:border-indigo-500/30 text-slate-500 hover:text-indigo-400 rounded-xl text-[9px] font-black uppercase transition-all mb-1"
+                        className="w-full flex items-center justify-center gap-1.5 py-2 bg-slate-900/50 hover:bg-indigo-500/10 border border-white/5 hover:border-indigo-500/30 text-slate-500 hover:text-indigo-400 rounded-xl text-xs font-black uppercase transition-all mb-1"
                       >
                         <Copy size={10} /> Copy Voice Header
                       </button>
                     </section>
 
                     <section className="space-y-4 p-4 bg-black/40 rounded-2xl border border-white/5">
-                        <div className="flex items-center gap-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2"><Waves size={14}/> Oscillator</div>
+                        <div className="flex items-center gap-2 text-xs font-black text-indigo-400 uppercase tracking-widest mb-2"><Waves size={14}/> Oscillator</div>
                         <div className="grid grid-cols-2 gap-2">
                             {waveOptions.map(type => (
-                                <button key={type} onClick={() => updateSynth('waveType', type)} className={`px-2 py-2 rounded-lg text-[8px] font-bold uppercase border transition-all ${activeTrack.synthConfig.waveType === type ? 'bg-indigo-600 border-indigo-500 text-white shadow-[0_0_10px_rgba(99,102,241,0.5)]' : 'bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-700'}`}>{type}</button>
+                                <button key={type} onClick={() => updateSynth('waveType', type)} className={`px-2 py-2 rounded-lg text-[10px] font-bold uppercase border transition-all ${activeTrack.synthConfig.waveType === type ? 'bg-indigo-600 border-indigo-500 text-white shadow-[0_0_10px_rgba(99,102,241,0.5)]' : 'bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-700'}`}>{type}</button>
                             ))}
                         </div>
                         <div className="space-y-1">
-                            <div className="flex justify-between text-[8px] font-bold text-slate-600 uppercase"><span>Detune</span><span>{activeTrack.synthConfig.detune}</span></div>
+                            <div className="flex justify-between text-[10px] font-bold text-slate-600 uppercase"><span>Detune</span><span>{activeTrack.synthConfig.detune}</span></div>
                             <input type="range" min="-50" max="50" value={activeTrack.synthConfig.detune} onChange={e => updateSynth('detune', parseInt(e.target.value))} className="w-full accent-indigo-500 h-1 bg-slate-800 rounded-full appearance-none" />
                         </div>
                     </section>
 
                     <section className="space-y-4 p-4 bg-black/40 rounded-2xl border border-white/5">
-                        <div className="flex items-center gap-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2"><SlidersHorizontal size={14}/> VCF Filter</div>
+                        <div className="flex items-center gap-2 text-xs font-black text-indigo-400 uppercase tracking-widest mb-2"><SlidersHorizontal size={14}/> VCF Filter</div>
                         <div className="space-y-3">
                             <div className="space-y-1">
-                                <div className="flex justify-between text-[8px] font-bold text-slate-600 uppercase"><span>Cutoff</span><span>{activeTrack.synthConfig.cutoff}Hz</span></div>
+                                <div className="flex justify-between text-[10px] font-bold text-slate-600 uppercase"><span>Cutoff</span><span>{activeTrack.synthConfig.cutoff}Hz</span></div>
                                 <input type="range" min="10" max="8000" value={activeTrack.synthConfig.cutoff} onChange={e => updateSynth('cutoff', parseInt(e.target.value))} className="w-full accent-indigo-500 h-1 bg-slate-800 rounded-full appearance-none" />
                             </div>
                             <div className="space-y-1">
-                                <div className="flex justify-between text-[8px] font-bold text-slate-600 uppercase"><span>Resonance</span><span>{activeTrack.synthConfig.resonance.toFixed(1)}</span></div>
+                                <div className="flex justify-between text-[10px] font-bold text-slate-600 uppercase"><span>Resonance</span><span>{activeTrack.synthConfig.resonance.toFixed(1)}</span></div>
                                 <input type="range" min="0" max="20" step="0.5" value={activeTrack.synthConfig.resonance} onChange={e => updateSynth('resonance', parseFloat(e.target.value))} className="w-full accent-indigo-500 h-1 bg-slate-800 rounded-full appearance-none" />
                             </div>
                         </div>
                     </section>
 
                     <section className="space-y-4 p-4 bg-black/40 rounded-2xl border border-white/5">
-                        <div className="flex items-center gap-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2"><Activity size={14}/> ADSR Envelope</div>
+                        <div className="flex items-center gap-2 text-xs font-black text-indigo-400 uppercase tracking-widest mb-2"><Activity size={14}/> ADSR Envelope</div>
                         <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                             {[
                                 { label: 'Attack', key: 'attack', min: 0.001, max: 2, step: 0.01 },
@@ -1750,7 +1750,7 @@ const App: React.FC = () => {
                                 { label: 'Release', key: 'release', min: 0.01, max: 4, step: 0.05 },
                             ].map(p => (
                                 <div key={p.key} className="space-y-1">
-                                    <div className="flex justify-between text-[7px] font-bold text-slate-600 uppercase"><span>{p.label}</span></div>
+                                    <div className="flex justify-between text-[10px] font-bold text-slate-600 uppercase"><span>{p.label}</span></div>
                                     <input type="range" min={p.min} max={p.max} step={p.step} value={activeTrack.synthConfig[p.key as keyof SynthConfig] as number} onChange={e => updateSynth(p.key as keyof SynthConfig, parseFloat(e.target.value))} className="w-full accent-indigo-500 h-1 bg-slate-800 rounded-full appearance-none" />
                                 </div>
                             ))}
