@@ -1228,13 +1228,13 @@ const App: React.FC = () => {
             {/* Recording target track selector */}
             <div className="flex-none flex items-center gap-2 px-2 py-1.5 bg-slate-900/40 border border-white/5 rounded-2xl">
               <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Rec →</span>
+              <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Rec →</span>
               <div className="flex gap-1 flex-wrap">
                 {tracks.map(track => (
                   <button
                     key={track.id}
                     onClick={() => setRecordingTrackId(track.id)}
-                    className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-black transition-all ${recordingTrackId === track.id ? 'text-white border border-white/20' : 'text-slate-600 hover:text-slate-300 border border-transparent'}`}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-black transition-all ${recordingTrackId === track.id ? 'text-white border border-white/20' : 'text-slate-600 hover:text-slate-300 border border-transparent'}`}
                     style={{ background: recordingTrackId === track.id ? `${track.color}22` : undefined, borderColor: recordingTrackId === track.id ? `${track.color}66` : undefined }}
                   >
                     <div className="w-1.5 h-1.5 rounded-full" style={{ background: track.color }} />
@@ -1285,7 +1285,7 @@ const App: React.FC = () => {
                         value={track.name}
                         onChange={e => updateTrackName(track.id, e.target.value)}
                         onClick={e => e.stopPropagation()}
-                        className="flex-1 min-w-0 bg-transparent text-[10px] font-black text-white truncate focus:outline-none focus:ring-1 focus:ring-white/20 rounded px-0.5"
+                        className="flex-1 min-w-0 bg-transparent text-sm font-black text-white truncate focus:outline-none focus:ring-1 focus:ring-white/20 rounded px-0.5"
                       />
                       {tracks.length > 1 && (
                         <button
@@ -1293,7 +1293,7 @@ const App: React.FC = () => {
                           onClick={e => { e.stopPropagation(); removeTrack(track.id); }}
                           className="p-0.5 rounded text-slate-700 hover:text-red-400 transition-colors flex-none"
                         >
-                          <X size={10} />
+                          <X size={14} />
                         </button>
                       )}
                     </div>
@@ -1302,23 +1302,23 @@ const App: React.FC = () => {
                     <button
                       title={track.muted ? 'Unmute' : 'Mute'}
                       onClick={e => { e.stopPropagation(); toggleTrackMute(track.id); }}
-                      className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[8px] font-black uppercase transition-colors border ${
+                      className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-black uppercase transition-colors border ${
                         track.muted
                           ? 'text-red-400 bg-red-500/10 border-red-500/20'
                           : 'text-slate-600 hover:text-slate-300 border-white/5 hover:bg-white/5'
                       }`}
                     >
                       {track.muted
-                        ? <><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg> Muted</>
-                        : <><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg> Live</>
+                        ? <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg> Muted</>
+                        : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg> Live</>
                       }
                     </button>
 
                     {/* Row 3: volume slider + % label */}
                     <div className="flex flex-col gap-0.5" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center justify-between">
-                        <span className="text-[7px] font-black text-slate-600 uppercase">Vol</span>
-                        <span className="text-[7px] font-black tabular-nums" style={{ color: track.color }}>
+                        <span className="text-[11px] font-black text-slate-600 uppercase">Vol</span>
+                        <span className="text-[11px] font-black tabular-nums" style={{ color: track.color }}>
                           {Math.round(track.volume * 100)}%
                         </span>
                       </div>
@@ -1335,13 +1335,13 @@ const App: React.FC = () => {
                     {/* Row 4: rec target indicator + AI indicator */}
                     <div className="flex items-center gap-1.5 mt-auto">
                       {recordingTrackId === track.id && (
-                        <span className="flex items-center gap-1 text-[7px] text-red-400 font-black uppercase">
+                        <span className="flex items-center gap-1 text-[11px] text-red-400 font-black uppercase">
                           <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" /> REC
                         </span>
                       )}
                       {activeTrackId === track.id && (
-                        <span className="flex items-center gap-1 text-[7px] font-black uppercase" style={{ color: track.color }}>
-                          <Zap size={8} /> AI
+                        <span className="flex items-center gap-1 text-[11px] font-black uppercase" style={{ color: track.color }}>
+                          <Zap size={12} /> AI
                         </span>
                       )}
                     </div>
