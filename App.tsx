@@ -172,6 +172,28 @@ const NC_THEMES: NcTheme[] = [
       noteLightness: 38, noteAltLightness: 32, noteAltAlpha: 0.75,
     },
   },
+  {
+    id: 'ocean', label: 'Ocean', desc: 'Deep navy — cool & focused', swatch: '#0b1929',
+    tokens: {
+      bg: '#0b1929', hdr: '#0d1e32',
+      toolbar: 'rgba(13,40,70,0.8)',
+      panel: 'rgba(10,28,52,0.5)',
+      card: 'rgba(10,30,58,0.6)',
+      cardDeep: 'rgba(8,22,44,0.9)',
+      inset: '#0d2240',
+      inputBg: 'rgba(8,20,40,0.7)', inputText: '#cce4ff', inputPH: '#2d5a8a',
+      padBg: '#0a1e38',
+      glassBg: 'rgba(0,40,80,0.35)', glassBorder: 'rgba(80,160,255,0.12)', glassText: '#7ab8f5',
+      stickyBg: 'rgba(8,22,44,0.92)',
+      sampleBtn: '#0d2647', sampleBtnHov: '#163660', sampleBtnText: '#4d8ec4', sampleBtnHovText: '#cce4ff',
+      t1: '#e8f4ff', t2: '#a8cef0', t3: '#4d8ec4', t4: '#2d5a8a', axisLabel: '#2d5a8a',
+      b1: 'rgba(80,160,255,0.08)', b2: 'rgba(80,160,255,0.14)', b3: 'rgba(80,160,255,0.24)',
+      tint: 'rgba(80,160,255,0.06)',
+      indigo: '#60a5fa', emerald: '#34d399', cyan: '#22d3ee', red: '#f87171',
+      gridBar: '#0d2a50', gridBeat: '#091e3a', gridOctave: '#0d2a50', gridPitch: '#071628',
+      noteLightness: 62, noteAltLightness: 45, noteAltAlpha: 0.65,
+    },
+  },
 ];
 type NcThemeId = string;
 // ---------------------------------------------------------------------------
