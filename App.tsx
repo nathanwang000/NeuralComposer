@@ -16,6 +16,7 @@ import {
   Minus,
   MousePointer2,
   Music,
+  Palette,
   Pause,
   Play,
   Plus,
@@ -72,6 +73,16 @@ const KB_SEQ = {
   DELETE:     { display: 'Del / ⌫',      hint: 'Delete selected notes' },
   PLAY_PAUSE: { display: 'Space',         hint: 'Play / Pause' },
 } as const;
+
+// ---------------------------------------------------------------------------
+// COLOR THEMES
+// ---------------------------------------------------------------------------
+const NC_THEMES = [
+  { id: 'void',   label: 'Void',   desc: 'Deep-space black',          bg: '#020408', hdrBg: '#020408', swatch: '#020408', light: false },
+  { id: 'studio', label: 'Studio', desc: 'Warm paper — easy on eyes', bg: '#f0ebe0', hdrBg: '#e8e2d5', swatch: '#f0ebe0', light: true  },
+] as const;
+type NcThemeId = typeof NC_THEMES[number]['id'];
+// ---------------------------------------------------------------------------
 
 /** Grouped sections shown in the sequencer shortcuts modal. */
 const SEQ_TUTORIAL_SECTIONS: { title: string; rows: { display: string; hint: string }[] }[] = [
@@ -402,6 +413,12 @@ const App: React.FC = () => {
 
   const [isAIStreamActive, setIsAIStreamActive] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [colorScheme, setColorScheme] = useState<NcThemeId>(
+    () => (typeof localStorage !== 'undefined' ? localStorage.getItem('nc-theme') as NcThemeId : null) || 'void'
+  );
+  useEffect(() => { localStorage.setItem('nc-theme', colorScheme); }, [colorScheme]);
+  const currentTheme = NC_THEMES.find(t => t.id === colorScheme) ?? NC_THEMES[0];
   const [beatWidth, setBeatWidth] = useState(100);
   // trackHeight is a percentage of the scroll-container viewport (100% = fills it).
   // trackHeights stores per-track overrides as the same unit.
@@ -1132,8 +1149,8 @@ const App: React.FC = () => {
   const waveOptions: SynthWaveType[] = ['sine', 'square', 'sawtooth', 'triangle'];
 
   return (
-    <div className="app-shell flex flex-col w-full min-h-screen lg:h-screen bg-[#020408] overflow-x-hidden lg:overflow-hidden text-slate-300 font-sans selection:bg-indigo-500/30">
-      <header className="flex-none flex flex-col md:flex-row justify-between items-center gap-4 p-4 lg:p-6 border-b border-white/5 bg-[#020408]">
+    <div className={`app-shell flex flex-col w-full min-h-screen lg:h-screen overflow-x-hidden lg:overflow-hidden font-sans selection:bg-indigo-500/30 ${currentTheme.light ? 'nc-light text-slate-800' : 'text-slate-300'}`} data-theme={colorScheme} style={{ backgroundColor: currentTheme.bg }}>
+      <header className="flex-none flex flex-col md:flex-row justify-between items-center gap-4 p-4 lg:p-6 border-b border-white/5" style={{ backgroundColor: currentTheme.hdrBg }}>
         <div className="flex items-center gap-4">
           <div className={`p-3 rounded-2xl transition-all duration-1000 ${state.isPlaying ? 'bg-indigo-600 shadow-[0_0_30px_rgba(79,70,229,0.3)]' : 'bg-slate-900'}`}>
             <Zap className={`${state.isPlaying && !isPaused ? 'text-white fill-white animate-pulse' : 'text-slate-700'}`} size={28} />
@@ -1217,6 +1234,21 @@ const App: React.FC = () => {
               <button onClick={handleHardStop} className="px-4 py-2.5 bg-red-500/10 text-red-500 border border-red-500/20 rounded-xl font-bold text-xs">RESET</button>
             </div>
           )}
+          <div className="w-px h-6 bg-white/10" />
+          <button
+            title="Keyboard shortcuts"
+            onClick={() => setShowShortcuts(true)}
+            className="p-2 rounded-xl hover:bg-white/5 text-slate-500 hover:text-slate-300 transition-colors"
+          >
+            <HelpCircle size={18} />
+          </button>
+          <button
+            title="Appearance settings"
+            onClick={() => setShowSettings(true)}
+            className="p-2 rounded-xl hover:bg-white/5 text-slate-500 hover:text-slate-300 transition-colors"
+          >
+            <Palette size={18} />
+          </button>
         </div>
       </header>
 
@@ -1245,6 +1277,7 @@ const App: React.FC = () => {
             </div>
             <PerformancePad
               bpm={state.tempo}
+              light={currentTheme.light}
               onCommitRecording={handleCommitRecording}
               onRecordingStart={() => { recordingStartBeatRef.current = playbackBeatRef.current; }}
               onStartPlayback={() => {
@@ -1356,6 +1389,7 @@ const App: React.FC = () => {
                       selectionMarquee={selectionMarquee}
                       beatWidth={beatWidth}
                       trackColor={track.color}
+                      light={currentTheme.light}
                       onSeek={handleSeek}
                       onSelectionMarqueeChange={setSelectionMarquee}
                       onSelectNotes={setSelectedEventIds}
@@ -1399,7 +1433,7 @@ const App: React.FC = () => {
           </div>
 
           {/* ── Sequencer edit toolbar ── */}
-          <div className="flex-none flex flex-wrap items-center gap-1 bg-slate-900/60 backdrop-blur-md border border-white/5 rounded-2xl px-2 py-1.5">
+          <div className={`flex-none flex flex-wrap items-center gap-1 backdrop-blur-md border rounded-2xl px-2 py-1.5 ${currentTheme.light ? 'bg-[#dcd5c4] border-black/[.09]' : 'bg-slate-900/60 border-white/5'}`}>
             {isTouchDevice && (
               <>
                 <button
@@ -1458,11 +1492,11 @@ const App: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-[1fr_3fr] gap-4 h-[12rem] flex-none">
-            <div className="bg-slate-950/50 rounded-2xl border border-white/5 p-4 font-mono text-[10px] flex flex-col overflow-hidden">
+            <div className={`rounded-2xl border p-4 font-mono text-[10px] flex flex-col overflow-hidden ${currentTheme.light ? 'bg-[#dcd5c4] border-black/[.09]' : 'bg-slate-950/50 border-white/5'}`}>
                <div className="flex items-center gap-2 text-slate-500 uppercase font-black mb-2 border-b border-white/5 pb-1"><Terminal size={12} /> Neural Stream</div>
                <div className="flex-1 text-indigo-400/40 break-all overflow-y-auto custom-scrollbar italic leading-relaxed">{rawStream || "Standby..."}</div>
             </div>
-            <div className="bg-slate-950/80 rounded-2xl border border-indigo-500/10 p-4 flex flex-col overflow-hidden group hover:border-indigo-500/30 transition-all">
+            <div className={`rounded-2xl border p-4 flex flex-col overflow-hidden group transition-all ${currentTheme.light ? 'bg-[#dcd5c4] border-black/[.09] hover:border-indigo-400/30' : 'bg-slate-950/80 border-indigo-500/10 hover:border-indigo-500/30'}`}>
                <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2 text-indigo-400 uppercase font-black text-[10px]"><Cpu size={12} /> Manual Patch Bay</div>
                   <button
@@ -1471,7 +1505,7 @@ const App: React.FC = () => {
                     className={`px-3 py-1 rounded-lg font-black text-[9px] uppercase flex items-center gap-1 transition-all ${
                       validation.validEvents.length > 0 && validation.errors.length === 0
                         ? 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-500/20'
-                        : 'bg-slate-800 text-slate-600 cursor-not-allowed border border-white/5'
+                        : `${currentTheme.light ? 'bg-black/[.1] text-stone-400 cursor-not-allowed border border-black/[.12]' : 'bg-slate-800 text-slate-600 cursor-not-allowed border border-white/5'}`
                     }`}
                   >
                     <PlusCircle size={10} /> Inject
@@ -1524,7 +1558,7 @@ const App: React.FC = () => {
 
 # Presets: Grand Piano, Crystal Lead, Deep Bass,
 # Ghostly Pad, Neon Pluck, Warm Rhodes, Soft Strings, Acid Bass`}
-                  className={`flex-1 bg-black/40 border rounded-xl p-3 font-mono text-[11px] text-white focus:outline-none placeholder:text-slate-700 resize-none ${validation.errors.length > 0 ? 'border-red-500/40' : 'border-white/5'}`}
+                  className={`flex-1 border rounded-xl p-3 font-mono text-[11px] focus:outline-none resize-none ${currentTheme.light ? 'bg-[#cdc3ae] text-stone-800 placeholder:text-stone-400' : 'bg-black/40 text-white placeholder:text-slate-700'} ${validation.errors.length > 0 ? 'border-red-500/40' : currentTheme.light ? 'border-black/[.12]' : 'border-white/5'}`}
                />
                {validation.errors.length > 0 && (
                   <div className="mt-2 px-2 max-h-16 overflow-y-auto custom-scrollbar">
@@ -1539,7 +1573,7 @@ const App: React.FC = () => {
         </div>
 
         <div className="lg:col-span-3 flex flex-col h-full min-h-0">
-          <div className="bg-slate-900/20 p-4 rounded-3xl border border-white/5 flex-1 flex flex-col overflow-hidden">
+          <div className={`p-4 rounded-3xl border flex-1 flex flex-col overflow-hidden ${currentTheme.light ? 'bg-[#e0d9cb]/60 border-black/[.07]' : 'bg-slate-900/20 border-white/5'}`}>
             <div className="flex gap-2 mb-6 border-b border-white/5 pb-2 flex-none">
                 <button onClick={() => setRightPanelTab('session')} className={`flex-1 py-2 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${rightPanelTab === 'session' ? 'bg-indigo-500/20 text-indigo-400' : 'text-slate-600 hover:text-slate-400'}`}>Session</button>
                 <button onClick={() => setRightPanelTab('synth')} className={`flex-1 py-2 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${rightPanelTab === 'synth' ? 'bg-indigo-500/20 text-indigo-400' : 'text-slate-600 hover:text-slate-400'}`}>Voice</button>
@@ -1548,12 +1582,12 @@ const App: React.FC = () => {
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
             {rightPanelTab === 'session' ? (
                 <div className="space-y-6">
-                  <div className="p-5 bg-black/40 rounded-2xl border border-white/5">
+                  <div className={`p-5 rounded-2xl border ${currentTheme.light ? 'bg-[#dcd5c4]/70 border-black/[.09]' : 'bg-black/40 border-white/5'}`}>
                      <div className="text-[10px] font-bold text-slate-600 uppercase mb-2">Playhead</div>
                      <div className="text-4xl font-black text-white tabular-nums tracking-tighter mb-2">{Math.floor(playbackBeat / 4)}.<span className="text-indigo-500">{(Math.floor(playbackBeat % 4) + 1)}</span></div>
                      <TimeNavigator currentBeat={playbackBeat} totalBeats={totalViewRange} onSeek={handleSeek} />
                   </div>
-                  <div className="p-5 bg-black/40 rounded-2xl border border-white/5">
+                  <div className={`p-5 rounded-2xl border ${currentTheme.light ? 'bg-[#dcd5c4]/70 border-black/[.09]' : 'bg-black/40 border-white/5'}`}>
                      <div className="text-[10px] font-bold text-slate-600 uppercase mb-2">Composition History</div>
                      <div className="flex items-baseline gap-1 mb-1">
                         <div className="text-3xl font-black tabular-nums tracking-tighter text-indigo-400">{events.filter(e => e.isUser).length}</div>
@@ -1565,14 +1599,14 @@ const App: React.FC = () => {
                      <button onClick={handleDownload} className="w-full mt-4 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-lg border border-indigo-500/20 text-[10px] font-bold uppercase"><Download size={12} className="inline mr-2" /> Export</button>
                   </div>
 
-                  <div className="p-5 bg-black/40 rounded-2xl border border-white/5">
+                  <div className={`p-5 rounded-2xl border ${currentTheme.light ? 'bg-[#dcd5c4]/70 border-black/[.09]' : 'bg-black/40 border-white/5'}`}>
                      <div className="text-[10px] font-bold text-slate-600 uppercase mb-2">Sample Compositions</div>
                      <div className="space-y-2">
                         {SAMPLE_FILES.map((file) => (
                            <button
                               key={file}
                               onClick={() => loadSample(file)}
-                              className="w-full py-2 px-3 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg border border-white/5 text-[10px] font-mono text-left truncate transition-colors flex items-center gap-2"
+                              className={`w-full py-2 px-3 rounded-lg border text-[10px] font-mono text-left truncate transition-colors flex items-center gap-2 ${currentTheme.light ? 'bg-[#d4ccb8] hover:bg-[#c9c0a8] text-stone-600 hover:text-stone-900 border-black/[.1]' : 'bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border-white/5'}`}
                            >
                               <Music size={12} />
                               {file}
@@ -1583,7 +1617,7 @@ const App: React.FC = () => {
 
                   <div className="mt-auto p-4 bg-indigo-500/5 rounded-2xl border border-indigo-500/10">
                      <div className="text-[9px] font-black text-indigo-400 uppercase mb-2 flex items-center gap-2"><Sparkles size={10} /> Creative Direction for AI</div>
-                     <textarea value={creativeDirection} onChange={(e) => setCreativeDirection(e.target.value)} placeholder="e.g. Add erratic fills..." className="w-full bg-slate-900/50 border border-indigo-500/10 rounded-lg p-2 text-[10px] text-slate-300 h-24 focus:outline-none" />
+                     <textarea value={creativeDirection} onChange={(e) => setCreativeDirection(e.target.value)} placeholder="e.g. Add erratic fills..." className={`w-full border rounded-lg p-2 text-[10px] h-24 focus:outline-none ${currentTheme.light ? 'bg-black/[.06] border-indigo-400/20 text-stone-700' : 'bg-slate-900/50 border-indigo-500/10 text-slate-300'}`} />
                   </div>
                 </div>
             ) : (
@@ -1729,6 +1763,63 @@ const App: React.FC = () => {
         </div>
       </main>
 
+      {showSettings && createPortal(
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center"
+          onPointerDown={() => setShowSettings(false)}
+        >
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <div
+            className="relative z-10 w-full max-w-xs mx-4 rounded-2xl border border-white/10 bg-[#111318] shadow-2xl overflow-hidden"
+            onPointerDown={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <Palette size={16} className="text-indigo-400" />
+                <span className="text-sm font-black uppercase tracking-widest text-white">Appearance</span>
+              </div>
+              <button onClick={() => setShowSettings(false)} className="text-slate-500 hover:text-white transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="p-4 flex flex-col gap-2">
+              {NC_THEMES.map(theme => (
+                <button
+                  key={theme.id}
+                  onClick={() => setColorScheme(theme.id)}
+                  className={`flex items-center gap-4 w-full px-4 py-3 rounded-xl border transition-all ${
+                    colorScheme === theme.id
+                      ? 'border-indigo-500/50 bg-indigo-500/10'
+                      : 'border-white/8 hover:border-white/20 hover:bg-white/5'
+                  }`}
+                >
+                  {/* Swatch: mini preview of the actual UI in that theme */}
+                  <span
+                    className="w-10 h-10 rounded-xl flex-none border border-white/15 shadow-lg overflow-hidden relative"
+                    style={{ background: theme.swatch }}
+                  >
+                    {/* Mini UI chrome lines */}
+                    <span className="absolute inset-x-0 top-0 h-[35%]" style={{ background: theme.light ? '#e8e2d5' : '#0a0d14' }} />
+                    <span className="absolute left-0 top-[35%] bottom-0 w-[28%]" style={{ background: theme.light ? '#ddd7c8' : '#070b12' }} />
+                  </span>
+                  <span className="flex flex-col items-start gap-1">
+                    <span className="text-sm font-black text-white">{theme.label}</span>
+                    <span className="text-[11px] text-slate-400">{theme.desc}</span>
+                  </span>
+                  <span className={`ml-auto w-2 h-2 rounded-full flex-none transition-opacity ${
+                    colorScheme === theme.id ? 'bg-indigo-400 opacity-100' : 'opacity-0'
+                  }`} />
+                </button>
+              ))}
+            </div>
+            <div className="px-5 py-3 border-t border-white/10 text-[9px] text-slate-600 uppercase tracking-widest">
+              Click anywhere outside to close
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {showShortcuts && createPortal(
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center"
@@ -1802,6 +1893,101 @@ const App: React.FC = () => {
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
         input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 10px; width: 10px; border-radius: 50%; background: var(--thumb-color, #6366f1); cursor: pointer; border: 2px solid #000; box-shadow: 0 0 10px var(--thumb-color, #6366f1); }
+
+        /* ==========================================================
+           STUDIO (light) THEME
+           Approach: simple class selectors for non-slash classes;
+           [class*="..."] attribute selectors for Tailwind slash variants
+           (e.g. bg-black/40) which cannot be reliably escaped in JSX.
+           ========================================================== */
+        .nc-light {
+          --s-bg:       #f0ebe0;
+          --s-hdr:      #e8e2d5;
+          --s-panel:    #e0d9cb;
+          --s-card:     #d8d0c0;
+          --s-card-lt:  #ddd6c8;
+          --s-inset:    #d4ccb8;
+          --s-t1: #1a150d;
+          --s-t2: #3d3120;
+          --s-t3: #7a6650;
+          --s-t4: #a89278;
+          --s-t5: #c8b49a;
+          --s-b1: rgba(40,28,8,0.09);
+          --s-b2: rgba(40,28,8,0.15);
+          --s-b3: rgba(40,28,8,0.24);
+          --s-indigo:  #3730a3;
+          --s-emerald: #047857;
+          --s-cyan:    #0e7490;
+          --s-red:     #b91c1c;
+          --s-amber:   #b45309;
+          color: var(--s-t1);
+        }
+
+        /* ── Text (no slash — these work fine) ── */
+        .nc-light .text-white, .nc-light .text-slate-100 { color: var(--s-t1) !important; }
+        .nc-light .text-slate-200, .nc-light .text-slate-300 { color: var(--s-t2) !important; }
+        .nc-light .text-slate-400, .nc-light .text-slate-500 { color: var(--s-t3) !important; }
+        .nc-light .text-slate-600 { color: var(--s-t4) !important; }
+        .nc-light .text-slate-700 { color: var(--s-t5) !important; }
+        .nc-light .text-indigo-400, .nc-light .text-indigo-500 { color: var(--s-indigo) !important; }
+        .nc-light .text-indigo-300, .nc-light .text-indigo-800 { color: var(--s-indigo) !important; }
+        .nc-light .text-emerald-400, .nc-light .text-emerald-500 { color: var(--s-emerald) !important; }
+        .nc-light .text-cyan-400 { color: var(--s-cyan) !important; }
+        .nc-light .text-red-400, .nc-light .text-red-500 { color: var(--s-red) !important; }
+        .nc-light .text-amber-500 { color: var(--s-amber) !important; }
+        .nc-light .text-teal-300, .nc-light .text-teal-600 { color: #0d7b72 !important; }
+        .nc-light .text-violet-300 { color: #6d28d9 !important; }
+
+        /* ── Placeholder (no slash) ── */
+        .nc-light [placeholder] { color: var(--s-t4); }
+
+        /* ── Backgrounds — catch-all via attribute selector for slash variants ── */
+        .nc-light [class*="bg-black/"]     { background-color: var(--s-card) !important; }
+        .nc-light [class*="bg-slate-950/"] { background-color: var(--s-card) !important; }
+        .nc-light [class*="bg-slate-900/"] { background-color: var(--s-card-lt) !important; }
+        .nc-light [class*="bg-white/"]     { background-color: rgba(40,28,8,0.04) !important; }
+        /* Specific accent tints AFTER catch-all (higher specificity via [class~=]) */
+        .nc-light [class~="bg-indigo-500/10"], .nc-light [class~="bg-indigo-500/20"] { background-color: rgba(55,48,163,0.09) !important; }
+        .nc-light [class~="bg-emerald-500/10"], .nc-light [class~="bg-emerald-500/20"] { background-color: rgba(4,120,87,0.09) !important; }
+        .nc-light [class~="bg-red-500/10"]  { background-color: rgba(185,28,28,0.08) !important; }
+        .nc-light [class~="bg-cyan-500/10"] { background-color: rgba(14,116,144,0.08) !important; }
+        .nc-light [class~="bg-amber-500/20"] { background-color: rgba(180,83,9,0.10) !important; }
+        .nc-light [class~="bg-indigo-500/5"] { background-color: rgba(55,48,163,0.05) !important; }
+        /* Opaque backgrounds (no slash) */
+        .nc-light .bg-black   { background-color: var(--s-panel) !important; }
+        .nc-light .bg-slate-900 { background-color: var(--s-inset) !important; }
+        .nc-light .bg-slate-800 { background-color: var(--s-card) !important; }
+        .nc-light .bg-indigo-600 { background-color: var(--s-indigo) !important; }
+
+        /* ── Borders — catch-all for slash variants ── */
+        .nc-light [class*="border-white/"]  { border-color: var(--s-b1) !important; }
+        /* Specific accent borders AFTER */
+        .nc-light [class~="border-indigo-500/10"], .nc-light [class~="border-indigo-500/20"],
+        .nc-light [class~="border-indigo-500/30"], .nc-light [class~="border-indigo-500/50"] { border-color: rgba(55,48,163,0.25) !important; }
+        .nc-light [class~="border-red-500/20"]    { border-color: rgba(185,28,28,0.22) !important; }
+        .nc-light [class~="border-emerald-500/20"] { border-color: rgba(4,120,87,0.22) !important; }
+        .nc-light [class~="border-cyan-500/20"], .nc-light [class~="border-cyan-500/50"] { border-color: rgba(14,116,144,0.25) !important; }
+        .nc-light [class~="border-teal-700/40"]   { border-color: rgba(13,123,114,0.30) !important; }
+        .nc-light [class~="border-indigo-400/20"] { border-color: rgba(67,56,202,0.22) !important; }
+
+        /* ── 1px divider lines (w-px) ── */
+        .nc-light .w-px { background-color: var(--s-b2) !important; }
+
+        /* ── Scrollbar ── */
+        .nc-light .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--s-t5); border-radius: 10px; }
+
+        /* ── Protect white text on dark accent buttons ── */
+        /* text-white override must NOT fire when the element itself has a dark bg */
+        .nc-light [class*="bg-indigo-6"],
+        .nc-light [class*="bg-indigo-6"] * { color: white !important; }
+        .nc-light [class*="bg-red-6"],
+        .nc-light [class*="bg-red-6"] * { color: white !important; }
+        .nc-light [class*="bg-emerald-6"],
+        .nc-light [class*="bg-emerald-6"] * { color: white !important; }
+        /* ── Range input track ── */
+        .nc-light input[type=range] { accent-color: #3730a3; }
+        .nc-light input[type=range]::-webkit-slider-thumb { border: 2px solid var(--s-hdr); }
+        .nc-light .bg-slate-800.rounded-full { background-color: var(--s-panel) !important; }
       `}</style>
     </div>
   );

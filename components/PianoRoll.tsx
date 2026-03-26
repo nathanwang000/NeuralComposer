@@ -16,6 +16,8 @@ interface PianoRollProps {
   beatWidth?: number;
   /** Hex / CSS colour for this track's notes. Falls back to cyan for user notes. */
   trackColor?: string;
+  /** When true, render grid in light-friendly colours. */
+  light?: boolean;
   /** When true, touch interactions select/deselect notes instead of seeking. */
   selectMode?: boolean;
   onSeek?: (beat: number) => void;
@@ -32,6 +34,7 @@ const PianoRoll: React.FC<PianoRollProps> = ({
   selectionMarquee,
   beatWidth = 100,
   trackColor = '#22d3ee',
+  light = false,
   selectMode = false,
   onSeek,
   onSelectionMarqueeChange,
@@ -207,7 +210,9 @@ const PianoRoll: React.FC<PianoRollProps> = ({
       for (let i = Math.max(0, firstVisibleBeat); i <= lastVisibleBeat; i++) {
         const x = startX + (i * beatWidth);
         ctx.beginPath();
-        ctx.strokeStyle = i % 4 === 0 ? '#1e293b' : '#0f172a';
+        ctx.strokeStyle = light
+          ? (i % 4 === 0 ? 'rgba(60,40,10,0.18)' : 'rgba(60,40,10,0.07)')
+          : (i % 4 === 0 ? '#1e293b' : '#0f172a');
         ctx.lineWidth = i % 4 === 0 ? 2 : 1;
         ctx.moveTo(x, 0);
         ctx.lineTo(x, h);
@@ -218,7 +223,9 @@ const PianoRoll: React.FC<PianoRollProps> = ({
       for (let i = 0; i < 72; i++) {
         const y = h - (i * noteHeight);
         ctx.beginPath();
-        ctx.strokeStyle = i % 12 === 0 ? '#1e293b' : '#0a0f1a';
+        ctx.strokeStyle = light
+          ? (i % 12 === 0 ? 'rgba(60,40,10,0.16)' : 'rgba(60,40,10,0.05)')
+          : (i % 12 === 0 ? '#1e293b' : '#0a0f1a');
         ctx.moveTo(0, y);
         ctx.lineTo(w, y);
         ctx.stroke();
@@ -265,7 +272,7 @@ const PianoRoll: React.FC<PianoRollProps> = ({
           const hue = (event.p * 13) % 360;
           ctx.fillStyle = isSelected
             ? '#ef4444'
-            : (isActive ? `hsla(${hue}, 80%, 60%, 1)` : `hsla(${hue}, 50%, 40%, 0.6)`);
+            : (isActive ? `hsla(${hue}, 70%, ${light ? 38 : 60}%, 1)` : `hsla(${hue}, 55%, ${light ? 32 : 40}%, ${light ? 0.75 : 0.6})`);
           if (isSelected) {
             ctx.shadowBlur = 20;
             ctx.shadowColor = '#ef4444';
@@ -325,7 +332,7 @@ const PianoRoll: React.FC<PianoRollProps> = ({
 
     draw();
     return () => cancelAnimationFrame(animationFrame);
-  }, [events, currentBeat, dragStart, dragEnd, selectedNoteIds, selectionMarquee, selectionBounds, isMoving, beatWidth]);
+  }, [events, currentBeat, dragStart, dragEnd, selectedNoteIds, selectionMarquee, selectionBounds, isMoving, beatWidth, light]);
 
   // ── Touch handlers (select mode only) ─────────────────────────────────────
   // Converts a touch clientX/Y into scaled canvas coordinates + music coords.

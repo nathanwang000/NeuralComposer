@@ -1515,12 +1515,18 @@ const TOUCH_COLORS = [
     { dot: '#34d399', glow: 'rgba(16,185,129,0.22)',  ring: 'rgba(52,211,153,0.55)'  }, // emerald
 ];
 
-const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: MidiEvent[]) => void; onRecordingStart?: () => void; onStartPlayback?: () => void }> = ({
+const PerformancePad: React.FC<{ bpm?: number; light?: boolean; onCommitRecording?: (events: MidiEvent[]) => void; onRecordingStart?: () => void; onStartPlayback?: () => void }> = ({
     bpm = 120,
+    light = false,
     onCommitRecording,
     onRecordingStart,
     onStartPlayback,
 }) => {
+    // Light-theme surface helpers
+    const padSurface   = light ? 'bg-[#cdc3b0]' : 'bg-slate-900';
+    const glassPanel   = light ? 'bg-black/[.04] border-black/[.08]' : 'bg-slate-950/50 border-white/5';
+    const stickyHdr    = light ? 'bg-[#d8cfbc]/95' : 'bg-slate-950/90';
+
     // Keep a ref to the latest bpm so audio callbacks always see the current value
     // without needing to be re-created whenever bpm changes.
     const bpmRef = useRef(bpm);
@@ -2884,7 +2890,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
     const padElement = (
         <div
             ref={padRef}
-                        className={`flex-1 min-h-[300px] relative bg-slate-900 rounded-3xl border border-white/10 cursor-crosshair overflow-hidden group shadow-inner transition-colors hover:border-indigo-500/30 select-none ${isFallbackFullscreen ? 'fixed inset-0 min-h-0 rounded-none bg-slate-950' : ''}`}
+                        className={`flex-1 min-h-[300px] relative ${padSurface} rounded-3xl border ${light ? 'border-black/10 hover:border-indigo-500/40' : 'border-white/10 hover:border-indigo-500/30'} cursor-crosshair overflow-hidden group shadow-inner transition-colors select-none ${isFallbackFullscreen ? `fixed inset-0 min-h-0 rounded-none ${padSurface}` : ''}`}
                         style={{
                             touchAction: 'none',
                             userSelect: 'none',
@@ -2939,7 +2945,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                                 ? 'bg-red-600/80 border-red-400 text-white animate-pulse'
                                 : countdownBeat !== null
                                     ? 'bg-amber-500/80 border-amber-400 text-white'
-                                    : 'bg-black/60 border-white/10 text-slate-400 hover:text-red-300 hover:border-red-500/30'
+                                    : `${light ? 'bg-black/[.06] border-black/[.10] text-stone-600 hover:text-red-700 hover:border-red-400/50' : 'bg-black/60 border-white/10 text-slate-400 hover:text-red-300 hover:border-red-500/30'}`
                         }`}
                     >
                         <span className={`w-2 h-2 rounded-full ${isRecording ? 'bg-white' : countdownBeat !== null ? 'bg-white animate-ping' : 'bg-red-500'}`} />
@@ -2962,7 +2968,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                             setTouchPoints([]);
                             setIsPlaying(false);
                         }}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/60 border border-white/10 text-slate-200 hover:text-white hover:border-white/20 text-[10px] font-black uppercase tracking-widest"
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border ${light ? 'bg-black/[.06] border-black/[.10] text-stone-700 hover:text-stone-900 hover:border-black/20' : 'bg-black/60 border-white/10 text-slate-200 hover:text-white hover:border-white/20'} text-[10px] font-black uppercase tracking-widest`}
                     >
                         Reset
                     </button>
@@ -2975,14 +2981,14 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                         e.stopPropagation();
                         toggleFullscreen();
                     }}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/60 border border-white/10 text-slate-200 hover:text-white hover:border-white/20 text-[10px] font-black uppercase tracking-widest"
+                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border ${light ? 'bg-black/[.06] border-black/[.10] text-stone-700 hover:text-stone-900 hover:border-black/20' : 'bg-black/60 border-white/10 text-slate-200 hover:text-white hover:border-white/20'} text-[10px] font-black uppercase tracking-widest`}
                 >
                     {isFullscreen ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
                     {isFullscreen ? 'Exit' : 'Full'}
                 </button>
                 </div>
                 {detectedKey && (
-                    <div className="px-3 py-1.5 rounded-lg bg-black/60 border border-teal-700/40 text-teal-300 text-[10px] font-black uppercase tracking-widest pointer-events-none select-none">
+                    <div className={`px-3 py-1.5 rounded-lg border ${light ? 'bg-black/[.06] border-teal-600/40 text-teal-700' : 'bg-black/60 border-teal-700/40 text-teal-300'} text-[10px] font-black uppercase tracking-widest pointer-events-none select-none`}>
                         ♩ {detectedKey}
                     </div>
                 )}
@@ -3014,7 +3020,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                             className={`px-2 py-1 rounded text-[9px] font-black uppercase border transition-all ${
                                 currentSection?.label === s.label
                                     ? 'bg-indigo-600/80 border-indigo-400 text-white'
-                                    : 'bg-black/60 border-white/10 text-slate-400 hover:text-indigo-300 hover:border-indigo-500/30'
+                                    : `${light ? 'bg-black/[.06] border-black/[.10] text-stone-600 hover:text-indigo-700 hover:border-indigo-400/50' : 'bg-black/60 border-white/10 text-slate-400 hover:text-indigo-300 hover:border-indigo-500/30'}`
                             }`}
                         >
                             {i + 1}: {s.label}
@@ -3071,16 +3077,16 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
             })()}
 
             {/* Axis Labels */}
-            <div className="absolute bottom-4 right-4 text-xs font-black text-slate-700 pointer-events-none select-none uppercase tracking-widest">
+            <div className={`absolute bottom-4 right-4 text-xs font-black pointer-events-none select-none uppercase tracking-widest ${light ? 'text-stone-500' : 'text-slate-700'}`}>
                X: {xTargets.join(', ') || 'None'}
             </div>
-            <div className="absolute top-4 left-4 text-xs font-black text-slate-700 pointer-events-none select-none uppercase tracking-widest rotate-90 origin-top-left translate-x-4">
+            <div className={`absolute top-4 left-4 text-xs font-black pointer-events-none select-none uppercase tracking-widest rotate-90 origin-top-left translate-x-4 ${light ? 'text-stone-500' : 'text-slate-700'}`}>
                Y: {yTargets.join(', ') || 'None'}
             </div>
                 <button
                     onPointerDown={e => e.stopPropagation()}
                     onClick={e => { e.stopPropagation(); setShowTutorial(true); }}
-                    className="absolute bottom-3 left-3 z-10 flex items-center gap-1 px-2 py-1 rounded-lg bg-black/40 border border-white/10 text-slate-500 hover:text-slate-200 hover:border-white/25 hover:bg-black/60 transition-colors select-none"
+                    className={`absolute bottom-3 left-3 z-10 flex items-center gap-1 px-2 py-1 rounded-lg border ${light ? 'bg-black/[.05] border-black/[.10] text-stone-500 hover:text-stone-800 hover:border-black/20 hover:bg-black/[.08]' : 'bg-black/40 border-white/10 text-slate-500 hover:text-slate-200 hover:border-white/25 hover:bg-black/60'} transition-colors select-none`}
                     title="Settings"
                 >
                     <Settings size={12} />
@@ -3195,8 +3201,8 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
         {/* Controls */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-none h-auto">
             {/* Sequence Input */}
-            <div className="bg-slate-950/50 rounded-2xl border border-white/5 p-4 overflow-y-auto max-h-64">
-                <div className="sticky top-0 z-10 flex items-center gap-2 mb-3 text-slate-500 font-black uppercase text-xs bg-slate-950/90 backdrop-blur-sm py-1 -mx-4 px-4 -mt-1">
+            <div className={`${glassPanel} rounded-2xl border p-4 overflow-y-auto max-h-64`}>
+                <div className={`sticky top-0 z-10 flex items-center gap-2 mb-3 text-slate-500 font-black uppercase text-xs ${stickyHdr} backdrop-blur-sm py-1 -mx-4 px-4 -mt-1`}>
                     <Music size={14} /> Note Sequence
                 </div>
                 {/* Chord presets */}
@@ -3306,7 +3312,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                 />
                 <div className="flex flex-col gap-1.5 mt-2">
                     <div className="flex items-center gap-1 flex-wrap">
-                        <span className="text-[9px] text-slate-700 font-black uppercase w-16 shrink-0">Transpose</span>
+                        <span className="text-[9px] text-slate-500 font-black uppercase w-16 shrink-0">Transpose</span>
                         {([
                             [-12, `Octave −1 (${KB.OCTAVE_DN.display})`],
                             [-1,  `Semitone −1 (${KB.SEMITONE_DN.display})`],
@@ -3325,7 +3331,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                         ))}
                     </div>
                     <div className="flex items-center gap-1 flex-wrap">
-                        <span className="text-[9px] text-slate-700 font-black uppercase w-16 shrink-0">Chord Vol</span>
+                        <span className="text-[9px] text-slate-500 font-black uppercase w-16 shrink-0">Chord Vol</span>
                         <button
                             title="Decrease chord volume by 0.1 (⇧← Arrow)"
                             onPointerDown={(e) => e.stopPropagation()}
@@ -3350,7 +3356,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                         </div>
                     </div>
                     <div className="flex items-center gap-1 flex-wrap">
-                        <span className="text-[9px] text-slate-700 font-black uppercase w-16 shrink-0">Strum</span>
+                        <span className="text-[9px] text-slate-500 font-black uppercase w-16 shrink-0">Strum</span>
                         {([
                             { factor: 1/1.5, label: '÷1.5', entry: KB.STRUM_DN },
                             { factor: 1.5,   label: '×1.5', entry: KB.STRUM_UP },
@@ -3368,7 +3374,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                     </div>
                     {/* Solo key layout switcher */}
                     <div className="flex items-center gap-1 flex-wrap">
-                        <span className="text-[9px] text-slate-700 font-black uppercase w-16 shrink-0">Solo Layout</span>
+                        <span className="text-[9px] text-slate-500 font-black uppercase w-16 shrink-0">Solo Layout</span>
                         {(Object.entries(SOLO_LAYOUTS) as [SoloLayoutName, typeof SOLO_LAYOUTS[SoloLayoutName]][]).map(([name, spec]) => (
                             <button
                                 key={name}
@@ -3387,7 +3393,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                     </div>
                     {sections.length > 0 && (
                         <div className="flex items-center gap-1 flex-wrap">
-                            <span className="text-[9px] text-slate-700 font-black uppercase w-16 shrink-0">Sections</span>
+                            <span className="text-[9px] text-slate-500 font-black uppercase w-16 shrink-0">Sections</span>
                             {sections.map((s, i) => (
                                 <button
                                     key={s.label}
@@ -3406,7 +3412,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                         </div>
                     )}
                     <div className="flex items-center gap-1 flex-wrap">
-                        <span className="text-[9px] text-slate-700 font-black uppercase w-16 shrink-0">Voicing</span>
+                        <span className="text-[9px] text-slate-500 font-black uppercase w-16 shrink-0">Voicing</span>
                         <button
                             title={voicingBase ? `Restore original voicing for all steps (${KB.ORIGINAL.display})` : `No voicing changes yet (${KB.ORIGINAL.display})`}
                             disabled={!voicingBase}
@@ -3469,7 +3475,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                         })()}
                     </div>
                     <div className="flex items-center gap-1 flex-wrap">
-                        <span className="text-[9px] text-slate-700 font-black uppercase w-16 shrink-0">Order</span>
+                        <span className="text-[9px] text-slate-500 font-black uppercase w-16 shrink-0">Order</span>
                         <button
                             title={`Reverse note order within each chord (e.g. C4+E4+G4 → G4+E4+C4) (${KB.ORDER_REV.display})`}
                             onPointerDown={(e) => e.stopPropagation()}
@@ -3499,7 +3505,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
             </div>
 
             {/* Axis Mapping */}
-            <div className="bg-slate-950/50 rounded-2xl border border-white/5 p-4 flex flex-col gap-4 overflow-y-auto max-h-64">
+            <div className={`${glassPanel} rounded-2xl border p-4 flex flex-col gap-4 overflow-y-auto max-h-64`}>
                 {/* X Axis */}
                 <div>
                      <div className="flex items-center gap-2 mb-2 text-slate-500 font-black uppercase text-xs">
