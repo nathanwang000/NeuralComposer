@@ -916,7 +916,6 @@ const App: React.FC = () => {
 
     setTracks(updatedTracks);
     setEvents(prev => [...prev, ...newEvents]);
-    setSelectedEventIds(newEvents.map(e => e.id));
     setUserInput("");
   };
 

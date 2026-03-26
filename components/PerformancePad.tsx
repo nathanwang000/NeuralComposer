@@ -1553,7 +1553,9 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
     const [bandColorMode, setBandColorMode] = useState<'relative' | 'absolute'>('relative');
 
     // Sequence
-    const [sequenceInput, setSequenceInput] = useState("C4+E4+G4+B5+C5+E6+G6+E5+C5+B4@0.25b, D4+E4+G4+B5+C5+E6+G6+E5+C5+B4@0.25b,F4+C5+A5,F4+C5+A5,F4+C5+G5,F4+C5+F5,E4+C5+G5");
+    const [sequenceInput, setSequenceInput] = useState(
+        () => CHORD_PRESETS.find(p => p.label === 'Jazz ii-V-I')?.sequence ?? CHORD_PRESETS[0]?.sequence ?? 'C4+E4+G4+B4@0.1b'
+    );
     const [chordSequence, setChordSequence] = useState<ChordStep[]>([]);
     const [sections, setSections] = useState<Section[]>([]);
     const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
@@ -1615,8 +1617,8 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
     }, [chordSequence, currentNoteIndex, soundingStepIndex, isPlaying]);
 
     // Mappings
-    const [xTargets, setXTargets] = useState<ModulationTarget[]>(['cutoff']);
-    const [yTargets, setYTargets] = useState<ModulationTarget[]>(['resonance']);
+    const [xTargets, setXTargets] = useState<ModulationTarget[]>(['cutoff', 'detune_semitone']);
+    const [yTargets, setYTargets] = useState<ModulationTarget[]>(['resonance', 'sustain']);
     const [xFlipped, setXFlipped] = useState(false);
     const [yFlipped, setYFlipped] = useState(false);
 
