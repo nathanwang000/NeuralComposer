@@ -1515,18 +1515,12 @@ const TOUCH_COLORS = [
     { dot: '#34d399', glow: 'rgba(16,185,129,0.22)',  ring: 'rgba(52,211,153,0.55)'  }, // emerald
 ];
 
-const PerformancePad: React.FC<{ bpm?: number; light?: boolean; onCommitRecording?: (events: MidiEvent[]) => void; onRecordingStart?: () => void; onStartPlayback?: () => void }> = ({
+const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: MidiEvent[]) => void; onRecordingStart?: () => void; onStartPlayback?: () => void }> = ({
     bpm = 120,
-    light = false,
     onCommitRecording,
     onRecordingStart,
     onStartPlayback,
 }) => {
-    // Light-theme surface helpers
-    const padSurface   = light ? 'bg-[#cdc3b0]' : 'bg-slate-900';
-    const glassPanel   = light ? 'bg-black/[.04] border-black/[.08]' : 'bg-slate-950/50 border-white/5';
-    const stickyHdr    = light ? 'bg-[#d8cfbc]/95' : 'bg-slate-950/90';
-
     // Keep a ref to the latest bpm so audio callbacks always see the current value
     // without needing to be re-created whenever bpm changes.
     const bpmRef = useRef(bpm);
@@ -2890,8 +2884,10 @@ const PerformancePad: React.FC<{ bpm?: number; light?: boolean; onCommitRecordin
     const padElement = (
         <div
             ref={padRef}
-                        className={`flex-1 min-h-[300px] relative ${padSurface} rounded-3xl border ${light ? 'border-black/10 hover:border-indigo-500/40' : 'border-white/10 hover:border-indigo-500/30'} cursor-crosshair overflow-hidden group shadow-inner transition-colors select-none ${isFallbackFullscreen ? `fixed inset-0 min-h-0 rounded-none ${padSurface}` : ''}`}
+                        className={`flex-1 min-h-[300px] relative rounded-3xl border cursor-crosshair overflow-hidden group shadow-inner transition-colors select-none ${isFallbackFullscreen ? 'fixed inset-0 min-h-0 rounded-none' : ''}`}
                         style={{
+                            backgroundColor: 'var(--nc-pad-bg)',
+                            borderColor: 'var(--nc-b2)',
                             touchAction: 'none',
                             userSelect: 'none',
                             WebkitUserSelect: 'none',
@@ -2945,7 +2941,7 @@ const PerformancePad: React.FC<{ bpm?: number; light?: boolean; onCommitRecordin
                                 ? 'bg-red-600/80 border-red-400 text-white animate-pulse'
                                 : countdownBeat !== null
                                     ? 'bg-amber-500/80 border-amber-400 text-white'
-                                    : `${light ? 'bg-black/[.06] border-black/[.10] text-stone-600 hover:text-red-700 hover:border-red-400/50' : 'bg-black/60 border-white/10 text-slate-400 hover:text-red-300 hover:border-red-500/30'}`
+                                    : `nc-glass-btn`
                         }`}
                     >
                         <span className={`w-2 h-2 rounded-full ${isRecording ? 'bg-white' : countdownBeat !== null ? 'bg-white animate-ping' : 'bg-red-500'}`} />
@@ -2968,7 +2964,7 @@ const PerformancePad: React.FC<{ bpm?: number; light?: boolean; onCommitRecordin
                             setTouchPoints([]);
                             setIsPlaying(false);
                         }}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border ${light ? 'bg-black/[.06] border-black/[.10] text-stone-700 hover:text-stone-900 hover:border-black/20' : 'bg-black/60 border-white/10 text-slate-200 hover:text-white hover:border-white/20'} text-[10px] font-black uppercase tracking-widest`}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border nc-glass-btn text-[10px] font-black uppercase tracking-widest`}
                     >
                         Reset
                     </button>
@@ -2981,14 +2977,14 @@ const PerformancePad: React.FC<{ bpm?: number; light?: boolean; onCommitRecordin
                         e.stopPropagation();
                         toggleFullscreen();
                     }}
-                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border ${light ? 'bg-black/[.06] border-black/[.10] text-stone-700 hover:text-stone-900 hover:border-black/20' : 'bg-black/60 border-white/10 text-slate-200 hover:text-white hover:border-white/20'} text-[10px] font-black uppercase tracking-widest`}
+                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border nc-glass-btn text-[10px] font-black uppercase tracking-widest`}
                 >
                     {isFullscreen ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
                     {isFullscreen ? 'Exit' : 'Full'}
                 </button>
                 </div>
                 {detectedKey && (
-                    <div className={`px-3 py-1.5 rounded-lg border ${light ? 'bg-black/[.06] border-teal-600/40 text-teal-700' : 'bg-black/60 border-teal-700/40 text-teal-300'} text-[10px] font-black uppercase tracking-widest pointer-events-none select-none`}>
+                    <div className="px-3 py-1.5 rounded-lg border nc-glass-btn text-teal-300 text-[10px] font-black uppercase tracking-widest pointer-events-none select-none">
                         ♩ {detectedKey}
                     </div>
                 )}
@@ -3020,7 +3016,7 @@ const PerformancePad: React.FC<{ bpm?: number; light?: boolean; onCommitRecordin
                             className={`px-2 py-1 rounded text-[9px] font-black uppercase border transition-all ${
                                 currentSection?.label === s.label
                                     ? 'bg-indigo-600/80 border-indigo-400 text-white'
-                                    : `${light ? 'bg-black/[.06] border-black/[.10] text-stone-600 hover:text-indigo-700 hover:border-indigo-400/50' : 'bg-black/60 border-white/10 text-slate-400 hover:text-indigo-300 hover:border-indigo-500/30'}`
+                                    : `nc-glass-btn`
                             }`}
                         >
                             {i + 1}: {s.label}
@@ -3077,16 +3073,16 @@ const PerformancePad: React.FC<{ bpm?: number; light?: boolean; onCommitRecordin
             })()}
 
             {/* Axis Labels */}
-            <div className={`absolute bottom-4 right-4 text-xs font-black pointer-events-none select-none uppercase tracking-widest ${light ? 'text-stone-500' : 'text-slate-700'}`}>
+            <div className="absolute bottom-4 right-4 text-xs font-black pointer-events-none select-none uppercase tracking-widest" style={{ color: 'var(--nc-axis)' }}>
                X: {xTargets.join(', ') || 'None'}
             </div>
-            <div className={`absolute top-4 left-4 text-xs font-black pointer-events-none select-none uppercase tracking-widest rotate-90 origin-top-left translate-x-4 ${light ? 'text-stone-500' : 'text-slate-700'}`}>
+            <div className="absolute top-4 left-4 text-xs font-black pointer-events-none select-none uppercase tracking-widest rotate-90 origin-top-left translate-x-4" style={{ color: 'var(--nc-axis)' }}>
                Y: {yTargets.join(', ') || 'None'}
             </div>
                 <button
                     onPointerDown={e => e.stopPropagation()}
                     onClick={e => { e.stopPropagation(); setShowTutorial(true); }}
-                    className={`absolute bottom-3 left-3 z-10 flex items-center gap-1 px-2 py-1 rounded-lg border ${light ? 'bg-black/[.05] border-black/[.10] text-stone-500 hover:text-stone-800 hover:border-black/20 hover:bg-black/[.08]' : 'bg-black/40 border-white/10 text-slate-500 hover:text-slate-200 hover:border-white/25 hover:bg-black/60'} transition-colors select-none`}
+                    className="absolute bottom-3 left-3 z-10 flex items-center gap-1 px-2 py-1 rounded-lg border nc-glass-btn transition-colors select-none"
                     title="Settings"
                 >
                     <Settings size={12} />
@@ -3201,8 +3197,8 @@ const PerformancePad: React.FC<{ bpm?: number; light?: boolean; onCommitRecordin
         {/* Controls */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-none h-auto">
             {/* Sequence Input */}
-            <div className={`${glassPanel} rounded-2xl border p-4 overflow-y-auto max-h-64`}>
-                <div className={`sticky top-0 z-10 flex items-center gap-2 mb-3 text-slate-500 font-black uppercase text-xs ${stickyHdr} backdrop-blur-sm py-1 -mx-4 px-4 -mt-1`}>
+            <div className="rounded-2xl border p-4 overflow-y-auto max-h-64" style={{ backgroundColor: 'var(--nc-glass-bg)', borderColor: 'var(--nc-glass-border)' }}>
+                <div className="sticky top-0 z-10 flex items-center gap-2 mb-3 text-slate-500 font-black uppercase text-xs backdrop-blur-sm py-1 -mx-4 px-4 -mt-1" style={{ backgroundColor: 'var(--nc-sticky-bg)' }}>
                     <Music size={14} /> Note Sequence
                 </div>
                 {/* Chord presets */}
@@ -3505,7 +3501,7 @@ const PerformancePad: React.FC<{ bpm?: number; light?: boolean; onCommitRecordin
             </div>
 
             {/* Axis Mapping */}
-            <div className={`${glassPanel} rounded-2xl border p-4 flex flex-col gap-4 overflow-y-auto max-h-64`}>
+            <div className="rounded-2xl border p-4 flex flex-col gap-4 overflow-y-auto max-h-64" style={{ backgroundColor: 'var(--nc-glass-bg)', borderColor: 'var(--nc-glass-border)' }}>
                 {/* X Axis */}
                 <div>
                      <div className="flex items-center gap-2 mb-2 text-slate-500 font-black uppercase text-xs">
