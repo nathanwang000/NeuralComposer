@@ -269,19 +269,25 @@ class AudioEngine {
     const decayEnd = attackEnd + sc.decay;
     const releaseStart = actualStart + noteDuration;
     const releaseEnd = releaseStart + sc.release;
+    // Sustain=0 means percussive/one-shot: the sound dies in the decay phase.
+    // Scheduling a release from 0 is undefined in Web Audio (exponential ramp
+    // from 0 causes a click/burst in many browsers), so we skip hold+release
+    // and let the decay carry straight to silence.
+    const isOneShot = sc.sustain === 0;
+    const oneShotEnd = actualStart + sc.attack + sc.decay + sc.release;
 
     env.gain.cancelScheduledValues(actualStart);
     if (isLegatoTransition) {
       env.gain.setValueAtTime(0, actualStart);
       env.gain.linearRampToValueAtTime(targetVolume, actualStart + 0.02);
-      env.gain.setValueAtTime(targetVolume, releaseStart);
+      if (!isOneShot) env.gain.setValueAtTime(targetVolume, releaseStart);
     } else {
       env.gain.setValueAtTime(0, actualStart);
       env.gain.linearRampToValueAtTime(targetVolume, attackEnd);
       env.gain.exponentialRampToValueAtTime(Math.max(0.001, targetVolume * sc.sustain), decayEnd);
-      env.gain.setValueAtTime(targetVolume * sc.sustain, releaseStart);
+      if (!isOneShot) env.gain.setValueAtTime(targetVolume * sc.sustain, releaseStart);
     }
-    env.gain.exponentialRampToValueAtTime(0.001, releaseEnd);
+    env.gain.exponentialRampToValueAtTime(0.001, isOneShot ? oneShotEnd : releaseEnd);
 
     // 4. Oscillator path (scaled by 1 - noiseMix)
     if (noiseMix < 1) {
@@ -310,14 +316,14 @@ class AudioEngine {
       noiseHp.connect(noisePreGain);
       noisePreGain.connect(env);
       noiseSrc.start(actualStart);
-      noiseSrc.stop(Math.min(releaseEnd + 0.05, stopOffset));
+      noiseSrc.stop(Math.min((isOneShot ? oneShotEnd : releaseEnd) + 0.05, stopOffset));
     }
 
     env.connect(destination);
     osc.start(actualStart);
-    osc.stop(Math.min(releaseEnd + 0.1, stopOffset));
+    osc.stop(Math.min((isOneShot ? oneShotEnd : releaseEnd) + 0.1, stopOffset));
 
-    return releaseEnd;
+    return isOneShot ? oneShotEnd : releaseEnd;
   }
 
   /**
