@@ -1907,6 +1907,16 @@ const App: React.FC = () => {
                                 </div>
                             ))}
                         </div>
+                        <div className="space-y-1">
+                            <div className="flex items-center justify-between text-[10px] font-bold text-slate-600 uppercase">
+                                <span className="flex items-center gap-1">
+                                    Drive
+                                    <span title="Output gain multiplier applied before the master bus. Boosts perceived loudness and harmonic character. Values above 1.5 add significant punch." className="cursor-help text-slate-700 hover:text-slate-400 transition-colors"><HelpCircle size={9} /></span>
+                                </span>
+                                <span>{activeTrack.synthConfig.drive.toFixed(2)}×</span>
+                            </div>
+                            <input type="range" min={0.1} max={10} step={0.05} value={activeTrack.synthConfig.drive} onChange={e => updateSynth('drive', parseFloat(e.target.value))} className="w-full accent-indigo-500 h-1 bg-slate-800 rounded-full appearance-none" />
+                        </div>
                     </section>
 
                     <section className="space-y-4 p-4 bg-black/40 rounded-2xl border border-white/5">
