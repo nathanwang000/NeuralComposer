@@ -1908,6 +1908,65 @@ const App: React.FC = () => {
                             ))}
                         </div>
                     </section>
+
+                    <section className="space-y-4 p-4 bg-black/40 rounded-2xl border border-white/5">
+                        <div className="flex items-center gap-2 text-xs font-black text-indigo-400 uppercase tracking-widest mb-2"><Zap size={14}/> Percussion / Noise</div>
+                        <div className="space-y-3">
+                            {[
+                                {
+                                    label: 'Noise Mix',
+                                    key: 'noiseMix' as keyof SynthConfig,
+                                    min: 0, max: 1, step: 0.01,
+                                    display: (v: number) => `${Math.round(v * 100)}%`,
+                                    tooltip: 'Blends white noise with the oscillator. 0% = pure oscillator, 100% = pure noise. Use high values for snares, hi-hats, and rim shots.',
+                                },
+                                {
+                                    label: 'Noise HP Cutoff',
+                                    key: 'noiseHpCutoff' as keyof SynthConfig,
+                                    min: 100, max: 16000, step: 100,
+                                    display: (v: number) => `${v}Hz`,
+                                    tooltip: 'Highpass filter applied to the noise layer. Higher values make the noise brighter and thinner — try ~1000 Hz for snare body, ~7000 Hz for hi-hats.',
+                                },
+                                {
+                                    label: 'Freq Sweep Start',
+                                    key: 'freqSweepStart' as keyof SynthConfig,
+                                    min: 0, max: 400, step: 1,
+                                    display: (v: number) => v === 0 ? 'off' : `${v}Hz`,
+                                    tooltip: 'Starting frequency for an exponential pitch drop. Set above 0 to override the note pitch (e.g. 150 Hz for a kick). The pitch decays to silence over Sweep Time.',
+                                },
+                                {
+                                    label: 'Freq Sweep Time',
+                                    key: 'freqSweepTime' as keyof SynthConfig,
+                                    min: 0, max: 1, step: 0.01,
+                                    display: (v: number) => v === 0 ? 'off' : `${v.toFixed(2)}s`,
+                                    tooltip: 'How long the pitch drop takes. 0 = no sweep. Try 0.5 s for a deep kick, 0.08 s for a snare body tone, 0.12 s for a tabla-style drop.',
+                                },
+                            ].map(p => {
+                                const raw = activeTrack.synthConfig[p.key];
+                                const val = typeof raw === 'number' ? raw : 0;
+                                return (
+                                    <div key={p.key} className="space-y-1">
+                                        <div className="flex items-center justify-between text-[10px] font-bold text-slate-600 uppercase">
+                                            <span className="flex items-center gap-1">
+                                                {p.label}
+                                                <span title={p.tooltip} className="cursor-help text-slate-700 hover:text-slate-400 transition-colors">
+                                                    <HelpCircle size={9} />
+                                                </span>
+                                            </span>
+                                            <span>{p.display(val)}</span>
+                                        </div>
+                                        <input
+                                            type="range"
+                                            min={p.min} max={p.max} step={p.step}
+                                            value={val}
+                                            onChange={e => updateSynth(p.key, parseFloat(e.target.value))}
+                                            className="w-full accent-indigo-500 h-1 bg-slate-800 rounded-full appearance-none"
+                                        />
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </section>
                 </div>
             )}
             </div>
