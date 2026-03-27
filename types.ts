@@ -129,7 +129,7 @@ export const SYNTH_PRESETS: Record<string, SynthConfig> = {
     decay: 0.9,
     sustain: 0.08,
     release: 0.6,
-    drive: 1.0
+    drive: 3.0
   },
   "Warm Rhodes": {
     waveType: 'triangle',
@@ -140,7 +140,7 @@ export const SYNTH_PRESETS: Record<string, SynthConfig> = {
     decay: 0.5,
     sustain: 0.25,
     release: 0.9,
-    drive: 1.05
+    drive: 3.05
   },
   "Soft Strings": {
     waveType: 'sawtooth',
