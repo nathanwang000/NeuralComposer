@@ -201,6 +201,122 @@ class AudioEngine {
   private globalLastNoteEndTime: number = 0;
 
   /**
+   * Build and connect the synthesis graph for a single note into `ctx`, with
+   * all output routed to `destination`. Works with both a live AudioContext
+   * and an OfflineAudioContext, so live playback and WAV export share one path.
+   *
+   * Returns the `releaseEnd` timestamp so callers can update their legato
+   * tracking variable.
+   *
+   * @param stopOffset  Maximum allowed stop time (use Infinity for live ctx).
+   */
+  private buildNoteGraph(
+    ctx: BaseAudioContext,
+    destination: AudioNode,
+    sc: SynthConfig,
+    freq: number,
+    velocity: number,
+    actualStart: number,
+    noteDuration: number,
+    isLegatoTransition: boolean,
+    trackVolume: number = 1,
+    stopOffset: number = Infinity,
+  ): number {
+    const noiseMix = sc.noiseMix ?? 0;
+    const freqSweepStart = sc.freqSweepStart ?? 0;
+    const freqSweepTime = sc.freqSweepTime ?? 0;
+
+    const waveCorrection = sc.waveType === 'sine' ? 1.1 : (sc.waveType === 'sawtooth' ? 0.9 : 1.0);
+    const vol = Math.max(0, Math.min(1, trackVolume));
+    const targetVolume = (velocity / 127) * 0.4 * sc.drive * waveCorrection * vol;
+
+    const osc = ctx.createOscillator();
+    const filter = ctx.createBiquadFilter();
+    const env = ctx.createGain();
+
+    // 1. Oscillator frequency / sweep
+    osc.type = sc.waveType as OscillatorType;
+    osc.detune.setValueAtTime(sc.detune, actualStart);
+    if (freqSweepStart > 0 && freqSweepTime > 0) {
+      osc.frequency.setValueAtTime(freqSweepStart, actualStart);
+      osc.frequency.exponentialRampToValueAtTime(0.01, actualStart + freqSweepTime);
+    } else if (freqSweepTime > 0) {
+      osc.frequency.setValueAtTime(freq, actualStart);
+      osc.frequency.exponentialRampToValueAtTime(Math.max(0.01, freq * 0.5), actualStart + freqSweepTime);
+    } else {
+      osc.frequency.setValueAtTime(freq, actualStart);
+    }
+
+    // 2. Filter envelope
+    const filterEnvAmount = sc.cutoff * 1.5;
+    filter.type = 'lowpass';
+    filter.Q.setValueAtTime(sc.resonance, actualStart);
+    filter.frequency.setValueAtTime(sc.cutoff, actualStart);
+    if (isLegatoTransition) {
+      filter.frequency.setValueAtTime(sc.cutoff + filterEnvAmount * 0.5, actualStart);
+      filter.frequency.exponentialRampToValueAtTime(sc.cutoff, actualStart + sc.decay);
+    } else {
+      filter.frequency.exponentialRampToValueAtTime(Math.min(20000, sc.cutoff + filterEnvAmount), actualStart + sc.attack);
+      filter.frequency.exponentialRampToValueAtTime(sc.cutoff, actualStart + sc.attack + sc.decay);
+    }
+
+    // 3. ADSR amplitude envelope
+    const attackEnd = actualStart + sc.attack;
+    const decayEnd = attackEnd + sc.decay;
+    const releaseStart = actualStart + noteDuration;
+    const releaseEnd = releaseStart + sc.release;
+
+    env.gain.cancelScheduledValues(actualStart);
+    if (isLegatoTransition) {
+      env.gain.setValueAtTime(0, actualStart);
+      env.gain.linearRampToValueAtTime(targetVolume, actualStart + 0.02);
+      env.gain.setValueAtTime(targetVolume, releaseStart);
+    } else {
+      env.gain.setValueAtTime(0, actualStart);
+      env.gain.linearRampToValueAtTime(targetVolume, attackEnd);
+      env.gain.exponentialRampToValueAtTime(Math.max(0.001, targetVolume * sc.sustain), decayEnd);
+      env.gain.setValueAtTime(targetVolume * sc.sustain, releaseStart);
+    }
+    env.gain.exponentialRampToValueAtTime(0.001, releaseEnd);
+
+    // 4. Oscillator path (scaled by 1 - noiseMix)
+    if (noiseMix < 1) {
+      const oscPreGain = ctx.createGain();
+      oscPreGain.gain.setValueAtTime(1 - noiseMix, actualStart);
+      osc.connect(filter);
+      filter.connect(oscPreGain);
+      oscPreGain.connect(env);
+    }
+
+    // 5. Noise path (active when noiseMix > 0)
+    if (noiseMix > 0) {
+      const noiseDuration = releaseEnd - actualStart + 0.05;
+      const noiseSamples = Math.ceil(ctx.sampleRate * noiseDuration);
+      const noiseBuffer = ctx.createBuffer(1, noiseSamples, ctx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < noiseSamples; i++) data[i] = Math.random() * 2 - 1;
+      const noiseSrc = ctx.createBufferSource();
+      noiseSrc.buffer = noiseBuffer;
+      const noiseHp = ctx.createBiquadFilter();
+      noiseHp.type = 'highpass';
+      noiseHp.frequency.value = sc.noiseHpCutoff ?? 1000;
+      const noisePreGain = ctx.createGain();
+      noisePreGain.gain.setValueAtTime(noiseMix, actualStart);
+      noiseSrc.connect(noiseHp);
+      noiseHp.connect(noisePreGain);
+      noisePreGain.connect(env);
+      noiseSrc.start(actualStart);
+      noiseSrc.stop(Math.min(releaseEnd + 0.05, stopOffset));
+    }
+
+    env.connect(destination);
+    osc.start(actualStart);
+    osc.stop(Math.min(releaseEnd + 0.1, stopOffset));
+
+    return releaseEnd;
+  }
+
+  /**
    * Schedule a single MIDI event for future playback.
    * `config` overrides the engine's global baseConfig — pass a track's own
    * SynthConfig here so each track can have its own sound.
@@ -223,83 +339,15 @@ class AudioEngine {
     // Use the supplied per-track config when available; fall back to baseConfig
     // so the performance-pad synth panel still controls untracked notes.
     const sc = config ?? this.baseConfig;
-
-    const waveCorrection = sc.waveType === 'sine' ? 1.1 : (sc.waveType === 'sawtooth' ? 0.9 : 1.0);
-    // Clamp trackVolume so a value outside 0–1 can't blow up the gain
-    const vol = Math.max(0, Math.min(1, trackVolume));
-    const targetVolume = (event.v / 127) * 0.4 * sc.drive * waveCorrection * vol;
-
-    // --- Polyphonic Legato Logic ---
     const isLegatoTransition = legato && (actualStart < this.globalLastNoteEndTime + 0.1);
 
-    // Nodes
-    const osc = this.ctx.createOscillator();
-    const filter = this.ctx.createBiquadFilter();
-    const env = this.ctx.createGain();
+    const releaseEnd = this.buildNoteGraph(
+      this.ctx, this.masterGain, sc, freq, event.v,
+      actualStart, noteDuration, isLegatoTransition, trackVolume,
+    );
 
-    // 1. Configure Oscillator
-    osc.type = sc.waveType as OscillatorType;
-    osc.frequency.setValueAtTime(freq, actualStart);
-    osc.detune.setValueAtTime(sc.detune, actualStart);
-
-    // 2. Configure Filter
-    const filterEnvAmount = sc.cutoff * 1.5;
-    filter.type = 'lowpass';
-    filter.Q.setValueAtTime(sc.resonance, actualStart);
-
-    // Filter Envelope
-    filter.frequency.setValueAtTime(sc.cutoff, actualStart);
-
-    if (isLegatoTransition) {
-        // Legato: Less filter movement to sound "connected"
-        filter.frequency.setValueAtTime(sc.cutoff + (filterEnvAmount * 0.5), actualStart);
-        filter.frequency.exponentialRampToValueAtTime(sc.cutoff, actualStart + sc.decay);
-    } else {
-      // Full filter sweep
-        filter.frequency.exponentialRampToValueAtTime(Math.min(20000, sc.cutoff + filterEnvAmount), actualStart + sc.attack);
-        filter.frequency.exponentialRampToValueAtTime(sc.cutoff, actualStart + sc.attack + sc.decay);
-    }
-
-    // 3. ADSR Volume Logic
-    const attackEnd = actualStart + sc.attack;
-    const decayEnd = attackEnd + sc.decay;
-    const releaseStart = actualStart + noteDuration;
-    const releaseEnd = releaseStart + sc.release;
-
-    env.gain.cancelScheduledValues(actualStart);
-
-    if (isLegatoTransition) {
-        // Legato: Skip Attack, start at target volume immediately (with tiny fade in to avoid clicks)
-        // This simulates the "fingered legato" where the sound doesn't die down between notes
-        env.gain.setValueAtTime(0, actualStart);
-        env.gain.linearRampToValueAtTime(targetVolume, actualStart + 0.02); // 20ms quick fade
-
-        // No decay needed, just hold level.
-        env.gain.setValueAtTime(targetVolume, releaseStart);
-    } else {
-        // Normal Envelop
-        env.gain.setValueAtTime(0, actualStart);
-        env.gain.linearRampToValueAtTime(targetVolume, attackEnd);
-        env.gain.exponentialRampToValueAtTime(Math.max(0.001, targetVolume * sc.sustain), decayEnd);
-        env.gain.setValueAtTime(targetVolume * sc.sustain, releaseStart);
-    }
-
-    // Release (always the same)
-    env.gain.exponentialRampToValueAtTime(0.001, releaseEnd);
-
-    // Connect Graph
-    osc.connect(filter);
-    filter.connect(env);
-    env.connect(this.masterGain);
-
-    osc.start(actualStart);
-    osc.stop(releaseEnd + 0.1); // Simple stop, no need for hour-long safety buffer anymore
-
-    // Update tracking
-    // For polyphony, we just track the "latest" known note end to know if the "music" is continuous.
-    // It's a simplification but works well for detecting phrases.
     if (releaseEnd > this.globalLastNoteEndTime) {
-        this.globalLastNoteEndTime = releaseEnd;
+      this.globalLastNoteEndTime = releaseEnd;
     }
   }
 
@@ -601,65 +649,16 @@ class AudioEngine {
 
     for (const { event, beatOffset, synthConfig: trackConfig } of sorted) {
       const sc = trackConfig ?? this.baseConfig;
-      const absoluteBeat = beatOffset + event.t;
-      const actualStart = absoluteBeat * secondsPerBeat;
+      const actualStart = (beatOffset + event.t) * secondsPerBeat;
       const noteDuration = event.d * secondsPerBeat;
       const freq = midiToFreq(event.p);
-
-      const waveCorrection = sc.waveType === 'sine' ? 1.1 : (sc.waveType === 'sawtooth' ? 0.9 : 1.0);
-      const targetVolume = (event.v / 127) * 0.4 * sc.drive * waveCorrection;
-
       const isLegatoTransition = legato && (actualStart < globalLastNoteEndTime + 0.1);
 
-      const osc = offlineCtx.createOscillator();
-      const filter = offlineCtx.createBiquadFilter();
-      const env = offlineCtx.createGain();
-
-      osc.type = sc.waveType as OscillatorType;
-      osc.frequency.setValueAtTime(freq, actualStart);
-      osc.detune.setValueAtTime(sc.detune, actualStart);
-
-      const filterEnvAmount = sc.cutoff * 1.5;
-      filter.type = 'lowpass';
-      filter.Q.setValueAtTime(sc.resonance, actualStart);
-      filter.frequency.setValueAtTime(sc.cutoff, actualStart);
-
-      if (isLegatoTransition) {
-        filter.frequency.setValueAtTime(sc.cutoff + filterEnvAmount * 0.5, actualStart);
-        filter.frequency.exponentialRampToValueAtTime(sc.cutoff, actualStart + sc.decay);
-      } else {
-        filter.frequency.exponentialRampToValueAtTime(
-          Math.min(20000, sc.cutoff + filterEnvAmount), actualStart + sc.attack,
-        );
-        filter.frequency.exponentialRampToValueAtTime(sc.cutoff, actualStart + sc.attack + sc.decay);
-      }
-
-      const attackEnd = actualStart + sc.attack;
-      const decayEnd = attackEnd + sc.decay;
-      const releaseStart = actualStart + noteDuration;
-      const releaseEnd = releaseStart + sc.release;
-
-      env.gain.cancelScheduledValues(actualStart);
-
-      if (isLegatoTransition) {
-        env.gain.setValueAtTime(0, actualStart);
-        env.gain.linearRampToValueAtTime(targetVolume, actualStart + 0.02);
-        env.gain.setValueAtTime(targetVolume, releaseStart);
-      } else {
-        env.gain.setValueAtTime(0, actualStart);
-        env.gain.linearRampToValueAtTime(targetVolume, attackEnd);
-        env.gain.exponentialRampToValueAtTime(Math.max(0.001, targetVolume * sc.sustain), decayEnd);
-        env.gain.setValueAtTime(targetVolume * sc.sustain, releaseStart);
-      }
-
-      env.gain.exponentialRampToValueAtTime(0.001, releaseEnd);
-
-      osc.connect(filter);
-      filter.connect(env);
-      env.connect(masterGain);
-
-      osc.start(actualStart);
-      osc.stop(Math.min(releaseEnd + 0.1, totalSeconds));
+      const releaseEnd = this.buildNoteGraph(
+        offlineCtx, masterGain, sc, freq, event.v,
+        actualStart, noteDuration, isLegatoTransition,
+        /* trackVolume */ 1, /* stopOffset */ totalSeconds,
+      );
 
       if (releaseEnd > globalLastNoteEndTime) globalLastNoteEndTime = releaseEnd;
     }

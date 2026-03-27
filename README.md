@@ -11,6 +11,7 @@ A playground for experimenting with musical ideas. The central goal of the **Per
 - **Voice to notes** — hum or sing into the mic; the app transcribes to MIDI (voice icon at the top)
 - **Sequence tab** — compose music manually or with Gemini AI assistance; preload compositions under `samples/`
 - **Perform tab** — enhanced live performance via customizable pad layout; preload chord sequences under `pad_samples/`
+- **Percussion synthesis** — percussive presets use dedicated noise and frequency-sweep synthesis (not just a generic oscillator) for realistic kicks, snares, hi-hats, and more
 
 ## Run Locally
 
@@ -171,6 +172,41 @@ C5+A4+A5+E5@0.5b, D6+F5+A5+D5@0.5b, B4+D5+G4+G5@0.5b
 [bossa nova]
 G4+C4+B4+E5@0.5b, A4+C#6+E5+G5@0.5b, D4+F5+C5+A4@0.5b, G4+B4+D5+F5@0.5b
 ```
+
+---
+
+## Synth Config Reference
+
+Each track carries a `SynthConfig` that controls how its notes are synthesised. All fields except the optional percussion extensions are required.
+
+| Field | Type | Description |
+|---|---|---|
+| `waveType` | `sine \| square \| sawtooth \| triangle` | Base oscillator shape |
+| `detune` | cents | Fine-tune offset from the note pitch |
+| `cutoff` | Hz | Lowpass filter cutoff frequency |
+| `resonance` | Q factor | Filter resonance/peak |
+| `attack` | s | Amplitude envelope attack time |
+| `decay` | s | Amplitude envelope decay time |
+| `sustain` | 0–1 | Sustain level as a fraction of peak volume |
+| `release` | s | Release time after note-off |
+| `drive` | multiplier | Output gain before the master bus |
+
+### Percussion extensions (optional)
+
+These fields unlock synthesis techniques that a plain oscillator cannot replicate. Omit them (or set to `0`) on melodic presets — the engine treats them as disabled.
+
+| Field | Type | Description |
+|---|---|---|
+| `noiseMix` | 0–1 | Blend of white noise vs oscillator. `0` = pure osc, `1` = pure noise |
+| `noiseHpCutoff` | Hz | Highpass filter applied to the noise layer (e.g. `7000` for hi-hat, `1000` for snare) |
+| `freqSweepStart` | Hz | Oscillator starts here and sweeps downward over `freqSweepTime`. `0` = use note pitch |
+| `freqSweepTime` | s | Duration of the exponential pitch drop (e.g. `0.5` for a kick thud) |
+
+**How the engine uses them:**
+- **Kick-style** — `freqSweepStart: 150, freqSweepTime: 0.5` → pitch drops from 150 Hz to silence; `noiseMix: 0` keeps it clean.
+- **Snare-style** — `noiseMix: 0.7, noiseHpCutoff: 1000` → 70% highpassed noise gives the crack; the remaining 30% oscillator adds body.
+- **Hi-hat-style** — `noiseMix: 1, noiseHpCutoff: 7000` → pure high-frequency noise, very short decay.
+- **Tonal percussion** (Marimba, Steel Drum) — no percussion extensions; the standard oscillator + ADSR path is sufficient.
 
 ---
 

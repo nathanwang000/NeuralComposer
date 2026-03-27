@@ -254,9 +254,16 @@ const findPresetName = (config: SynthConfig): string | null => {
  */
 const serializeSynthConfig = (config: SynthConfig): string => {
   const presetName = findPresetName(config);
-  if (presetName) return `preset:"${presetName}"`;
-  const { waveType, detune, cutoff, resonance, attack, decay, sustain, release, drive } = config;
-  return `wave:${waveType} detune:${detune} cutoff:${cutoff} resonance:${resonance} attack:${attack} decay:${decay} sustain:${sustain} release:${release} drive:${drive}`;
+  const base = presetName ? `preset:"${presetName}"` : (() => {
+    const { waveType, detune, cutoff, resonance, attack, decay, sustain, release, drive } = config;
+    return `wave:${waveType} detune:${detune} cutoff:${cutoff} resonance:${resonance} attack:${attack} decay:${decay} sustain:${sustain} release:${release} drive:${drive}`;
+  })();
+  const extras: string[] = [];
+  if (config.noiseMix !== undefined)      extras.push(`noiseMix:${config.noiseMix}`);
+  if (config.noiseHpCutoff !== undefined) extras.push(`noiseHpCutoff:${config.noiseHpCutoff}`);
+  if (config.freqSweepStart !== undefined) extras.push(`freqSweepStart:${config.freqSweepStart}`);
+  if (config.freqSweepTime !== undefined)  extras.push(`freqSweepTime:${config.freqSweepTime}`);
+  return extras.length ? `${base} ${extras.join(' ')}` : base;
 };
 
 // ---------------------------------------------------------------------------
@@ -274,7 +281,7 @@ const serializeSynthConfig = (config: SynthConfig): string => {
 //   - voice:N is 1-based (maps to track index N-1).
 //   - preset sets the base SynthConfig; individual params override it.
 //   - Supported param keys: wave, detune, cutoff, resonance, attack, decay,
-//     sustain, release, drive.
+//     sustain, release, drive, noiseMix, noiseHpCutoff, freqSweepStart, freqSweepTime.
 //   - If no voice headers are present, all notes go to voice 1 (track 0).
 //   - Backward-compatible with old flat-format files (no voice headers).
 // ---------------------------------------------------------------------------
@@ -297,8 +304,8 @@ const parseSynthParams = (paramStr: string): Partial<SynthConfig> | null => {
     Object.assign(result, SYNTH_PRESETS[presetMatch[1]]);
   }
 
-  // Individual param overrides: wave:sawtooth  cutoff:2800  attack:0.001 …
-  const kvRegex = /\b(wave|detune|cutoff|resonance|attack|decay|sustain|release|drive):([^\s\]"]+)/g;
+  // Individual param overrides: wave:sawtooth  cutoff:2800  noiseMix:0.7 …
+  const kvRegex = /\b(wave|detune|cutoff|resonance|attack|decay|sustain|release|drive|noiseMix|noiseHpCutoff|freqSweepStart|freqSweepTime):([^\s\]"]+)/g;
   let m;
   while ((m = kvRegex.exec(paramStr)) !== null) {
     const [, key, val] = m;

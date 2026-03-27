@@ -40,6 +40,14 @@ export interface SynthConfig {
   sustain: number;
   release: number;
   drive: number;
+  /** 0–1. Blends white noise into the signal (0 = pure oscillator, 1 = pure noise). */
+  noiseMix?: number;
+  /** Hz. Highpass cutoff applied to the noise component (e.g. 7000 for hi-hat, 1000 for snare). */
+  noiseHpCutoff?: number;
+  /** Hz. When > 0 the oscillator starts at this frequency and exponentially drops over freqSweepTime (kick/tabla pitch-drop). */
+  freqSweepStart?: number;
+  /** Seconds. Duration of the exponential frequency sweep when freqSweepStart is set. */
+  freqSweepTime?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -158,7 +166,7 @@ export const SYNTH_PRESETS: Record<string, SynthConfig> = {
   },
   // ── Percussive ──────────────────────────────────────────────────────────────
   "Kick Drum": {
-    // Deep thud: low cutoff shapes the punch; drive adds body; zero sustain
+    // Pitch drops from 150 Hz → silence over 0.5 s — the classic thud.
     waveType: 'triangle',
     detune: 0,
     cutoff: 320,
@@ -167,11 +175,14 @@ export const SYNTH_PRESETS: Record<string, SynthConfig> = {
     decay: 0.25,
     sustain: 0.0,
     release: 0.15,
-    drive: 1.8
+    drive: 10.0,
+    freqSweepStart: 150,
+    freqSweepTime: 0.5,
+    noiseMix: 0
   },
   "Snare Hit": {
-    // Bright crack: square at mid-high cutoff with a touch of resonance
-    waveType: 'square',
+    // 70% white noise (highpassed at 1 kHz) + 30% triangle body tone.
+    waveType: 'triangle',
     detune: 0,
     cutoff: 3800,
     resonance: 5,
@@ -179,10 +190,14 @@ export const SYNTH_PRESETS: Record<string, SynthConfig> = {
     decay: 0.12,
     sustain: 0.0,
     release: 0.08,
-    drive: 1.5
+    drive: 1.5,
+    noiseMix: 0.7,
+    noiseHpCutoff: 1000,
+    freqSweepStart: 180,
+    freqSweepTime: 0.08
   },
   "Rim Shot": {
-    // Tight click: very short decay, high cutoff, punchy drive
+    // Almost all noise, cut very high — tight click.
     waveType: 'square',
     detune: 0,
     cutoff: 6000,
@@ -191,7 +206,9 @@ export const SYNTH_PRESETS: Record<string, SynthConfig> = {
     decay: 0.06,
     sustain: 0.0,
     release: 0.04,
-    drive: 1.6
+    drive: 1.6,
+    noiseMix: 0.85,
+    noiseHpCutoff: 3000
   },
   "Marimba": {
     // Wooden mallet: triangle wave, fast decay, slight resonance warmth
@@ -218,7 +235,7 @@ export const SYNTH_PRESETS: Record<string, SynthConfig> = {
     drive: 1.1
   },
   "Tabla": {
-    // Warm finger drum: sawtooth filtered low, resonant bloom, moderate decay
+    // Warm finger drum: pitch drops slightly, small noise layer for the skin snap.
     waveType: 'sawtooth',
     detune: 0,
     cutoff: 900,
@@ -227,6 +244,10 @@ export const SYNTH_PRESETS: Record<string, SynthConfig> = {
     decay: 0.28,
     sustain: 0.0,
     release: 0.18,
-    drive: 1.3
+    drive: 1.3,
+    freqSweepStart: 0,
+    freqSweepTime: 0.12,
+    noiseMix: 0.15,
+    noiseHpCutoff: 800
   }
 };
