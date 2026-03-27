@@ -57,6 +57,8 @@ interface ActiveVoice {
   env: GainNode;
   /** Looped noise source, present only when noiseMix > 0. Must be stopped alongside osc. */
   noiseSrc?: AudioBufferSourceNode;
+  /** True for sustain=0 presets (percussion). Voice self-terminates; stop paths should not cancel its envelope. */
+  isOneShot: boolean;
   pitch: number;
   levelPerDrive: number;
   startTime: number;
@@ -403,9 +405,17 @@ class AudioEngine {
     const safeSustain = Math.max(0.001, targetVolume * cfg.sustain);
     const safeVolume = Math.max(0.001, targetVolume);
 
+    // For percussive (sustain=0) presets, auto-stop after the natural decay+release
+    // so they behave identically to sequencer playback regardless of hold duration.
+    const isOneShot = cfg.sustain === 0;
+    const oneShotEnd = isOneShot ? now + cfg.attack + cfg.decay + cfg.release : Infinity;
+
     env.gain.setValueAtTime(0, now);
     env.gain.linearRampToValueAtTime(safeVolume, now + cfg.attack);
     env.gain.exponentialRampToValueAtTime(safeSustain, now + cfg.attack + cfg.decay);
+    if (isOneShot) {
+      env.gain.exponentialRampToValueAtTime(0.001, oneShotEnd);
+    }
 
     let voice_noiseSrc: AudioBufferSourceNode | undefined;
 
@@ -442,12 +452,17 @@ class AudioEngine {
 
     env.connect(this.masterGain);
     osc.start(now);
+    if (isOneShot) {
+      osc.stop(oneShotEnd + 0.05);
+      voice_noiseSrc?.stop(oneShotEnd + 0.05);
+    }
 
     return {
       osc,
       filter,
       env,
       noiseSrc: voice_noiseSrc,
+      isOneShot,
       pitch: midi,
       levelPerDrive,
       startTime: now
@@ -549,7 +564,10 @@ class AudioEngine {
     const releaseDuration = Math.max(0.01, this.config.release);
     const groupSet = new Set(group);
 
-    group.forEach(({ osc, noiseSrc, env, filter, startTime }) => {
+    group.forEach(({ osc, noiseSrc, env, filter, startTime, isOneShot }) => {
+      // One-shot voices self-terminate — cancelling their envelope would freeze
+      // the gain mid-decay, causing an unintended sustain.
+      if (isOneShot) return;
       try {
         const releaseStart = Math.max(now, startTime);
         const releaseTime = releaseStart + releaseDuration;
@@ -610,7 +628,10 @@ class AudioEngine {
     const now = this.ctx.currentTime;
     const releaseDuration = Math.max(0.01, this.config.release);
 
-    this.activeVoices.forEach(({ osc, noiseSrc, env, filter, startTime }) => {
+    this.activeVoices.forEach(({ osc, noiseSrc, env, filter, startTime, isOneShot }) => {
+      // One-shot voices self-terminate — cancelling their envelope would freeze
+      // the gain mid-decay, causing an unintended sustain.
+      if (isOneShot) return;
       try {
         const releaseStart = Math.max(now, startTime);
         const releaseTime = releaseStart + releaseDuration;
