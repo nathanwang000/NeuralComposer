@@ -16,8 +16,8 @@ interface PianoRollProps {
   beatWidth?: number;
   /** Hex / CSS colour for this track's notes. Falls back to cyan for user notes. */
   trackColor?: string;
-  /** Per-theme canvas grid colours (bar, beat, octave, pitch lines). */
-  gridColors?: { bar: string; beat: string; octave: string; pitch: string };
+  /** Per-theme canvas grid colours (bar, beat, eighth, sixteenth, octave, pitch lines). */
+  gridColors?: { bar: string; beat: string; eighth: string; sixteenth: string; octave: string; pitch: string };
   /** Per-theme note brightness for AI-generated notes. */
   noteBrightness?: { lightness: number; altLightness: number; altAlpha: number };
   /** When true, touch interactions select/deselect notes instead of seeking. */
@@ -36,7 +36,7 @@ const PianoRoll: React.FC<PianoRollProps> = ({
   selectionMarquee,
   beatWidth = 100,
   trackColor = '#22d3ee',
-  gridColors = { bar: '#1e293b', beat: '#0f172a', octave: '#1e293b', pitch: '#0a0f1a' },
+  gridColors = { bar: '#1e293b', beat: '#162232', eighth: '#0f172a', sixteenth: '#0c141e', octave: '#1e293b', pitch: '#0a0f1a' },
   noteBrightness = { lightness: 60, altLightness: 40, altAlpha: 0.6 },
   selectMode = false,
   onSeek,
@@ -206,15 +206,48 @@ const PianoRoll: React.FC<PianoRollProps> = ({
       const startX = (w / 2) - (currentBeat * beatWidth);
       const noteHeight = h / 72;
 
-      // Vertical beat lines
+      // Vertical beat lines — adaptive subdivision based on zoom
       const firstVisibleBeat = Math.floor(currentBeat - (w / 2) / beatWidth);
       const lastVisibleBeat = Math.ceil(currentBeat + (w / 2) / beatWidth);
 
-      for (let i = Math.max(0, firstVisibleBeat); i <= lastVisibleBeat; i++) {
-        const x = startX + (i * beatWidth);
+      // Choose finest subdivision so that adjacent lines are at least ~8px apart.
+      // Subdivisions are in fractions of a beat (quarter note):
+      //   1/16 note = 0.25 beats, 1/8 = 0.5, 1/4 = 1 beat, bar = 4 beats
+      const MIN_PX = 8;
+      let subdivision = 4; // default: bar lines only
+      if (beatWidth * 1 >= MIN_PX)    subdivision = 1;      // beat (1/4 note)
+      if (beatWidth * 0.5 >= MIN_PX)  subdivision = 0.5;    // 1/8 note
+      if (beatWidth * 0.25 >= MIN_PX) subdivision = 0.25;   // 1/16 note
+
+      const subStart = Math.floor((Math.max(0, firstVisibleBeat)) / subdivision) * subdivision;
+      const subEnd = lastVisibleBeat;
+      for (let beat = subStart; beat <= subEnd; beat = Math.round((beat + subdivision) * 10000) / 10000) {
+        const x = startX + beat * beatWidth;
+        const isBar = Math.abs(beat % 4) < 0.0001;
+        const isBeat = !isBar && Math.abs(beat % 1) < 0.0001;
+        const isEighth = !isBar && !isBeat && Math.abs(beat % 0.5) < 0.0001;
+        // 1/16th notes are the finest — everything else falls through
+
+        let color: string;
+        let lw: number;
+        if (isBar) {
+          color = gridColors.bar;
+          lw = 2;
+        } else if (isBeat) {
+          color = gridColors.beat;
+          lw = 1;
+        } else if (isEighth) {
+          color = gridColors.eighth;
+          lw = 1;
+        } else {
+          // 1/16th
+          color = gridColors.sixteenth;
+          lw = 1;
+        }
+
         ctx.beginPath();
-        ctx.strokeStyle = i % 4 === 0 ? gridColors.bar : gridColors.beat;
-        ctx.lineWidth = i % 4 === 0 ? 2 : 1;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = lw;
         ctx.moveTo(x, 0);
         ctx.lineTo(x, h);
         ctx.stroke();

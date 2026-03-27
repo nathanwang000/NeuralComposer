@@ -111,7 +111,7 @@ interface NcTokens {
   // Accent colours (for text/icons — buttons that are bg-indigo-600 keep white text)
   indigo: string; emerald: string; cyan: string; red: string;
   // Canvas grid (PianoRoll)
-  gridBar: string; gridBeat: string; gridOctave: string; gridPitch: string;
+  gridBar: string; gridBeat: string; gridEighth: string; gridSixteenth: string; gridOctave: string; gridPitch: string;
   // AI note brightness for canvas
   noteLightness: number;   // 38 light / 60 dark
   noteAltLightness: number; // 32 light / 40 dark
@@ -145,7 +145,7 @@ const NC_THEMES: NcTheme[] = [
       b1: 'rgba(255,255,255,0.05)', b2: 'rgba(255,255,255,0.1)', b3: 'rgba(255,255,255,0.2)',
       tint: 'rgba(255,255,255,0.05)',
       indigo: '#818cf8', emerald: '#34d399', cyan: '#22d3ee', red: '#f87171',
-      gridBar: '#1e293b', gridBeat: '#0f172a', gridOctave: '#1e293b', gridPitch: '#0a0f1a',
+      gridBar: 'rgba(255,255,255,0.22)', gridBeat: 'rgba(255,255,255,0.10)', gridEighth: 'rgba(255,255,255,0.06)', gridSixteenth: 'rgba(255,255,255,0.03)', gridOctave: 'rgba(255,255,255,0.18)', gridPitch: 'rgba(255,255,255,0.04)',
       noteLightness: 60, noteAltLightness: 40, noteAltAlpha: 0.6,
     },
   },
@@ -167,8 +167,8 @@ const NC_THEMES: NcTheme[] = [
       b1: 'rgba(40,28,8,0.09)', b2: 'rgba(40,28,8,0.15)', b3: 'rgba(40,28,8,0.24)',
       tint: 'rgba(40,28,8,0.04)',
       indigo: '#3730a3', emerald: '#047857', cyan: '#0e7490', red: '#b91c1c',
-      gridBar: 'rgba(60,40,10,0.18)', gridBeat: 'rgba(60,40,10,0.07)',
-      gridOctave: 'rgba(60,40,10,0.16)', gridPitch: 'rgba(60,40,10,0.05)',
+      gridBar: 'rgba(40,28,8,0.30)', gridBeat: 'rgba(40,28,8,0.15)', gridEighth: 'rgba(40,28,8,0.09)', gridSixteenth: 'rgba(40,28,8,0.05)',
+      gridOctave: 'rgba(40,28,8,0.25)', gridPitch: 'rgba(40,28,8,0.07)',
       noteLightness: 38, noteAltLightness: 32, noteAltAlpha: 0.75,
     },
   },
@@ -190,7 +190,7 @@ const NC_THEMES: NcTheme[] = [
       b1: 'rgba(80,160,255,0.08)', b2: 'rgba(80,160,255,0.14)', b3: 'rgba(80,160,255,0.24)',
       tint: 'rgba(80,160,255,0.06)',
       indigo: '#60a5fa', emerald: '#34d399', cyan: '#22d3ee', red: '#f87171',
-      gridBar: '#0d2a50', gridBeat: '#091e3a', gridOctave: '#0d2a50', gridPitch: '#071628',
+      gridBar: 'rgba(100,180,255,0.22)', gridBeat: 'rgba(100,180,255,0.10)', gridEighth: 'rgba(100,180,255,0.06)', gridSixteenth: 'rgba(100,180,255,0.03)', gridOctave: 'rgba(100,180,255,0.18)', gridPitch: 'rgba(100,180,255,0.04)',
       noteLightness: 62, noteAltLightness: 45, noteAltAlpha: 0.65,
     },
   },
@@ -1528,7 +1528,7 @@ const App: React.FC = () => {
                       selectionMarquee={selectionMarquee}
                       beatWidth={beatWidth}
                       trackColor={track.color}
-                      gridColors={{ bar: t.gridBar, beat: t.gridBeat, octave: t.gridOctave, pitch: t.gridPitch }}
+                      gridColors={{ bar: t.gridBar, beat: t.gridBeat, eighth: t.gridEighth, sixteenth: t.gridSixteenth, octave: t.gridOctave, pitch: t.gridPitch }}
                       noteBrightness={{ lightness: t.noteLightness, altLightness: t.noteAltLightness, altAlpha: t.noteAltAlpha }}
                       onSeek={handleSeek}
                       onSelectionMarqueeChange={setSelectionMarquee}
