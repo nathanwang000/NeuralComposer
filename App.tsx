@@ -936,6 +936,7 @@ const App: React.FC = () => {
         .map(e => ({
           ...e,
           synthConfig: trackMap.get(e.trackId)?.synthConfig,
+          trackVolume: trackMap.get(e.trackId)?.volume ?? 1,
         }));
       const blob = await audioEngine.renderToWav(renderEvents, state.tempo, state.legatoMode);
       const url = URL.createObjectURL(blob);

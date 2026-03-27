@@ -616,7 +616,7 @@ class AudioEngine {
    * @param legato   - whether to apply legato transitions
    */
   async renderToWav(
-    events: { event: MidiEvent; beatOffset: number; synthConfig?: SynthConfig }[],
+    events: { event: MidiEvent; beatOffset: number; synthConfig?: SynthConfig; trackVolume?: number }[],
     tempo: number,
     legato: boolean = false,
   ): Promise<Blob> {
@@ -647,7 +647,7 @@ class AudioEngine {
 
     let globalLastNoteEndTime = 0;
 
-    for (const { event, beatOffset, synthConfig: trackConfig } of sorted) {
+    for (const { event, beatOffset, synthConfig: trackConfig, trackVolume } of sorted) {
       const sc = trackConfig ?? this.baseConfig;
       const actualStart = (beatOffset + event.t) * secondsPerBeat;
       const noteDuration = event.d * secondsPerBeat;
@@ -657,7 +657,7 @@ class AudioEngine {
       const releaseEnd = this.buildNoteGraph(
         offlineCtx, masterGain, sc, freq, event.v,
         actualStart, noteDuration, isLegatoTransition,
-        /* trackVolume */ 1, /* stopOffset */ totalSeconds,
+        /* trackVolume */ trackVolume ?? 1, /* stopOffset */ totalSeconds,
       );
 
       if (releaseEnd > globalLastNoteEndTime) globalLastNoteEndTime = releaseEnd;
