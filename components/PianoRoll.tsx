@@ -210,44 +210,32 @@ const PianoRoll: React.FC<PianoRollProps> = ({
       const firstVisibleBeat = Math.floor(currentBeat - (w / 2) / beatWidth);
       const lastVisibleBeat = Math.ceil(currentBeat + (w / 2) / beatWidth);
 
-      // Choose finest subdivision so that adjacent lines are at least ~8px apart.
-      // Subdivisions are in fractions of a beat (quarter note):
-      //   1/16 note = 0.25 beats, 1/8 = 0.5, 1/4 = 1 beat, bar = 4 beats
-      const MIN_PX = 8;
-      let subdivision = 4; // default: bar lines only
-      if (beatWidth * 1 >= MIN_PX)    subdivision = 1;      // beat (1/4 note)
-      if (beatWidth * 0.5 >= MIN_PX)  subdivision = 0.5;    // 1/8 note
-      if (beatWidth * 0.25 >= MIN_PX) subdivision = 0.25;   // 1/16 note
+      // Subdivisions appear only when there's enough space to see them clearly.
+      let subdivision = 4;
+      if (beatWidth >= 100)  subdivision = 1;
+      if (beatWidth >= 300)  subdivision = 0.5;
+      if (beatWidth >= 600)  subdivision = 0.25;
 
+      // Line width scales with zoom so lines grow naturally as you zoom in.
+      // Base = 1px at beatWidth=12, scales up to ~3px at max zoom.
+      const zoomScale = Math.min(beatWidth / 50, 1);  // 0..1 as beatWidth goes 0..50
+      const lwBar    = 1.5 + zoomScale * 1.5 * 3;
+      const lwBeat   = 0.8 + zoomScale * 1.2 * 3;
+      const lwEighth = 0.5 + zoomScale * 0.8 * 3;
+      const lwSixteenth = 0.3 + zoomScale * 0.5 * 3;
+
+      ctx.setLineDash([]);
       const subStart = Math.floor((Math.max(0, firstVisibleBeat)) / subdivision) * subdivision;
-      const subEnd = lastVisibleBeat;
-      for (let beat = subStart; beat <= subEnd; beat = Math.round((beat + subdivision) * 10000) / 10000) {
+      for (let beat = subStart; beat <= lastVisibleBeat; beat = Math.round((beat + subdivision) * 10000) / 10000) {
         const x = startX + beat * beatWidth;
-        const isBar = Math.abs(beat % 4) < 0.0001;
-        const isBeat = !isBar && Math.abs(beat % 1) < 0.0001;
+        const isBar    = Math.abs(beat % 4)   < 0.0001;
+        const isBeat   = !isBar && Math.abs(beat % 1)   < 0.0001;
         const isEighth = !isBar && !isBeat && Math.abs(beat % 0.5) < 0.0001;
-        // 1/16th notes are the finest — everything else falls through
 
-        let color: string;
-        let lw: number;
-        if (isBar) {
-          color = gridColors.bar;
-          lw = 2;
-        } else if (isBeat) {
-          color = gridColors.beat;
-          lw = 1;
-        } else if (isEighth) {
-          color = gridColors.eighth;
-          lw = 1;
-        } else {
-          // 1/16th
-          color = gridColors.sixteenth;
-          lw = 1;
-        }
+        ctx.strokeStyle = isBar ? gridColors.bar : gridColors.beat;
+        ctx.lineWidth = isBar ? lwBar : isBeat ? lwBeat : isEighth ? lwEighth : lwSixteenth;
 
         ctx.beginPath();
-        ctx.strokeStyle = color;
-        ctx.lineWidth = lw;
         ctx.moveTo(x, 0);
         ctx.lineTo(x, h);
         ctx.stroke();
