@@ -539,7 +539,7 @@ const App: React.FC = () => {
   // trackHeights stores per-track overrides as the same unit.
   const [trackHeight, setTrackHeight] = useState(100);
   const [trackHeights, setTrackHeights] = useState<Record<string, number>>({});
-  const clampTrackHeight = (v: number) => Math.max(10, Math.min(200, v));
+  const clampTrackHeight = (v: number) => Math.max(10, Math.min(300, v));
   const trackResizeDragRef = useRef<{ trackId: string; startY: number; startHeightPct: number } | null>(null);
   const containerHeightRef = useRef(400); // live pixel height of the scroll container
   const trackScrollContainerRef = useRef<HTMLDivElement>(null);
