@@ -1627,7 +1627,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
 
     // Mappings
     const [xTargets, setXTargets] = useState<ModulationTarget[]>(['cutoff', 'detune_semitone']);
-    const [yTargets, setYTargets] = useState<ModulationTarget[]>(['resonance', 'sustain']);
+    const [yTargets, setYTargets] = useState<ModulationTarget[]>(['resonance']);
     const [xFlipped, setXFlipped] = useState(false);
     const [yFlipped, setYFlipped] = useState(false);
 
