@@ -55,6 +55,8 @@ interface ActiveVoice {
   osc: OscillatorNode;
   filter: BiquadFilterNode;
   env: GainNode;
+  /** Looped noise source, present only when noiseMix > 0. Must be stopped alongside osc. */
+  noiseSrc?: AudioBufferSourceNode;
   pitch: number;
   levelPerDrive: number;
   startTime: number;
@@ -358,6 +360,10 @@ class AudioEngine {
     const now = Math.max(startTime, this.ctx.currentTime);
     const freq = this.midiToFreq(midi);
 
+    const noiseMix = cfg.noiseMix ?? 0;
+    const freqSweepStart = cfg.freqSweepStart ?? 0;
+    const freqSweepTime = cfg.freqSweepTime ?? 0;
+
     const waveCorrection = cfg.waveType === 'sine' ? 1.1 : (cfg.waveType === 'sawtooth' ? 0.9 : 1.0);
     const levelPerDrive = (velocity / 127) * 0.4 * waveCorrection;
     const targetVolume = levelPerDrive * cfg.drive;
@@ -366,9 +372,18 @@ class AudioEngine {
     const filter = this.ctx.createBiquadFilter();
     const env = this.ctx.createGain();
 
+    // Oscillator frequency / sweep
     osc.type = cfg.waveType as OscillatorType;
-    osc.frequency.setValueAtTime(freq, now);
     osc.detune.setValueAtTime(cfg.detune, now);
+    if (freqSweepStart > 0 && freqSweepTime > 0) {
+      osc.frequency.setValueAtTime(freqSweepStart, now);
+      osc.frequency.exponentialRampToValueAtTime(0.01, now + freqSweepTime);
+    } else if (freqSweepTime > 0) {
+      osc.frequency.setValueAtTime(freq, now);
+      osc.frequency.exponentialRampToValueAtTime(Math.max(0.01, freq * 0.5), now + freqSweepTime);
+    } else {
+      osc.frequency.setValueAtTime(freq, now);
+    }
 
     const filterEnvAmount = cfg.cutoff * 1.5;
     filter.type = 'lowpass';
@@ -376,7 +391,6 @@ class AudioEngine {
 
     const startCutoff = Math.max(100, cfg.cutoff);
     filter.frequency.setValueAtTime(startCutoff, now);
-
     filter.frequency.exponentialRampToValueAtTime(
         Math.min(20000, Math.max(100, cfg.cutoff + filterEnvAmount)),
         now + cfg.attack
@@ -393,16 +407,47 @@ class AudioEngine {
     env.gain.linearRampToValueAtTime(safeVolume, now + cfg.attack);
     env.gain.exponentialRampToValueAtTime(safeSustain, now + cfg.attack + cfg.decay);
 
-    osc.connect(filter);
-    filter.connect(env);
-    env.connect(this.masterGain);
+    let voice_noiseSrc: AudioBufferSourceNode | undefined;
 
+    // Oscillator path (scaled by 1 - noiseMix)
+    if (noiseMix < 1) {
+      const oscPreGain = this.ctx.createGain();
+      oscPreGain.gain.setValueAtTime(1 - noiseMix, now);
+      osc.connect(filter);
+      filter.connect(oscPreGain);
+      oscPreGain.connect(env);
+    }
+
+    // Noise path — looped so it never runs out during an indefinite hold
+    if (noiseMix > 0) {
+      const loopSamples = this.ctx.sampleRate; // 1 s loop
+      const noiseBuffer = this.ctx.createBuffer(1, loopSamples, this.ctx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < loopSamples; i++) data[i] = Math.random() * 2 - 1;
+      const noiseSrc = this.ctx.createBufferSource();
+      noiseSrc.buffer = noiseBuffer;
+      noiseSrc.loop = true;
+      const noiseHp = this.ctx.createBiquadFilter();
+      noiseHp.type = 'highpass';
+      noiseHp.frequency.value = cfg.noiseHpCutoff ?? 1000;
+      const noisePreGain = this.ctx.createGain();
+      noisePreGain.gain.setValueAtTime(noiseMix, now);
+      noiseSrc.connect(noiseHp);
+      noiseHp.connect(noisePreGain);
+      noisePreGain.connect(env);
+      noiseSrc.start(now);
+      // noiseSrc is stored on the voice so stop paths can call noiseSrc.stop() explicitly.
+      voice_noiseSrc = noiseSrc;
+    }
+
+    env.connect(this.masterGain);
     osc.start(now);
 
     return {
       osc,
       filter,
       env,
+      noiseSrc: voice_noiseSrc,
       pitch: midi,
       levelPerDrive,
       startTime: now
@@ -504,7 +549,7 @@ class AudioEngine {
     const releaseDuration = Math.max(0.01, this.config.release);
     const groupSet = new Set(group);
 
-    group.forEach(({ osc, env, filter, startTime }) => {
+    group.forEach(({ osc, noiseSrc, env, filter, startTime }) => {
       try {
         const releaseStart = Math.max(now, startTime);
         const releaseTime = releaseStart + releaseDuration;
@@ -523,6 +568,7 @@ class AudioEngine {
 
         env.gain.exponentialRampToValueAtTime(0.001, releaseTime);
         osc.stop(releaseTime + 0.1);
+        noiseSrc?.stop(releaseTime + 0.1);
       } catch (e) {
         console.warn('Error stopping voice group', e);
       }
@@ -564,7 +610,7 @@ class AudioEngine {
     const now = this.ctx.currentTime;
     const releaseDuration = Math.max(0.01, this.config.release);
 
-    this.activeVoices.forEach(({ osc, env, filter, startTime }) => {
+    this.activeVoices.forEach(({ osc, noiseSrc, env, filter, startTime }) => {
       try {
         const releaseStart = Math.max(now, startTime);
         const releaseTime = releaseStart + releaseDuration;
@@ -584,6 +630,7 @@ class AudioEngine {
 
         env.gain.exponentialRampToValueAtTime(0.001, releaseTime);
         osc.stop(releaseTime + 0.1);
+        noiseSrc?.stop(releaseTime + 0.1);
       } catch (e) {
         console.warn("Error stopping note", e);
       }
