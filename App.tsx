@@ -71,7 +71,8 @@ const KB_SEQ = {
   UNDO:       { key: 'z',          display: `${_MOD}Z`,     hint: 'Undo',                      mod: true },
   REDO:       { key: 'z',          display: `${_MOD}⇧Z`,    hint: 'Redo',                      mod: true, shift: true },
   REDO_ALT:   { key: 'y',          display: `${_MOD}Y`,     hint: 'Redo (alt)',                mod: true },
-  DELETE:     { key: 'Delete',     display: 'Del / ⌫',      hint: 'Delete selected notes' },
+  DELETE:            { key: 'Delete',     display: 'Del / ⌫',      hint: 'Delete selected notes' },
+  CANCEL_SELECTION:  { key: 'g',          display: `${_MOD}G`,     hint: 'Cancel selection',          mod: true },
   // ── Transport ─────────────────────────────────────────────────────────────
   PLAY_PAUSE: { key: ' ',          display: 'Space',        hint: 'Play / Pause' },
   REWIND:     { key: '0',          display: '0',            hint: 'Rewind to beginning' },
@@ -210,7 +211,7 @@ type NcThemeId = string;
 const SEQ_TUTORIAL_SECTIONS: { title: string; rows: { display: string; hint: string }[] }[] = [
   { title: 'Transport',  rows: [KB_SEQ.PLAY_PAUSE, KB_SEQ.REWIND, KB_SEQ.PREV_BAR, KB_SEQ.NEXT_BAR] },
   { title: 'Tracks',     rows: [KB_SEQ.SELECT_TRACK, KB_SEQ.MUTE_TRACK] },
-  { title: 'Selection',  rows: [KB_SEQ.SELECT_ALL] },
+  { title: 'Selection',  rows: [KB_SEQ.SELECT_ALL, KB_SEQ.CANCEL_SELECTION] },
   { title: 'Clipboard',  rows: [KB_SEQ.COPY, KB_SEQ.CUT, KB_SEQ.PASTE, KB_SEQ.DELETE] },
   { title: 'History',    rows: [KB_SEQ.UNDO, KB_SEQ.REDO, KB_SEQ.REDO_ALT] },
 ];
@@ -1260,8 +1261,9 @@ const App: React.FC = () => {
           case KB_SEQ.SELECT_ALL.key: e.preventDefault(); handleSelectAll(); break;
           case KB_SEQ.COPY.key:       e.preventDefault(); handleCopy();      break;
           case KB_SEQ.PASTE.key:      e.preventDefault(); handlePaste();     break;
-          case KB_SEQ.UNDO.key:       e.preventDefault(); if (e.shiftKey) redo(); else undo(); break;
-          case KB_SEQ.REDO_ALT.key:   e.preventDefault(); redo();            break;
+          case KB_SEQ.UNDO.key:              e.preventDefault(); if (e.shiftKey) redo(); else undo(); break;
+          case KB_SEQ.REDO_ALT.key:          e.preventDefault(); redo();            break;
+          case KB_SEQ.CANCEL_SELECTION.key:  e.preventDefault(); setSelectedEventIds([]); break;
         }
         return;
       }
@@ -2152,8 +2154,8 @@ const App: React.FC = () => {
               ))}
             </div>
 
-            <div className="px-5 py-3 border-t border-white/10 text-[9px] text-slate-600 uppercase tracking-widest">
-              Click anywhere outside to close
+            <div className="px-5 py-3 border-t border-white/10 text-[9px] text-slate-500 leading-relaxed">
+              <span className="uppercase tracking-widest">Transport &amp; track shortcuts</span> (0, ←, →, 1–9, M) fire only when mouse is <span className="italic">outside</span> the pad — the pad has its own shortcuts.
             </div>
           </div>
         </div>,
