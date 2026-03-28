@@ -226,8 +226,10 @@ interface AppEvent {
 // Track helpers — pure functions, no React state, easy to unit-test.
 // ---------------------------------------------------------------------------
 
+const DEFAULT_PRESET = 'Grand Piano' as const;
+
 /** Build a fresh Track with sensible defaults. */
-const createDefaultTrack = (id: string, name: string, color: string, presetName = 'Grand Piano'): Track => ({
+const createDefaultTrack = (id: string, name: string, color: string, presetName = DEFAULT_PRESET): Track => ({
   id,
   name,
   color,
@@ -506,7 +508,7 @@ const App: React.FC = () => {
   // Multi-track state — the source of truth for all voice / synth configuration.
   // ---------------------------------------------------------------------------
   const [tracks, setTracks] = useState<Track[]>([
-    createDefaultTrack('track-1', 'Track 1', TRACK_COLORS[0], 'Grand Piano'),
+    createDefaultTrack('track-1', 'Track 1', TRACK_COLORS[0]),
   ]);
   /** ID of the track whose synth panel is shown in the Voice tab */
   const [activeTrackId, setActiveTrackId] = useState<string>('track-1');
@@ -909,7 +911,7 @@ const App: React.FC = () => {
         // track config. This means no field from the previous voice leaks through —
         // optional fields (or any field) absent from the override revert to the
         // default instead of inheriting the old value.
-        const cleanBase = { ...SYNTH_PRESETS['Grand Piano'] };
+        const cleanBase = { ...SYNTH_PRESETS[DEFAULT_PRESET] };
         track = { ...track, synthConfig: { ...cleanBase, ...synthOverride } };
         updatedTracks[voiceIndex] = track;
       }
@@ -1167,6 +1169,10 @@ const App: React.FC = () => {
     setSelectedEventIds([]);
     setRawStream("");
     setState(s => ({ ...s, isPlaying: false, isGenerating: false }));
+    const defaultTrack = createDefaultTrack('track-1', 'Track 1', TRACK_COLORS[0]);
+    setTracks([defaultTrack]);
+    setActiveTrackId('track-1');
+    setRecordingTrackId('track-1');
   };
 
   const handleTestNote = () => {
