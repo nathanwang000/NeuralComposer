@@ -1413,7 +1413,7 @@ const App: React.FC = () => {
                 {tracks.map(track => (
                   <button
                     key={track.id}
-                    onClick={() => setRecordingTrackId(track.id)}
+                    onClick={() => { setRecordingTrackId(track.id); setActiveTrackId(track.id); }}
                     className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-black transition-all ${recordingTrackId === track.id ? 'text-white border border-white/20' : 'text-slate-600 hover:text-slate-300 border border-transparent'}`}
                     style={{ background: recordingTrackId === track.id ? `${track.color}22` : undefined, borderColor: recordingTrackId === track.id ? `${track.color}66` : undefined }}
                   >
@@ -1456,7 +1456,7 @@ const App: React.FC = () => {
                         : 'border-white/5 hover:bg-white/[0.03]'
                     }`}
                     style={activeTrackId === track.id ? { borderRightColor: track.color, borderLeftColor: track.color, borderLeft: `3px solid ${track.color}` } : undefined}
-                    onClick={() => setActiveTrackId(track.id)}
+                    onClick={() => { setActiveTrackId(track.id); setRecordingTrackId(track.id); }}
                   >
                     {/* Row 1: colour dot + name + remove */}
                     <div className="flex items-center gap-1.5">
@@ -1789,7 +1789,7 @@ const App: React.FC = () => {
                         {tracks.map(track => (
                           <div key={track.id} className="flex items-center gap-1">
                             <button
-                              onClick={() => setActiveTrackId(track.id)}
+                              onClick={() => { setActiveTrackId(track.id); setRecordingTrackId(track.id); }}
                               className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-black transition-all ${activeTrackId === track.id ? 'border-white/20 bg-white/5 text-white' : 'border-transparent text-slate-500 hover:text-slate-300 hover:bg-white/[0.03]'}`}
                             >
                               <div className="w-2 h-2 rounded-full flex-none" style={{ background: track.color }} />
