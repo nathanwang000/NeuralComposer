@@ -752,7 +752,7 @@ const App: React.FC = () => {
     if (!isAIStreamActive || isGeneratingRef.current) return;
     if (!apiKey) {
       setIsAIStreamActive(false);
-      alert('Please enter your Gemini API Key in the top bar to continue.');
+      alert('Please enter your Gemini API Key in the Session panel (left sidebar) to continue.');
       return;
     }
     pushHistory(events);
@@ -1359,19 +1359,6 @@ const App: React.FC = () => {
             <Mic size={14} /> <span className="sm:hidden">MIC</span><span className="hidden sm:inline">VOICE</span>
           </button>
 
-          <div className="relative group">
-            <input
-              type="password"
-              placeholder="Gemini API Key"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              className="bg-black border border-white/5 text-xs font-bold rounded-xl px-4 py-2.5 w-32 focus:w-64 transition-all focus:outline-none focus:border-indigo-500/50 text-white placeholder:text-slate-600"
-            />
-          </div>
-
-          <select className="bg-black border-none text-xs font-bold rounded-xl px-4 py-2.5 cursor-pointer hover:bg-slate-900" value={state.genre} onChange={(e) => setState(s => ({ ...s, genre: e.target.value }))}>
-            {Object.values(MusicGenre).map(g => (<option key={g} value={g}>{g}</option>))}
-          </select>
           {!isAIStreamActive && events.length === 0 ? (
             <button onClick={handleInitializeAI} className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-bold text-sm text-white shadow-xl">INITIALIZE</button>
           ) : (
@@ -1767,9 +1754,34 @@ const App: React.FC = () => {
                      </div>
                   </div>
 
-                  <div className="mt-auto p-4 bg-indigo-500/5 rounded-2xl border border-indigo-500/10">
-                     <div className="text-xs font-black text-indigo-400 uppercase mb-2 flex items-center gap-2"><Sparkles size={10} /> Creative Direction for AI</div>
-                     <textarea value={creativeDirection} onChange={(e) => setCreativeDirection(e.target.value)} placeholder="e.g. Add erratic fills..." className="w-full border rounded-lg p-2 text-xs h-24 focus:outline-none nc-input" style={{ backgroundColor: t.inputBg, color: t.inputText, borderColor: t.b2 }} />
+                  <div className="mt-auto p-5 rounded-2xl border space-y-3" style={{ backgroundColor: t.card, borderColor: t.b1 }}>
+                     <div className="text-xs font-bold uppercase flex items-center gap-2" style={{ color: t.t4 }}><Sparkles size={12} /> AI Settings</div>
+                     <div className="space-y-2">
+                       <label className="text-[10px] font-bold uppercase tracking-widest" style={{ color: t.t4 }}>API Key</label>
+                       <input
+                         type="password"
+                         placeholder="Gemini API Key"
+                         value={apiKey}
+                         onChange={(e) => setApiKey(e.target.value)}
+                         className="w-full border rounded-lg px-3 py-2 text-xs focus:outline-none nc-input"
+                         style={{ backgroundColor: t.inputBg, color: t.inputText, borderColor: t.b2 }}
+                       />
+                     </div>
+                     <div className="space-y-2">
+                       <label className="text-[10px] font-bold uppercase tracking-widest" style={{ color: t.t4 }}>Style</label>
+                       <select
+                         className="w-full border rounded-lg px-3 py-2 text-xs font-bold cursor-pointer focus:outline-none nc-input"
+                         style={{ backgroundColor: t.inputBg, color: t.inputText, borderColor: t.b2 }}
+                         value={state.genre}
+                         onChange={(e) => setState(s => ({ ...s, genre: e.target.value }))}
+                       >
+                         {Object.values(MusicGenre).map(g => (<option key={g} value={g}>{g}</option>))}
+                       </select>
+                     </div>
+                     <div className="space-y-2">
+                       <label className="text-[10px] font-bold uppercase tracking-widest" style={{ color: t.t4 }}>Creative Direction</label>
+                       <textarea value={creativeDirection} onChange={(e) => setCreativeDirection(e.target.value)} placeholder="e.g. Add erratic fills..." className="w-full border rounded-lg p-2 text-xs h-20 focus:outline-none nc-input" style={{ backgroundColor: t.inputBg, color: t.inputText, borderColor: t.b2 }} />
+                     </div>
                   </div>
                 </div>
             ) : (

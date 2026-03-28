@@ -52,7 +52,7 @@ const VoiceToMidiConverter: React.FC = () => {
         const bufferSize = 1024;
 
         const events: MidiEvent[] = [];
-        
+
         // Simple smoothing filter
         let lastPitch = 0;
         const PITCH_SMOOTHING = 0.5;
@@ -64,7 +64,7 @@ const VoiceToMidiConverter: React.FC = () => {
             // Basic silence detection by amplitude
             const rms = Math.sqrt(chunk.reduce((sum, val) => sum + val * val, 0) / chunk.length);
 
-            if (rms > 0.02) { 
+            if (rms > 0.02) {
                  const freq = detectPitch(chunk);
                  if (freq) {
                      let midiPitch = frequencyToMidi(freq);
