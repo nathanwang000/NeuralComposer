@@ -574,13 +574,16 @@ const App: React.FC = () => {
     return () => ro.disconnect();
   }, []);
 
-  // Scroll the active track lane into view whenever it changes
+  // Scroll the active track lane into view whenever it changes,
+  // or when switching to the sequencer tab (the container is hidden while on the
+  // performance tab, so scrollIntoView is a no-op until the tab is visible).
   useEffect(() => {
+    if (mainTab !== 'sequencer') return;
     const container = trackScrollContainerRef.current;
     if (!container) return;
     const lane = container.querySelector<HTMLElement>(`[data-trackid="${activeTrackId}"]`);
     lane?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  }, [activeTrackId]);
+  }, [activeTrackId, mainTab]);
 
   // Per-track drag resize — wired to window so fast mouse moves don't drop
   useEffect(() => {
