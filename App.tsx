@@ -63,15 +63,23 @@ const _IS_MAC = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platfo
 const _MOD = _IS_MAC ? '⌘' : '⌃';
 
 const KB_SEQ = {
-  SELECT_ALL: { display: `${_MOD}A`,     hint: 'Select all notes' },
-  COPY:       { display: `${_MOD}C`,     hint: 'Copy selection' },
-  CUT:        { display: `${_MOD}X`,     hint: 'Cut selection' },
-  PASTE:      { display: `${_MOD}V`,     hint: 'Paste at playhead' },
-  UNDO:       { display: `${_MOD}Z`,     hint: 'Undo' },
-  REDO:       { display: `${_MOD}⇧Z`,    hint: 'Redo' },
-  REDO_ALT:   { display: `${_MOD}Y`,     hint: 'Redo (alt)' },
-  DELETE:     { display: 'Del / ⌫',      hint: 'Delete selected notes' },
-  PLAY_PAUSE: { display: 'Space',         hint: 'Play / Pause' },
+  // ── Clipboard / edit ──────────────────────────────────────────────────────
+  SELECT_ALL: { key: 'a',          display: `${_MOD}A`,     hint: 'Select all notes',          mod: true },
+  COPY:       { key: 'c',          display: `${_MOD}C`,     hint: 'Copy selection',            mod: true },
+  CUT:        { key: 'x',          display: `${_MOD}X`,     hint: 'Cut selection',             mod: true },
+  PASTE:      { key: 'v',          display: `${_MOD}V`,     hint: 'Paste at playhead',         mod: true },
+  UNDO:       { key: 'z',          display: `${_MOD}Z`,     hint: 'Undo',                      mod: true },
+  REDO:       { key: 'z',          display: `${_MOD}⇧Z`,    hint: 'Redo',                      mod: true, shift: true },
+  REDO_ALT:   { key: 'y',          display: `${_MOD}Y`,     hint: 'Redo (alt)',                mod: true },
+  DELETE:     { key: 'Delete',     display: 'Del / ⌫',      hint: 'Delete selected notes' },
+  // ── Transport ─────────────────────────────────────────────────────────────
+  PLAY_PAUSE: { key: ' ',          display: 'Space',        hint: 'Play / Pause' },
+  REWIND:     { key: '0',          display: '0',            hint: 'Rewind to beginning' },
+  PREV_BAR:   { key: 'ArrowLeft',  display: '←',            hint: 'Back 1 measure' },
+  NEXT_BAR:   { key: 'ArrowRight', display: '→',            hint: 'Forward 1 measure' },
+  // ── Tracks ────────────────────────────────────────────────────────────────
+  SELECT_TRACK: { key: '1-9' /* regex */, display: '1 – 9', hint: 'Select track by number' },
+  MUTE_TRACK:   { key: 'm',        display: 'M',            hint: 'Mute / unmute active track' },
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -200,7 +208,8 @@ type NcThemeId = string;
 
 /** Grouped sections shown in the sequencer shortcuts modal. */
 const SEQ_TUTORIAL_SECTIONS: { title: string; rows: { display: string; hint: string }[] }[] = [
-  { title: 'Playback',   rows: [KB_SEQ.PLAY_PAUSE] },
+  { title: 'Transport',  rows: [KB_SEQ.PLAY_PAUSE, KB_SEQ.REWIND, KB_SEQ.PREV_BAR, KB_SEQ.NEXT_BAR] },
+  { title: 'Tracks',     rows: [KB_SEQ.SELECT_TRACK, KB_SEQ.MUTE_TRACK] },
   { title: 'Selection',  rows: [KB_SEQ.SELECT_ALL] },
   { title: 'Clipboard',  rows: [KB_SEQ.COPY, KB_SEQ.CUT, KB_SEQ.PASTE, KB_SEQ.DELETE] },
   { title: 'History',    rows: [KB_SEQ.UNDO, KB_SEQ.REDO, KB_SEQ.REDO_ALT] },
@@ -1221,6 +1230,11 @@ const App: React.FC = () => {
     setTracks(prev => prev.map(t => t.id === id ? { ...t, volume } : t));
   };
 
+  // True while the mouse is inside the PerformancePad surface.
+  // Transport shortcuts (0, ←, →, 1-9, M) are suppressed while the pad is
+  // focused so they don't conflict with pad key bindings.
+  const isMouseInPadRef = useRef(false);
+
   // Keyboard Shortcuts Effect
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1229,49 +1243,79 @@ const App: React.FC = () => {
       // Prevent triggering shortcuts when typing in inputs/textareas
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
 
+      // Space — play/pause (pad also doesn't claim Space globally)
+      if (e.key === KB_SEQ.PLAY_PAUSE.key && target.tagName !== 'BUTTON') {
+        e.preventDefault();
+        togglePlayback();
+        return;
+      }
+
+      // ── Transport & track shortcuts — suppressed while pad is focused ───
+      const padFocused = isMouseInPadRef.current;
+      if (padFocused) return;
+
       if (e.ctrlKey || e.metaKey) {
         switch (e.key.toLowerCase()) {
-          case 'x':
-            e.preventDefault();
-            handleCut();
-            break;
-          case 'a':
-            e.preventDefault();
-            handleSelectAll();
-            break;
-          case 'c':
-            e.preventDefault();
-            handleCopy();
-            break;
-          case 'v':
-            e.preventDefault();
-            handlePaste();
-            break;
-          case 'z':
-            e.preventDefault();
-            if (e.shiftKey) redo();
-            else undo();
-            break;
-          case 'y':
-            e.preventDefault();
-            redo();
-            break;
+          case KB_SEQ.CUT.key:        e.preventDefault(); handleCut();       break;
+          case KB_SEQ.SELECT_ALL.key: e.preventDefault(); handleSelectAll(); break;
+          case KB_SEQ.COPY.key:       e.preventDefault(); handleCopy();      break;
+          case KB_SEQ.PASTE.key:      e.preventDefault(); handlePaste();     break;
+          case KB_SEQ.UNDO.key:       e.preventDefault(); if (e.shiftKey) redo(); else undo(); break;
+          case KB_SEQ.REDO_ALT.key:   e.preventDefault(); redo();            break;
         }
-      } else {
-        if (e.key === 'Delete' || e.key === 'Backspace') {
-          e.preventDefault();
-          handleDelete();
+        return;
+      }
+
+      // ── Non-modifier shortcuts ──────────────────────────────────────────
+      // Delete / Backspace — always available (pad doesn't use them)
+      if (e.key === KB_SEQ.DELETE.key || e.key === 'Backspace') {
+        e.preventDefault();
+        handleDelete();
+        return;
+      }
+      // KB_SEQ.REWIND — rewind to beginning
+      if (e.key === KB_SEQ.REWIND.key) {
+        e.preventDefault();
+        handleSeek(0);
+        return;
+      }
+
+      // KB_SEQ.PREV_BAR — back 1 measure (4 beats)
+      if (e.key === KB_SEQ.PREV_BAR.key && !e.shiftKey) {
+        e.preventDefault();
+        handleSeek(Math.max(0, playbackBeatRef.current - 4));
+        return;
+      }
+
+      // KB_SEQ.NEXT_BAR — forward 1 measure (4 beats)
+      if (e.key === KB_SEQ.NEXT_BAR.key && !e.shiftKey) {
+        e.preventDefault();
+        handleSeek(playbackBeatRef.current + 4);
+        return;
+      }
+
+      // KB_SEQ.MUTE_TRACK — mute/unmute active track
+      if (e.key.toLowerCase() === KB_SEQ.MUTE_TRACK.key) {
+        e.preventDefault();
+        toggleTrackMute(activeTrackId);
+        return;
+      }
+
+      // KB_SEQ.SELECT_TRACK — 1-9 selects track by index
+      if (/^[1-9]$/.test(e.key)) {
+        const idx = parseInt(e.key) - 1;
+        if (idx < tracks.length) {
+          const track = tracks[idx];
+          setActiveTrackId(track.id);
+          setRecordingTrackId(track.id);
         }
-        if (e.key === ' ' && target.tagName !== 'BUTTON') {
-           e.preventDefault();
-           togglePlayback();
-        }
+        return;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleCut, handleCopy, handlePaste, handleDelete, handleSelectAll, undo, redo, togglePlayback]);
+  }, [handleCut, handleCopy, handlePaste, handleDelete, handleSelectAll, undo, redo, togglePlayback, activeTrackId, tracks]);
 
   const waveOptions: SynthWaveType[] = ['sine', 'square', 'sawtooth', 'triangle'];
 
@@ -1419,6 +1463,7 @@ const App: React.FC = () => {
               bpm={state.tempo}
               onCommitRecording={handleCommitRecording}
               onRecordingStart={() => { recordingStartBeatRef.current = playbackBeatRef.current; }}
+              isMouseInPadRef={isMouseInPadRef}
               onStartPlayback={() => {
                 audioEngine.init();
                 isPausedRef.current = false;

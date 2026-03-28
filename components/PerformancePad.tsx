@@ -1524,11 +1524,12 @@ const TOUCH_COLORS = [
     { dot: '#34d399', glow: 'rgba(16,185,129,0.22)',  ring: 'rgba(52,211,153,0.55)'  }, // emerald
 ];
 
-const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: MidiEvent[]) => void; onRecordingStart?: () => void; onStartPlayback?: () => void }> = ({
+const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: MidiEvent[]) => void; onRecordingStart?: () => void; onStartPlayback?: () => void; isMouseInPadRef?: React.MutableRefObject<boolean> }> = ({
     bpm = 120,
     onCommitRecording,
     onRecordingStart,
     onStartPlayback,
+    isMouseInPadRef: externalMouseInPadRef,
 }) => {
     // Keep a ref to the latest bpm so audio callbacks always see the current value
     // without needing to be re-created whenever bpm changes.
@@ -1543,7 +1544,10 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
     const soloKeyVoiceGroupRef = useRef<Map<string, number>>(new Map());
     const controlPointerIdRef = useRef<number | null>(null);
     const activeKeyboardKeysRef = useRef<Set<string>>(new Set());
-    const isMouseInPadRef = useRef(false);
+    // If a shared ref was passed in from a parent (e.g. App), use it directly.
+    // Fall back to a local ref when the pad is used standalone.
+    const _localMouseInPadRef = useRef(false);
+    const isMouseInPadRef = externalMouseInPadRef ?? _localMouseInPadRef;
     const hoverPosRef = useRef({ x: 0.5, y: 0.5 });
     const [isPlaying, setIsPlaying] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
