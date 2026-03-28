@@ -905,7 +905,12 @@ const App: React.FC = () => {
       let track = updatedTracks[voiceIndex];
       // Apply synth overrides declared in the voice header
       if (synthOverride) {
-        track = { ...track, synthConfig: { ...track.synthConfig, ...synthOverride } };
+        // Apply the override onto a clean default config rather than the existing
+        // track config. This means no field from the previous voice leaks through —
+        // optional fields (or any field) absent from the override revert to the
+        // default instead of inheriting the old value.
+        const cleanBase = { ...SYNTH_PRESETS['Grand Piano'] };
+        track = { ...track, synthConfig: { ...cleanBase, ...synthOverride } };
         updatedTracks[voiceIndex] = track;
       }
 
