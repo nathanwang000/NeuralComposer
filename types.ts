@@ -41,13 +41,13 @@ export interface SynthConfig {
   release: number;
   drive: number;
   /** 0–1. Blends white noise into the signal (0 = pure oscillator, 1 = pure noise). */
-  noiseMix?: number;
-  /** Hz. Highpass cutoff applied to the noise component (e.g. 7000 for hi-hat, 1000 for snare). */
-  noiseHpCutoff?: number;
+  noiseMix: number;
+  /** Hz. Highpass cutoff applied to the noise component (e.g. 7000 for hi-hat, 1000 for snare). 0 = no highpass. */
+  noiseHpCutoff: number;
   /** Hz. When > 0 the oscillator starts at this frequency and exponentially drops over freqSweepTime (kick/tabla pitch-drop). */
-  freqSweepStart?: number;
-  /** Seconds. Duration of the exponential frequency sweep when freqSweepStart is set. */
-  freqSweepTime?: number;
+  freqSweepStart: number;
+  /** Seconds. Duration of the exponential frequency sweep when freqSweepStart is set. 0 = no sweep. */
+  freqSweepTime: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -85,7 +85,8 @@ export const SYNTH_PRESETS: Record<string, SynthConfig> = {
     decay: 0.2,
     sustain: 0.1,
     release: 0.2,
-    drive: 1.4
+    drive: 1.4,
+    noiseMix: 0, noiseHpCutoff: 0, freqSweepStart: 0, freqSweepTime: 0
   },
   "Crystal Lead": {
     waveType: 'square',
@@ -96,7 +97,8 @@ export const SYNTH_PRESETS: Record<string, SynthConfig> = {
     decay: 0.1,
     sustain: 0.4,
     release: 0.6,
-    drive: 1.1
+    drive: 1.1,
+    noiseMix: 0, noiseHpCutoff: 0, freqSweepStart: 0, freqSweepTime: 0
   },
   "Ghostly Pad": {
     waveType: 'sine',
@@ -107,7 +109,8 @@ export const SYNTH_PRESETS: Record<string, SynthConfig> = {
     decay: 1.0,
     sustain: 0.8,
     release: 2.0,
-    drive: 1.0
+    drive: 1.0,
+    noiseMix: 0, noiseHpCutoff: 0, freqSweepStart: 0, freqSweepTime: 0
   },
   "Neon Pluck": {
     waveType: 'sawtooth',
@@ -118,7 +121,8 @@ export const SYNTH_PRESETS: Record<string, SynthConfig> = {
     decay: 0.15,
     sustain: 0.0,
     release: 0.15,
-    drive: 1.3
+    drive: 1.3,
+    noiseMix: 0, noiseHpCutoff: 0, freqSweepStart: 0, freqSweepTime: 0
   },
   "Grand Piano": {
     waveType: 'triangle',
@@ -129,7 +133,8 @@ export const SYNTH_PRESETS: Record<string, SynthConfig> = {
     decay: 0.9,
     sustain: 0.08,
     release: 0.6,
-    drive: 3.0
+    drive: 3.0,
+    noiseMix: 0, noiseHpCutoff: 0, freqSweepStart: 0, freqSweepTime: 0
   },
   "Warm Rhodes": {
     waveType: 'triangle',
@@ -140,7 +145,8 @@ export const SYNTH_PRESETS: Record<string, SynthConfig> = {
     decay: 0.5,
     sustain: 0.25,
     release: 0.9,
-    drive: 3.05
+    drive: 3.05,
+    noiseMix: 0, noiseHpCutoff: 0, freqSweepStart: 0, freqSweepTime: 0
   },
   "Soft Strings": {
     waveType: 'sawtooth',
@@ -151,7 +157,8 @@ export const SYNTH_PRESETS: Record<string, SynthConfig> = {
     decay: 0.5,
     sustain: 0.9,
     release: 1.4,
-    drive: 1.0
+    drive: 1.0,
+    noiseMix: 0, noiseHpCutoff: 0, freqSweepStart: 0, freqSweepTime: 0
   },
   "Acid Bass": {
     waveType: 'sawtooth',
@@ -162,7 +169,8 @@ export const SYNTH_PRESETS: Record<string, SynthConfig> = {
     decay: 0.3,
     sustain: 0.0,
     release: 0.1,
-    drive: 1.7
+    drive: 1.7,
+    noiseMix: 0, noiseHpCutoff: 0, freqSweepStart: 0, freqSweepTime: 0
   },
   // ── Percussive ──────────────────────────────────────────────────────────────
   "Kick Drum": {
@@ -178,7 +186,8 @@ export const SYNTH_PRESETS: Record<string, SynthConfig> = {
     drive: 10.0,
     freqSweepStart: 150,
     freqSweepTime: 0.5,
-    noiseMix: 0
+    noiseMix: 0,
+    noiseHpCutoff: 0
   },
   "Snare Hit": {
     // 70% white noise (highpassed at 1 kHz) + 30% triangle body tone.
@@ -208,7 +217,9 @@ export const SYNTH_PRESETS: Record<string, SynthConfig> = {
     release: 0.04,
     drive: 1.6,
     noiseMix: 0.85,
-    noiseHpCutoff: 3000
+    noiseHpCutoff: 3000,
+    freqSweepStart: 0,
+    freqSweepTime: 0
   },
   "Marimba": {
     // Wooden mallet: triangle wave, fast decay, slight resonance warmth
@@ -220,7 +231,8 @@ export const SYNTH_PRESETS: Record<string, SynthConfig> = {
     decay: 0.35,
     sustain: 0.0,
     release: 0.2,
-    drive: 1.0
+    drive: 1.0,
+    noiseMix: 0, noiseHpCutoff: 0, freqSweepStart: 0, freqSweepTime: 0
   },
   "Steel Drum": {
     // Bright metallic ping: high resonance sings on the transient
@@ -232,7 +244,8 @@ export const SYNTH_PRESETS: Record<string, SynthConfig> = {
     decay: 0.5,
     sustain: 0.0,
     release: 0.3,
-    drive: 1.1
+    drive: 1.1,
+    noiseMix: 0, noiseHpCutoff: 0, freqSweepStart: 0, freqSweepTime: 0
   },
   "Tabla": {
     // Warm finger drum: pitch drops slightly, small noise layer for the skin snap.

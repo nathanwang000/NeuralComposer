@@ -77,7 +77,8 @@ class AudioEngine {
     decay: 0.1,
     sustain: 0.5,
     release: 0.3,
-    drive: 1.0
+    drive: 1.0,
+    noiseMix: 0, noiseHpCutoff: 0, freqSweepStart: 0, freqSweepTime: 0
   };
 
   private activeVoices: ActiveVoice[] = [];
@@ -226,9 +227,9 @@ class AudioEngine {
     trackVolume: number = 1,
     stopOffset: number = Infinity,
   ): number {
-    const noiseMix = sc.noiseMix ?? 0;
-    const freqSweepStart = sc.freqSweepStart ?? 0;
-    const freqSweepTime = sc.freqSweepTime ?? 0;
+    const noiseMix = sc.noiseMix;
+    const freqSweepStart = sc.freqSweepStart;
+    const freqSweepTime = sc.freqSweepTime;
 
     const waveCorrection = sc.waveType === 'sine' ? 1.1 : (sc.waveType === 'sawtooth' ? 0.9 : 1.0);
     const vol = Math.max(0, Math.min(1, trackVolume));
@@ -309,7 +310,7 @@ class AudioEngine {
       noiseSrc.buffer = noiseBuffer;
       const noiseHp = ctx.createBiquadFilter();
       noiseHp.type = 'highpass';
-      noiseHp.frequency.value = sc.noiseHpCutoff ?? 1000;
+      noiseHp.frequency.value = sc.noiseHpCutoff;
       const noisePreGain = ctx.createGain();
       noisePreGain.gain.setValueAtTime(noiseMix, actualStart);
       noiseSrc.connect(noiseHp);
@@ -368,9 +369,9 @@ class AudioEngine {
     const now = Math.max(startTime, this.ctx.currentTime);
     const freq = this.midiToFreq(midi);
 
-    const noiseMix = cfg.noiseMix ?? 0;
-    const freqSweepStart = cfg.freqSweepStart ?? 0;
-    const freqSweepTime = cfg.freqSweepTime ?? 0;
+    const noiseMix = cfg.noiseMix;
+    const freqSweepStart = cfg.freqSweepStart;
+    const freqSweepTime = cfg.freqSweepTime;
 
     const waveCorrection = cfg.waveType === 'sine' ? 1.1 : (cfg.waveType === 'sawtooth' ? 0.9 : 1.0);
     const levelPerDrive = (velocity / 127) * 0.4 * waveCorrection;
@@ -445,7 +446,7 @@ class AudioEngine {
       noiseSrc.loop = true;
       const noiseHp = this.ctx.createBiquadFilter();
       noiseHp.type = 'highpass';
-      noiseHp.frequency.value = cfg.noiseHpCutoff ?? 1000;
+      noiseHp.frequency.value = cfg.noiseHpCutoff;
       const noisePreGain = this.ctx.createGain();
       noisePreGain.gain.setValueAtTime(noiseMix, now);
       noiseSrc.connect(noiseHp);

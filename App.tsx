@@ -252,20 +252,14 @@ const findPresetName = (config: SynthConfig): string | null => {
 /**
  * Serialise a SynthConfig as a voice-header fragment.
  * If it matches a named preset, emits `preset:"Name"` plus any overrides.
- * Otherwise emits all nine params explicitly.
+ * Otherwise emits all params explicitly.
  */
 const serializeSynthConfig = (config: SynthConfig): string => {
   const presetName = findPresetName(config);
-  const base = presetName ? `preset:"${presetName}"` : (() => {
-    const { waveType, detune, cutoff, resonance, attack, decay, sustain, release, drive } = config;
-    return `wave:${waveType} detune:${detune} cutoff:${cutoff} resonance:${resonance} attack:${attack} decay:${decay} sustain:${sustain} release:${release} drive:${drive}`;
-  })();
-  const extras: string[] = [];
-  if (config.noiseMix !== undefined)      extras.push(`noiseMix:${config.noiseMix}`);
-  if (config.noiseHpCutoff !== undefined) extras.push(`noiseHpCutoff:${config.noiseHpCutoff}`);
-  if (config.freqSweepStart !== undefined) extras.push(`freqSweepStart:${config.freqSweepStart}`);
-  if (config.freqSweepTime !== undefined)  extras.push(`freqSweepTime:${config.freqSweepTime}`);
-  return extras.length ? `${base} ${extras.join(' ')}` : base;
+  if (presetName) return `preset:"${presetName}"`;
+  const { waveType, detune, cutoff, resonance, attack, decay, sustain, release, drive,
+          noiseMix, noiseHpCutoff, freqSweepStart, freqSweepTime } = config;
+  return `wave:${waveType} detune:${detune} cutoff:${cutoff} resonance:${resonance} attack:${attack} decay:${decay} sustain:${sustain} release:${release} drive:${drive} noiseMix:${noiseMix} noiseHpCutoff:${noiseHpCutoff} freqSweepStart:${freqSweepStart} freqSweepTime:${freqSweepTime}`;
 };
 
 // ---------------------------------------------------------------------------
