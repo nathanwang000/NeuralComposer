@@ -574,6 +574,14 @@ const App: React.FC = () => {
     return () => ro.disconnect();
   }, []);
 
+  // Scroll the active track lane into view whenever it changes
+  useEffect(() => {
+    const container = trackScrollContainerRef.current;
+    if (!container) return;
+    const lane = container.querySelector<HTMLElement>(`[data-trackid="${activeTrackId}"]`);
+    lane?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [activeTrackId]);
+
   // Per-track drag resize — wired to window so fast mouse moves don't drop
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
@@ -1484,6 +1492,7 @@ const App: React.FC = () => {
               {tracks.map((track) => (
                 <div
                   key={track.id}
+                  data-trackid={track.id}
                   className="relative flex border-b border-white/5 last:border-b-0"
                   style={{ height: `${(trackHeights[track.id] ?? trackHeight)}%` }}
                 >
