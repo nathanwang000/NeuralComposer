@@ -232,6 +232,202 @@ interface ValidationError {
   index: number;
 }
 
+interface TooltipCopy {
+  musical: string;
+  technical: string;
+  tryText?: string;
+}
+
+const InfoTooltip: React.FC<{ copy: TooltipCopy; tokens: NcTokens }> = ({ copy, tokens }) => {
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState({ top: 0, left: 0 });
+
+  const updatePosition = useCallback(() => {
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const tooltipWidth = 288;
+    const margin = 12;
+    const left = Math.min(
+      window.innerWidth - tooltipWidth - margin,
+      Math.max(margin, rect.right - tooltipWidth)
+    );
+    const tooltipHeight = 150;
+    const preferredTop = rect.bottom + 10;
+    const top = preferredTop + tooltipHeight > window.innerHeight - margin
+      ? Math.max(margin, rect.top - tooltipHeight - 10)
+      : preferredTop;
+    setPosition({ top, left });
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    updatePosition();
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', updatePosition);
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
+    };
+  }, [open, updatePosition]);
+
+  return (
+    <span className="inline-flex items-center align-middle">
+      <button
+        ref={buttonRef}
+        type="button"
+        className="cursor-help transition-colors"
+        style={{ color: open ? tokens.t2 : tokens.t4 }}
+        aria-label="Show parameter help"
+        onMouseEnter={() => { updatePosition(); setOpen(true); }}
+        onMouseLeave={() => setOpen(false)}
+        onFocus={() => { updatePosition(); setOpen(true); }}
+        onBlur={() => setOpen(false)}
+      >
+        <HelpCircle size={9} />
+      </button>
+      {open && typeof document !== 'undefined' && createPortal(
+        <div
+          className="pointer-events-none fixed z-[10000] w-72 rounded-xl border p-3 text-left normal-case tracking-normal text-[11px] leading-relaxed shadow-2xl"
+          style={{
+            top: position.top,
+            left: position.left,
+            backgroundColor: tokens.cardDeep,
+            borderColor: tokens.b2,
+            color: tokens.t2,
+            boxShadow: `0 20px 40px ${tokens.tint}`,
+          }}
+        >
+          <span className="block"><span style={{ color: tokens.indigo }} className="font-black">Musical:</span> {copy.musical}</span>
+          <span className="mt-2 block"><span style={{ color: tokens.cyan }} className="font-black">Technical:</span> {copy.technical}</span>
+          {copy.tryText ? <span className="mt-2 block"><span style={{ color: tokens.emerald }} className="font-black">Try:</span> {copy.tryText}</span> : null}
+        </div>,
+        document.body,
+      )}
+    </span>
+  );
+};
+
+const SynthControlLabel: React.FC<{ label: string; copy?: TooltipCopy; tokens: NcTokens }> = ({ label, copy, tokens }) => (
+  <span className="flex items-center gap-1">
+    <span>{label}</span>
+    {copy ? <InfoTooltip copy={copy} tokens={tokens} /> : null}
+  </span>
+);
+
+const VOICE_TOOLTIPS: Record<string, TooltipCopy> = {
+  waveType: {
+    musical: 'Changes the core character of the sound before the filter shapes it.',
+    technical: 'Selects the main oscillator waveform: sine, square, sawtooth, or triangle.',
+    tryText: 'Use triangle for rounder tones and sawtooth for brighter, richer sounds.',
+  },
+  detune: {
+    musical: 'Adds slight pitch offset for tension or thickness.',
+    technical: 'Offsets the main oscillator pitch in cents relative to equal temperament.',
+    tryText: 'Small amounts can make a lead feel less sterile; large amounts sound intentionally out of tune.',
+  },
+  osc2WaveType: {
+    musical: 'Adds a second tone layer to make the sound fuller, rougher, or more colored.',
+    technical: 'Chooses the waveform for the optional second oscillator mixed with the main oscillator.',
+    tryText: 'Add a sawtooth second oscillator to give a triangle-based sound more harmonic body.',
+  },
+  osc2Detune: {
+    musical: 'Separates the second tone slightly in pitch for width and chorusing.',
+    technical: 'Offsets the second oscillator pitch in cents relative to the main oscillator.',
+    tryText: 'Keep this subtle for warmth; larger values become obviously doubled.',
+  },
+  osc2Mix: {
+    musical: 'Controls how much of the second tone is heard.',
+    technical: 'Sets the gain of the second oscillator layer relative to the main oscillator.',
+    tryText: 'A little goes a long way when thickening brass, strings, and pads.',
+  },
+  cutoff: {
+    musical: 'Lower values sound darker and more muted; higher values sound brighter and more open.',
+    technical: 'Sets the lowpass filter cutoff frequency, reducing frequencies above that point.',
+    tryText: 'Lower it for mellow or distant sounds; raise it for brilliance and bite.',
+  },
+  resonance: {
+    musical: 'Emphasizes the brightness edge, which can sound focused, nasal, or whistling at high settings.',
+    technical: 'Boosts frequencies near the filter cutoff by increasing the filter Q.',
+    tryText: 'A little adds presence; too much can make the sound feel synthetic very quickly.',
+  },
+  attack: {
+    musical: 'Controls how quickly the note speaks, from instant attack to a slow swell.',
+    technical: 'Sets the time the amplitude envelope takes to rise from silence to peak level.',
+    tryText: 'Short for plucks and drums, longer for strings, brass swells, and pads.',
+  },
+  decay: {
+    musical: 'Shapes how quickly the sound relaxes after the initial hit.',
+    technical: 'Sets the time for the envelope to fall from peak to sustain level.',
+    tryText: 'Fast decay makes sounds feel punchy; slower decay keeps them blooming longer.',
+  },
+  sustain: {
+    musical: 'Determines how much body remains while the note is held.',
+    technical: 'Sets the held level of the amplitude envelope after decay, as a fraction of the peak.',
+    tryText: 'Low sustain feels percussive; high sustain feels continuous and supported.',
+  },
+  release: {
+    musical: 'Controls how long the sound lingers after you let go.',
+    technical: 'Sets the envelope time from the held level back down to silence after note-off.',
+    tryText: 'Short release is tight and clean; long release creates tails and overlap.',
+  },
+  drive: {
+    musical: 'Adds weight, punch, and harmonic intensity.',
+    technical: 'Multiplies the voice level before the master bus, increasing perceived loudness and harmonic emphasis.',
+    tryText: 'Use gentle drive to make a part feel forward; heavy drive can push it into aggressive territory.',
+  },
+  vibratoRate: {
+    musical: 'Sets how fast the pitch wavers.',
+    technical: 'Controls the frequency of the LFO modulating oscillator pitch.',
+    tryText: 'Slower vibrato feels expressive; very fast vibrato starts sounding nervous or synthetic.',
+  },
+  vibratoDepth: {
+    musical: 'Sets how dramatic the pitch wavering is.',
+    technical: 'Controls the amplitude of pitch modulation in cents.',
+    tryText: 'Keep it restrained for orchestral sounds unless you want an obvious effect.',
+  },
+  filterLfoRate: {
+    musical: 'Sets how quickly the tone pulses in brightness.',
+    technical: 'Controls the frequency of the LFO modulating the filter cutoff.',
+    tryText: 'Slow values work well for pads and choir-like movement.',
+  },
+  filterLfoDepth: {
+    musical: 'Controls how much the tone opens and closes over time.',
+    technical: 'Sets the amount of cutoff modulation applied by the filter LFO in Hz.',
+    tryText: 'A small amount adds life; large amounts create obvious sweeping motion.',
+  },
+  velocityToCutoff: {
+    musical: 'Makes stronger notes sound brighter, like many acoustic instruments opening up under firmer articulation.',
+    technical: 'Adds a velocity-scaled offset to the filter cutoff frequency for each note.',
+    tryText: 'Useful when you want dynamic contrast without changing the base tone.',
+  },
+  transientMix: {
+    musical: 'Adds a brief bite or click at the front of the note for definition.',
+    technical: 'Mixes in a short high-frequency noise burst at note onset.',
+    tryText: 'Helpful for making plucks, mallets, and accented brass cuts speak more clearly.',
+  },
+  noiseMix: {
+    musical: 'Adds airy, noisy, or drum-like texture on top of the pitched tone.',
+    technical: 'Blends white noise into the voice alongside the oscillators.',
+    tryText: 'Raise it for snares and hats, or a little for breathier attacks.',
+  },
+  noiseHpCutoff: {
+    musical: 'Moves the noise color from full-bodied to thin and bright.',
+    technical: 'Highpass filters the noise layer, removing lower frequencies below the cutoff.',
+    tryText: 'Lower values keep drum body; higher values isolate hiss and snap.',
+  },
+  freqSweepStart: {
+    musical: 'Adds a downward pitch drop that is useful for kicks and other struck sounds.',
+    technical: 'Sets the starting frequency for the oscillator before it exponentially falls over sweep time.',
+    tryText: 'Try around 150 Hz for a kick-like thud.',
+  },
+  freqSweepTime: {
+    musical: 'Controls how long the pitch drop lasts.',
+    technical: 'Sets the duration of the exponential frequency sweep.',
+    tryText: 'Longer sweeps feel deeper and heavier; short sweeps feel snappier.',
+  },
+};
+
 interface AppEvent {
   event: MidiEvent;
   beatOffset: number;
@@ -349,12 +545,12 @@ const parseSynthParams = (paramStr: string): Partial<SynthConfig> | null => {
   }
 
   // Individual param overrides: wave:sawtooth  cutoff:2800  noiseMix:0.7 …
-  const kvRegex = /\b(wave|detune|osc2Wave|osc2Detune|osc2Mix|cutoff|resonance|attack|decay|sustain|release|vibratoRate|vibratoDepth|filterLfoRate|filterLfoDepth|velocityToCutoff|transientMix|drive|noiseMix|noiseHpCutoff|freqSweepStart|freqSweepTime):([^\s\]"]+)/g;
+  const kvRegex = /\b(wave|waveType|detune|osc2Wave|osc2WaveType|osc2Detune|osc2Mix|cutoff|resonance|attack|decay|sustain|release|vibratoRate|vibratoDepth|filterLfoRate|filterLfoDepth|velocityToCutoff|transientMix|drive|noiseMix|noiseHpCutoff|freqSweepStart|freqSweepTime):([^\s\]"]+)/g;
   let m;
   while ((m = kvRegex.exec(paramStr)) !== null) {
     const [, key, val] = m;
-    if (key === 'wave') result['waveType'] = val as SynthWaveType;
-    else if (key === 'osc2Wave') result['osc2WaveType'] = val as SynthWaveType;
+    if (key === 'wave' || key === 'waveType') result['waveType'] = val as SynthWaveType;
+    else if (key === 'osc2Wave' || key === 'osc2WaveType') result['osc2WaveType'] = val as SynthWaveType;
     else result[key] = parseFloat(val);
   }
 
@@ -570,6 +766,7 @@ const App: React.FC = () => {
 
   const [tempBpm, setTempBpm] = useState("124");
   const [testNote, setTestNote] = useState<MidiEvent>({ p: 60, v: 100, t: 0, d: 0.5 });
+  const [voicePanelOpen, setVoicePanelOpen] = useState({ basic: true, advanced: false });
 
   const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
   const [selectionMarquee, setSelectionMarquee] = useState<SelectionBounds | null>(null);
@@ -2058,117 +2255,168 @@ const App: React.FC = () => {
                       </button>
                     </section>
 
-                    <section className="space-y-4 p-4 bg-black/40 rounded-2xl border border-white/5">
-                        <div className="flex items-center gap-2 text-xs font-black text-indigo-400 uppercase tracking-widest mb-2"><Waves size={14}/> Oscillator</div>
-                        <div className="grid grid-cols-2 gap-2">
-                            {waveOptions.map(type => (
+                    <section className="rounded-2xl border border-white/5 bg-black/40 overflow-hidden">
+                      <button
+                        onClick={() => setVoicePanelOpen(curr => ({ ...curr, basic: !curr.basic }))}
+                        className="w-full flex items-center justify-between px-4 py-3 text-left"
+                      >
+                        <span className="flex items-center gap-2 text-xs font-black text-indigo-400 uppercase tracking-widest"><Waves size={14}/> Basic</span>
+                        <span className="text-[10px] font-black uppercase text-slate-500">{voicePanelOpen.basic ? 'Hide' : 'Show'}</span>
+                      </button>
+                      {voicePanelOpen.basic && (
+                        <div className="space-y-4 px-4 pb-4 border-t border-white/5">
+                          <div className="pt-4">
+                            <div className="flex items-center gap-2 text-xs font-black text-indigo-400 uppercase tracking-widest mb-2"><Waves size={14}/> Oscillator</div>
+                            <div className="grid grid-cols-2 gap-2 mb-3">
+                              {waveOptions.map(type => (
                                 <button key={type} onClick={() => updateSynth('waveType', type)} className={`px-2 py-2 rounded-lg text-[10px] font-bold uppercase border transition-all ${activeTrack.synthConfig.waveType === type ? 'bg-indigo-600 border-indigo-500 text-white shadow-[0_0_10px_rgba(99,102,241,0.5)]' : 'bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-700'}`}>{type}</button>
-                            ))}
-                        </div>
-                        <div className="space-y-1">
-                            <div className="flex justify-between text-[10px] font-bold text-slate-600 uppercase"><span>Detune</span><span>{activeTrack.synthConfig.detune}</span></div>
-                            <input type="range" min="-50" max="50" value={activeTrack.synthConfig.detune} onChange={e => updateSynth('detune', parseInt(e.target.value))} className="w-full accent-indigo-500 h-1 bg-slate-800 rounded-full appearance-none" />
-                        </div>
-                    </section>
+                              ))}
+                            </div>
+                              <div className="space-y-1">
+                              <div className="flex justify-between text-[10px] font-bold text-slate-600 uppercase"><SynthControlLabel label="Waveform" copy={VOICE_TOOLTIPS.waveType} tokens={t} /><span>{activeTrack.synthConfig.waveType}</span></div>
+                            </div>
+                            <div className="space-y-1 mt-3">
+                              <div className="flex justify-between text-[10px] font-bold text-slate-600 uppercase"><SynthControlLabel label="Detune" copy={VOICE_TOOLTIPS.detune} tokens={t} /><span>{activeTrack.synthConfig.detune}</span></div>
+                              <input type="range" min="-50" max="50" value={activeTrack.synthConfig.detune} onChange={e => updateSynth('detune', parseInt(e.target.value))} className="w-full accent-indigo-500 h-1 bg-slate-800 rounded-full appearance-none" />
+                            </div>
+                          </div>
 
-                    <section className="space-y-4 p-4 bg-black/40 rounded-2xl border border-white/5">
-                        <div className="flex items-center gap-2 text-xs font-black text-indigo-400 uppercase tracking-widest mb-2"><SlidersHorizontal size={14}/> VCF Filter</div>
-                        <div className="space-y-3">
-                            <div className="space-y-1">
-                                <div className="flex justify-between text-[10px] font-bold text-slate-600 uppercase"><span>Cutoff</span><span>{activeTrack.synthConfig.cutoff}Hz</span></div>
+                          <div>
+                            <div className="flex items-center gap-2 text-xs font-black text-indigo-400 uppercase tracking-widest mb-2"><SlidersHorizontal size={14}/> Filter</div>
+                            <div className="space-y-3">
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-[10px] font-bold text-slate-600 uppercase"><SynthControlLabel label="Cutoff" copy={VOICE_TOOLTIPS.cutoff} tokens={t} /><span>{activeTrack.synthConfig.cutoff}Hz</span></div>
                                 <input type="range" min="10" max="8000" value={activeTrack.synthConfig.cutoff} onChange={e => updateSynth('cutoff', parseInt(e.target.value))} className="w-full accent-indigo-500 h-1 bg-slate-800 rounded-full appearance-none" />
-                            </div>
-                            <div className="space-y-1">
-                                <div className="flex justify-between text-[10px] font-bold text-slate-600 uppercase"><span>Resonance</span><span>{activeTrack.synthConfig.resonance.toFixed(1)}</span></div>
+                              </div>
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-[10px] font-bold text-slate-600 uppercase"><SynthControlLabel label="Resonance" copy={VOICE_TOOLTIPS.resonance} tokens={t} /><span>{activeTrack.synthConfig.resonance.toFixed(1)}</span></div>
                                 <input type="range" min="0" max="20" step="0.5" value={activeTrack.synthConfig.resonance} onChange={e => updateSynth('resonance', parseFloat(e.target.value))} className="w-full accent-indigo-500 h-1 bg-slate-800 rounded-full appearance-none" />
+                              </div>
                             </div>
-                        </div>
-                    </section>
+                          </div>
 
-                    <section className="space-y-4 p-4 bg-black/40 rounded-2xl border border-white/5">
-                        <div className="flex items-center gap-2 text-xs font-black text-indigo-400 uppercase tracking-widest mb-2"><Activity size={14}/> ADSR Envelope</div>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-                            {[
-                                { label: 'Attack', key: 'attack', min: 0.001, max: 2, step: 0.01 },
-                                { label: 'Decay', key: 'decay', min: 0.01, max: 2, step: 0.01 },
-                                { label: 'Sustain', key: 'sustain', min: 0, max: 1, step: 0.05 },
-                                { label: 'Release', key: 'release', min: 0.01, max: 4, step: 0.05 },
-                            ].map(p => (
+                          <div>
+                            <div className="flex items-center gap-2 text-xs font-black text-indigo-400 uppercase tracking-widest mb-2"><Activity size={14}/> Envelope</div>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                              {[
+                                { label: 'Attack', key: 'attack', min: 0.001, max: 2, step: 0.01, tooltip: VOICE_TOOLTIPS.attack },
+                                { label: 'Decay', key: 'decay', min: 0.01, max: 2, step: 0.01, tooltip: VOICE_TOOLTIPS.decay },
+                                { label: 'Sustain', key: 'sustain', min: 0, max: 1, step: 0.05, tooltip: VOICE_TOOLTIPS.sustain },
+                                { label: 'Release', key: 'release', min: 0.01, max: 4, step: 0.05, tooltip: VOICE_TOOLTIPS.release },
+                              ].map(p => (
                                 <div key={p.key} className="space-y-1">
-                                    <div className="flex justify-between text-[10px] font-bold text-slate-600 uppercase"><span>{p.label}</span></div>
-                                    <input type="range" min={p.min} max={p.max} step={p.step} value={activeTrack.synthConfig[p.key as keyof SynthConfig] as number} onChange={e => updateSynth(p.key as keyof SynthConfig, parseFloat(e.target.value))} className="w-full accent-indigo-500 h-1 bg-slate-800 rounded-full appearance-none" />
+                                  <div className="flex justify-between text-[10px] font-bold text-slate-600 uppercase"><SynthControlLabel label={p.label} copy={p.tooltip} tokens={t} /></div>
+                                  <input type="range" min={p.min} max={p.max} step={p.step} value={activeTrack.synthConfig[p.key as keyof SynthConfig] as number} onChange={e => updateSynth(p.key as keyof SynthConfig, parseFloat(e.target.value))} className="w-full accent-indigo-500 h-1 bg-slate-800 rounded-full appearance-none" />
                                 </div>
-                            ))}
-                        </div>
-                        <div className="space-y-1">
-                            <div className="flex items-center justify-between text-[10px] font-bold text-slate-600 uppercase">
-                                <span className="flex items-center gap-1">
-                                    Drive
-                                    <span title="Output gain multiplier applied before the master bus. Boosts perceived loudness and harmonic character. Values above 1.5 add significant punch." className="cursor-help text-slate-700 hover:text-slate-400 transition-colors"><HelpCircle size={9} /></span>
-                                </span>
-                                <span>{activeTrack.synthConfig.drive.toFixed(2)}×</span>
+                              ))}
                             </div>
-                            <input type="range" min={0.1} max={10} step={0.05} value={activeTrack.synthConfig.drive} onChange={e => updateSynth('drive', parseFloat(e.target.value))} className="w-full accent-indigo-500 h-1 bg-slate-800 rounded-full appearance-none" />
+                            <div className="space-y-1 mt-3">
+                              <div className="flex items-center justify-between text-[10px] font-bold text-slate-600 uppercase">
+                                <SynthControlLabel label="Drive" copy={VOICE_TOOLTIPS.drive} tokens={t} />
+                                <span>{activeTrack.synthConfig.drive.toFixed(2)}×</span>
+                              </div>
+                              <input type="range" min={0.1} max={10} step={0.05} value={activeTrack.synthConfig.drive} onChange={e => updateSynth('drive', parseFloat(e.target.value))} className="w-full accent-indigo-500 h-1 bg-slate-800 rounded-full appearance-none" />
+                            </div>
+                          </div>
                         </div>
+                      )}
                     </section>
 
-                    <section className="space-y-4 p-4 bg-black/40 rounded-2xl border border-white/5">
-                        <div className="flex items-center gap-2 text-xs font-black text-indigo-400 uppercase tracking-widest mb-2"><Zap size={14}/> Percussion / Noise</div>
-                        <div className="space-y-3">
-                            {[
-                                {
-                                    label: 'Noise Mix',
-                                    key: 'noiseMix' as keyof SynthConfig,
-                                    min: 0, max: 1, step: 0.01,
-                                    display: (v: number) => `${Math.round(v * 100)}%`,
-                                    tooltip: 'Blends white noise with the oscillator. 0% = pure oscillator, 100% = pure noise. Use high values for snares, hi-hats, and rim shots.',
-                                },
-                                {
-                                    label: 'Noise HP Cutoff',
-                                    key: 'noiseHpCutoff' as keyof SynthConfig,
-                                    min: 100, max: 16000, step: 100,
-                                    display: (v: number) => `${v}Hz`,
-                                    tooltip: 'Highpass filter applied to the noise layer. Higher values make the noise brighter and thinner — try ~1000 Hz for snare body, ~7000 Hz for hi-hats.',
-                                },
-                                {
-                                    label: 'Freq Sweep Start',
-                                    key: 'freqSweepStart' as keyof SynthConfig,
-                                    min: 0, max: 400, step: 1,
-                                    display: (v: number) => v === 0 ? 'off' : `${v}Hz`,
-                                    tooltip: 'Starting frequency for an exponential pitch drop. Set above 0 to override the note pitch (e.g. 150 Hz for a kick). The pitch decays to silence over Sweep Time.',
-                                },
-                                {
-                                    label: 'Freq Sweep Time',
-                                    key: 'freqSweepTime' as keyof SynthConfig,
-                                    min: 0, max: 1, step: 0.01,
-                                    display: (v: number) => v === 0 ? 'off' : `${v.toFixed(2)}s`,
-                                    tooltip: 'How long the pitch drop takes. 0 = no sweep. Try 0.5 s for a deep kick, 0.08 s for a snare body tone, 0.12 s for a tabla-style drop.',
-                                },
-                            ].map(p => {
+                    <section className="rounded-2xl border border-white/5 bg-black/40 overflow-hidden">
+                      <button
+                        onClick={() => setVoicePanelOpen(curr => ({ ...curr, advanced: !curr.advanced }))}
+                        className="w-full flex items-center justify-between px-4 py-3 text-left"
+                      >
+                        <span className="flex items-center gap-2 text-xs font-black text-indigo-400 uppercase tracking-widest"><Gauge size={14}/> Advanced</span>
+                        <span className="text-[10px] font-black uppercase text-slate-500">{voicePanelOpen.advanced ? 'Hide' : 'Show'}</span>
+                      </button>
+                      {voicePanelOpen.advanced && (
+                        <div className="space-y-4 px-4 pb-4 border-t border-white/5">
+                          <div className="pt-4">
+                            <div className="flex items-center gap-2 text-xs font-black text-indigo-400 uppercase tracking-widest mb-2"><Waves size={14}/> Oscillator Layering</div>
+                            <div className="space-y-2 pt-1">
+                              <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                <SynthControlLabel label="Osc 2 Wave" copy={VOICE_TOOLTIPS.osc2WaveType} tokens={t} />
+                              </div>
+                              <div className="grid grid-cols-3 gap-2">
+                                <button
+                                  onClick={() => updateSynth('osc2WaveType', undefined)}
+                                  className={`px-2 py-2 rounded-lg text-[10px] font-bold uppercase border transition-all ${activeTrack.synthConfig.osc2WaveType === undefined ? 'bg-indigo-600 border-indigo-500 text-white shadow-[0_0_10px_rgba(99,102,241,0.5)]' : 'bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-700'}`}
+                                >
+                                  Off
+                                </button>
+                                {waveOptions.map(type => (
+                                  <button
+                                    key={`osc2-${type}`}
+                                    onClick={() => updateSynth('osc2WaveType', type)}
+                                    className={`px-2 py-2 rounded-lg text-[10px] font-bold uppercase border transition-all ${activeTrack.synthConfig.osc2WaveType === type ? 'bg-indigo-600 border-indigo-500 text-white shadow-[0_0_10px_rgba(99,102,241,0.5)]' : 'bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-700'}`}
+                                  >
+                                    {type}
+                                  </button>
+                                ))}
+                              </div>
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-[10px] font-bold text-slate-600 uppercase"><SynthControlLabel label="Osc 2 Detune" copy={VOICE_TOOLTIPS.osc2Detune} tokens={t} /><span>{(activeTrack.synthConfig.osc2Detune ?? 0).toFixed(0)}c</span></div>
+                                <input type="range" min="-50" max="50" value={activeTrack.synthConfig.osc2Detune ?? 0} onChange={e => updateSynth('osc2Detune', parseInt(e.target.value))} className="w-full accent-indigo-500 h-1 bg-slate-800 rounded-full appearance-none" />
+                              </div>
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-[10px] font-bold text-slate-600 uppercase"><SynthControlLabel label="Osc 2 Mix" copy={VOICE_TOOLTIPS.osc2Mix} tokens={t} /><span>{Math.round((activeTrack.synthConfig.osc2Mix ?? 0) * 100)}%</span></div>
+                                <input type="range" min="0" max="1" step="0.01" value={activeTrack.synthConfig.osc2Mix ?? 0} onChange={e => updateSynth('osc2Mix', parseFloat(e.target.value))} className="w-full accent-indigo-500 h-1 bg-slate-800 rounded-full appearance-none" />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="flex items-center gap-2 text-xs font-black text-indigo-400 uppercase tracking-widest mb-2"><Gauge size={14}/> Expression / Motion</div>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                              {[
+                                { label: 'Vibrato Rate', key: 'vibratoRate' as keyof SynthConfig, min: 0, max: 12, step: 0.1, display: (v: number) => v === 0 ? 'off' : `${v.toFixed(1)}Hz`, tooltip: VOICE_TOOLTIPS.vibratoRate },
+                                { label: 'Vibrato Depth', key: 'vibratoDepth' as keyof SynthConfig, min: 0, max: 50, step: 0.1, display: (v: number) => v === 0 ? 'off' : `${v.toFixed(1)}c`, tooltip: VOICE_TOOLTIPS.vibratoDepth },
+                                { label: 'Filter LFO Rate', key: 'filterLfoRate' as keyof SynthConfig, min: 0, max: 12, step: 0.1, display: (v: number) => v === 0 ? 'off' : `${v.toFixed(1)}Hz`, tooltip: VOICE_TOOLTIPS.filterLfoRate },
+                                { label: 'Filter LFO Depth', key: 'filterLfoDepth' as keyof SynthConfig, min: 0, max: 2000, step: 1, display: (v: number) => v === 0 ? 'off' : `${Math.round(v)}Hz`, tooltip: VOICE_TOOLTIPS.filterLfoDepth },
+                                { label: 'Velocity -> Cutoff', key: 'velocityToCutoff' as keyof SynthConfig, min: 0, max: 2000, step: 10, display: (v: number) => v === 0 ? 'off' : `+${Math.round(v)}Hz`, tooltip: VOICE_TOOLTIPS.velocityToCutoff },
+                                { label: 'Transient Mix', key: 'transientMix' as keyof SynthConfig, min: 0, max: 1, step: 0.01, display: (v: number) => `${Math.round(v * 100)}%`, tooltip: VOICE_TOOLTIPS.transientMix },
+                              ].map(p => {
                                 const raw = activeTrack.synthConfig[p.key];
                                 const val = typeof raw === 'number' ? raw : 0;
                                 return (
-                                    <div key={p.key} className="space-y-1">
-                                        <div className="flex items-center justify-between text-[10px] font-bold text-slate-600 uppercase">
-                                            <span className="flex items-center gap-1">
-                                                {p.label}
-                                                <span title={p.tooltip} className="cursor-help text-slate-700 hover:text-slate-400 transition-colors">
-                                                    <HelpCircle size={9} />
-                                                </span>
-                                            </span>
-                                            <span>{p.display(val)}</span>
-                                        </div>
-                                        <input
-                                            type="range"
-                                            min={p.min} max={p.max} step={p.step}
-                                            value={val}
-                                            onChange={e => updateSynth(p.key, parseFloat(e.target.value))}
-                                            className="w-full accent-indigo-500 h-1 bg-slate-800 rounded-full appearance-none"
-                                        />
+                                  <div key={p.key} className="space-y-1">
+                                    <div className="flex justify-between text-[10px] font-bold text-slate-600 uppercase">
+                                      <SynthControlLabel label={p.label} copy={p.tooltip} tokens={t} />
+                                      <span>{p.display(val)}</span>
                                     </div>
+                                    <input type="range" min={p.min} max={p.max} step={p.step} value={val} onChange={e => updateSynth(p.key, parseFloat(e.target.value))} className="w-full accent-indigo-500 h-1 bg-slate-800 rounded-full appearance-none" />
+                                  </div>
                                 );
-                            })}
+                              })}
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="flex items-center gap-2 text-xs font-black text-indigo-400 uppercase tracking-widest mb-2"><Zap size={14}/> Noise / Drum Shaping</div>
+                            <div className="space-y-3">
+                              {[
+                                { label: 'Noise Mix', key: 'noiseMix' as keyof SynthConfig, min: 0, max: 1, step: 0.01, display: (v: number) => `${Math.round(v * 100)}%`, tooltip: VOICE_TOOLTIPS.noiseMix },
+                                { label: 'Noise HP Cutoff', key: 'noiseHpCutoff' as keyof SynthConfig, min: 100, max: 16000, step: 100, display: (v: number) => `${v}Hz`, tooltip: VOICE_TOOLTIPS.noiseHpCutoff },
+                                { label: 'Freq Sweep Start', key: 'freqSweepStart' as keyof SynthConfig, min: 0, max: 400, step: 1, display: (v: number) => v === 0 ? 'off' : `${v}Hz`, tooltip: VOICE_TOOLTIPS.freqSweepStart },
+                                { label: 'Freq Sweep Time', key: 'freqSweepTime' as keyof SynthConfig, min: 0, max: 1, step: 0.01, display: (v: number) => v === 0 ? 'off' : `${v.toFixed(2)}s`, tooltip: VOICE_TOOLTIPS.freqSweepTime },
+                              ].map(p => {
+                                const raw = activeTrack.synthConfig[p.key];
+                                const val = typeof raw === 'number' ? raw : 0;
+                                return (
+                                  <div key={p.key} className="space-y-1">
+                                    <div className="flex items-center justify-between text-[10px] font-bold text-slate-600 uppercase">
+                                      <SynthControlLabel label={p.label} copy={p.tooltip} tokens={t} />
+                                      <span>{p.display(val)}</span>
+                                    </div>
+                                    <input type="range" min={p.min} max={p.max} step={p.step} value={val} onChange={e => updateSynth(p.key, parseFloat(e.target.value))} className="w-full accent-indigo-500 h-1 bg-slate-800 rounded-full appearance-none" />
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
                         </div>
+                      )}
                     </section>
                 </div>
             )}

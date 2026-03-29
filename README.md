@@ -324,15 +324,30 @@ Available override parameters:
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `waveType` | `sine` \| `square` \| `sawtooth` \| `triangle` | Oscillator waveform |
+| `wave` | `sine` \| `square` \| `sawtooth` \| `triangle` | Base oscillator waveform |
 | `detune` | Float (cents) | Oscillator detune in cents |
+| `osc2Wave` | `sine` \| `square` \| `sawtooth` \| `triangle` | Optional second oscillator waveform |
+| `osc2Detune` | Float (cents) | Second oscillator detune relative to the base oscillator |
+| `osc2Mix` | Float (0–1) | Blend amount of the second oscillator |
 | `cutoff` | Float (Hz) | Filter cutoff frequency |
 | `resonance` | Float | Filter resonance / Q |
 | `attack` | Float (s) | Envelope attack time in seconds |
 | `decay` | Float (s) | Envelope decay time in seconds |
 | `sustain` | Float (0–1) | Envelope sustain level |
 | `release` | Float (s) | Envelope release time in seconds |
+| `vibratoRate` | Float (Hz) | Pitch LFO rate |
+| `vibratoDepth` | Float (cents) | Pitch LFO depth |
+| `filterLfoRate` | Float (Hz) | Filter-motion LFO rate |
+| `filterLfoDepth` | Float (Hz) | Filter-motion LFO depth |
+| `velocityToCutoff` | Float (Hz) | How much note velocity opens the filter |
+| `transientMix` | Float (0–1) | Short attack-noise burst mixed into the note onset |
 | `drive` | Float | Pre-filter overdrive multiplier |
+| `noiseMix` | Float (0–1) | White-noise blend for percussion/noisy textures |
+| `noiseHpCutoff` | Float (Hz) | Highpass cutoff for the noise layer |
+| `freqSweepStart` | Float (Hz) | Starting frequency for an exponential pitch drop |
+| `freqSweepTime` | Float (s) | Duration of the pitch drop |
+
+`waveType` and `osc2WaveType` are also accepted for backward compatibility, but `wave` / `osc2Wave` are the canonical header names emitted by the app.
 
 #### Built-in Presets
 
