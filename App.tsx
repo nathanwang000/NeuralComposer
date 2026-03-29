@@ -1995,11 +1995,17 @@ const App: React.FC = () => {
             <button onClick={addTrack} title="Add a new track" className="flex items-center gap-1 px-2.5 py-1.5 hover:bg-white/5 text-slate-500 hover:text-slate-300 rounded-xl text-xs font-black uppercase transition-colors"><Plus size={13} /> Track</button>
             <div className="w-px h-5 bg-white/10 mx-1" />
             <button onClick={() => { setTrackHeight(v => clampTrackHeight(Math.round(v / 1.25))); setTrackHeights({}); }} title="Shrink all tracks (Y zoom out)" className="flex items-center gap-1 px-2 py-1.5 hover:bg-white/5 text-slate-500 hover:text-slate-300 rounded-xl text-xs font-black transition-colors"><ZoomOut size={14} /></button>
-            <button onClick={() => { setTrackHeight(100); setTrackHeights({}); }} title="Reset track height (33% = ~3 tracks fill viewport)" className="px-2 py-1.5 hover:bg-white/5 text-slate-600 hover:text-slate-300 rounded-xl text-[10px] font-black tabular-nums transition-colors">{Math.round(trackHeight)}%↕️</button>
+            <button onClick={() => { setTrackHeight(100); setTrackHeights({}); }} title="Reset track height (33% = ~3 tracks fill viewport)" className="flex items-center justify-center gap-1.5 px-2 py-1.5 min-w-[5.25rem] hover:bg-white/5 text-slate-600 hover:text-slate-300 rounded-xl text-[10px] font-black tabular-nums transition-colors">
+              <span className="w-[4ch] text-right">{Math.round(trackHeight)}%</span>
+              <ArrowUpDown size={11} className="shrink-0" aria-hidden="true" />
+            </button>
             <button onClick={() => { setTrackHeight(v => clampTrackHeight(Math.round(v * 1.25))); setTrackHeights({}); }} title="Grow all tracks (Y zoom in)" className="flex items-center gap-1 px-2 py-1.5 hover:bg-white/5 text-slate-500 hover:text-slate-300 rounded-xl text-xs font-black transition-colors"><ZoomIn size={14} /></button>
             <div className="w-px h-5 bg-white/10 mx-1" />
             <button onClick={() => setBeatWidth(v => clampBeatWidth(v / 1.25))} title="Zoom out (Ctrl+scroll)" className="flex items-center gap-1 px-2 py-1.5 hover:bg-white/5 text-slate-500 hover:text-slate-300 rounded-xl text-xs font-black transition-colors"><ZoomOut size={14} /></button>
-            <button onClick={() => setBeatWidth(100)} title="Reset zoom" className="px-2 py-1.5 hover:bg-white/5 text-slate-600 hover:text-slate-300 rounded-xl text-[10px] font-black tabular-nums transition-colors">{Math.round(beatWidth / 100 * 100)}%↔️</button>
+            <button onClick={() => setBeatWidth(100)} title="Reset zoom" className="flex items-center justify-center gap-1.5 px-2 py-1.5 min-w-[5.25rem] hover:bg-white/5 text-slate-600 hover:text-slate-300 rounded-xl text-[10px] font-black tabular-nums transition-colors">
+              <span className="w-[4ch] text-right">{Math.round(beatWidth / 100 * 100)}%</span>
+              <ArrowLeftRight size={11} className="shrink-0" aria-hidden="true" />
+            </button>
             <button onClick={() => setBeatWidth(v => clampBeatWidth(v * 1.25))} title="Zoom in (Ctrl+scroll)" className="flex items-center gap-1 px-2 py-1.5 hover:bg-white/5 text-slate-500 hover:text-slate-300 rounded-xl text-xs font-black transition-colors"><ZoomIn size={14} /></button>
           </div>
 
