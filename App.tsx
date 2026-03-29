@@ -277,9 +277,34 @@ const findPresetName = (config: SynthConfig): string | null => {
 const serializeSynthConfig = (config: SynthConfig): string => {
   const presetName = findPresetName(config);
   if (presetName) return `preset:"${presetName}"`;
-  const { waveType, detune, cutoff, resonance, attack, decay, sustain, release, drive,
-          noiseMix, noiseHpCutoff, freqSweepStart, freqSweepTime } = config;
-  return `wave:${waveType} detune:${detune} cutoff:${cutoff} resonance:${resonance} attack:${attack} decay:${decay} sustain:${sustain} release:${release} drive:${drive} noiseMix:${noiseMix} noiseHpCutoff:${noiseHpCutoff} freqSweepStart:${freqSweepStart} freqSweepTime:${freqSweepTime}`;
+  const { waveType, detune, osc2WaveType, osc2Detune, osc2Mix, cutoff, resonance, attack, decay, sustain, release,
+          vibratoRate, vibratoDepth, filterLfoRate, filterLfoDepth, velocityToCutoff, transientMix,
+          drive, noiseMix, noiseHpCutoff, freqSweepStart, freqSweepTime } = config;
+  const parts = [
+    `wave:${waveType}`,
+    `detune:${detune}`,
+    osc2WaveType !== undefined ? `osc2Wave:${osc2WaveType}` : null,
+    osc2Detune !== undefined ? `osc2Detune:${osc2Detune}` : null,
+    osc2Mix !== undefined ? `osc2Mix:${osc2Mix}` : null,
+    `cutoff:${cutoff}`,
+    `resonance:${resonance}`,
+    `attack:${attack}`,
+    `decay:${decay}`,
+    `sustain:${sustain}`,
+    `release:${release}`,
+    vibratoRate !== undefined ? `vibratoRate:${vibratoRate}` : null,
+    vibratoDepth !== undefined ? `vibratoDepth:${vibratoDepth}` : null,
+    filterLfoRate !== undefined ? `filterLfoRate:${filterLfoRate}` : null,
+    filterLfoDepth !== undefined ? `filterLfoDepth:${filterLfoDepth}` : null,
+    velocityToCutoff !== undefined ? `velocityToCutoff:${velocityToCutoff}` : null,
+    transientMix !== undefined ? `transientMix:${transientMix}` : null,
+    `drive:${drive}`,
+    `noiseMix:${noiseMix}`,
+    `noiseHpCutoff:${noiseHpCutoff}`,
+    `freqSweepStart:${freqSweepStart}`,
+    `freqSweepTime:${freqSweepTime}`,
+  ].filter(Boolean);
+  return parts.join(' ');
 };
 
 // ---------------------------------------------------------------------------
@@ -296,8 +321,11 @@ const serializeSynthConfig = (config: SynthConfig): string => {
 // Rules:
 //   - voice:N is 1-based (maps to track index N-1).
 //   - preset sets the base SynthConfig; individual params override it.
-//   - Supported param keys: wave, detune, cutoff, resonance, attack, decay,
-//     sustain, release, drive, noiseMix, noiseHpCutoff, freqSweepStart, freqSweepTime.
+//   - Supported param keys: wave, detune, osc2Wave, osc2Detune, osc2Mix,
+//     cutoff, resonance, attack, decay, sustain, release, vibratoRate,
+//     vibratoDepth, filterLfoRate, filterLfoDepth, velocityToCutoff,
+//     transientMix, drive, noiseMix, noiseHpCutoff, freqSweepStart,
+//     freqSweepTime.
 //   - If no voice headers are present, all notes go to voice 1 (track 0).
 //   - Backward-compatible with old flat-format files (no voice headers).
 // ---------------------------------------------------------------------------
@@ -321,11 +349,12 @@ const parseSynthParams = (paramStr: string): Partial<SynthConfig> | null => {
   }
 
   // Individual param overrides: wave:sawtooth  cutoff:2800  noiseMix:0.7 …
-  const kvRegex = /\b(wave|detune|cutoff|resonance|attack|decay|sustain|release|drive|noiseMix|noiseHpCutoff|freqSweepStart|freqSweepTime):([^\s\]"]+)/g;
+  const kvRegex = /\b(wave|detune|osc2Wave|osc2Detune|osc2Mix|cutoff|resonance|attack|decay|sustain|release|vibratoRate|vibratoDepth|filterLfoRate|filterLfoDepth|velocityToCutoff|transientMix|drive|noiseMix|noiseHpCutoff|freqSweepStart|freqSweepTime):([^\s\]"]+)/g;
   let m;
   while ((m = kvRegex.exec(paramStr)) !== null) {
     const [, key, val] = m;
     if (key === 'wave') result['waveType'] = val as SynthWaveType;
+    else if (key === 'osc2Wave') result['osc2WaveType'] = val as SynthWaveType;
     else result[key] = parseFloat(val);
   }
 

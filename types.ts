@@ -33,12 +33,21 @@ export interface CompositionState {
 export interface SynthConfig {
   waveType: SynthWaveType;
   detune: number;
+  osc2WaveType?: SynthWaveType;
+  osc2Detune?: number;
+  osc2Mix?: number;
   cutoff: number;
   resonance: number;
   attack: number;
   decay: number;
   sustain: number;
   release: number;
+  vibratoRate?: number;
+  vibratoDepth?: number;
+  filterLfoRate?: number;
+  filterLfoDepth?: number;
+  velocityToCutoff?: number;
+  transientMix?: number;
   drive: number;
   /** 0–1. Blends white noise into the signal (0 = pure oscillator, 1 = pure noise). */
   noiseMix: number;
@@ -161,15 +170,24 @@ export const SYNTH_PRESETS: Record<string, SynthConfig> = {
     noiseMix: 0, noiseHpCutoff: 0, freqSweepStart: 0, freqSweepTime: 0
   },
   "French Horn": {
-    waveType: 'sawtooth',
-    detune: 4,
-    cutoff: 1400,
-    resonance: 4,
-    attack: 0.05,
-    decay: 0.35,
-    sustain: 0.55,
-    release: 0.8,
-    drive: 1.2,
+    waveType: 'triangle',
+    detune: 0,
+    osc2WaveType: 'sawtooth',
+    osc2Detune: 2,
+    osc2Mix: 0.1,
+    cutoff: 760,
+    resonance: 2.2,
+    attack: 0.16,
+    decay: 0.55,
+    sustain: 0.42,
+    release: 1.35,
+    vibratoRate: 4.9,
+    vibratoDepth: 4.5,
+    filterLfoRate: 0.16,
+    filterLfoDepth: 38,
+    velocityToCutoff: 240,
+    transientMix: 0.01,
+    drive: 1.05,
     noiseMix: 0,
     noiseHpCutoff: 0,
     freqSweepStart: 0,
@@ -178,12 +196,21 @@ export const SYNTH_PRESETS: Record<string, SynthConfig> = {
   "Brass Section": {
     waveType: 'square',
     detune: 8,
+    osc2WaveType: 'sawtooth',
+    osc2Detune: -5,
+    osc2Mix: 0.32,
     cutoff: 2400,
     resonance: 6,
     attack: 0.015,
     decay: 0.22,
     sustain: 0.35,
     release: 0.45,
+    vibratoRate: 5.8,
+    vibratoDepth: 4,
+    filterLfoRate: 0.7,
+    filterLfoDepth: 120,
+    velocityToCutoff: 500,
+    transientMix: 0.08,
     drive: 1.45,
     noiseMix: 0,
     noiseHpCutoff: 0,
@@ -193,12 +220,21 @@ export const SYNTH_PRESETS: Record<string, SynthConfig> = {
   "Spiccato Strings": {
     waveType: 'sawtooth',
     detune: 6,
+    osc2WaveType: 'triangle',
+    osc2Detune: -4,
+    osc2Mix: 0.18,
     cutoff: 3000,
     resonance: 3,
     attack: 0.001,
     decay: 0.18,
     sustain: 0.05,
     release: 0.14,
+    vibratoRate: 0,
+    vibratoDepth: 0,
+    filterLfoRate: 0,
+    filterLfoDepth: 0,
+    velocityToCutoff: 700,
+    transientMix: 0.14,
     drive: 1.1,
     noiseMix: 0,
     noiseHpCutoff: 0,
@@ -208,12 +244,21 @@ export const SYNTH_PRESETS: Record<string, SynthConfig> = {
   "Grand Choir": {
     waveType: 'sine',
     detune: 11,
+    osc2WaveType: 'triangle',
+    osc2Detune: -7,
+    osc2Mix: 0.28,
     cutoff: 1200,
     resonance: 1,
     attack: 1.2,
     decay: 0.9,
     sustain: 0.94,
     release: 2.8,
+    vibratoRate: 4.8,
+    vibratoDepth: 3,
+    filterLfoRate: 0.22,
+    filterLfoDepth: 90,
+    velocityToCutoff: 140,
+    transientMix: 0,
     drive: 1.0,
     noiseMix: 0,
     noiseHpCutoff: 0,
@@ -252,12 +297,21 @@ export const SYNTH_PRESETS: Record<string, SynthConfig> = {
   "Concert Timpani": {
     waveType: 'triangle',
     detune: 0,
+    osc2WaveType: 'sine',
+    osc2Detune: -3,
+    osc2Mix: 0.22,
     cutoff: 420,
     resonance: 8,
     attack: 0.001,
     decay: 0.45,
     sustain: 0.0,
     release: 0.28,
+    vibratoRate: 0,
+    vibratoDepth: 0,
+    filterLfoRate: 0,
+    filterLfoDepth: 0,
+    velocityToCutoff: 180,
+    transientMix: 0.18,
     drive: 2.4,
     freqSweepStart: 110,
     freqSweepTime: 0.18,

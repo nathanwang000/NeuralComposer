@@ -1,4 +1,4 @@
-import { MidiEvent, SynthConfig } from '../types';
+import { MidiEvent, SynthConfig, SynthWaveType } from '../types';
 
 // ---------------------------------------------------------------------------
 // WAV encoder — converts a Web Audio AudioBuffer to a WAV Blob (16-bit PCM).
@@ -53,10 +53,15 @@ function audioBufferToWav(buffer: AudioBuffer): Blob {
 
 interface ActiveVoice {
   osc: OscillatorNode;
+  osc2?: OscillatorNode;
   filter: BiquadFilterNode;
   env: GainNode;
+  osc2Gain?: GainNode;
   /** Looped noise source, present only when noiseMix > 0. Must be stopped alongside osc. */
   noiseSrc?: AudioBufferSourceNode;
+  transientSrc?: AudioBufferSourceNode;
+  vibratoOsc?: OscillatorNode;
+  filterLfoOsc?: OscillatorNode;
   /** True for sustain=0 presets (percussion). Voice self-terminates; stop paths should not cancel its envelope. */
   isOneShot: boolean;
   pitch: number;
@@ -71,12 +76,19 @@ class AudioEngine {
   private config: SynthConfig = {
     waveType: 'sawtooth',
     detune: 0,
+    osc2Mix: 0,
     cutoff: 2000,
     resonance: 1,
     attack: 0.01,
     decay: 0.1,
     sustain: 0.5,
     release: 0.3,
+    vibratoRate: 0,
+    vibratoDepth: 0,
+    filterLfoRate: 0,
+    filterLfoDepth: 0,
+    velocityToCutoff: 0,
+    transientMix: 0,
     drive: 1.0,
     noiseMix: 0, noiseHpCutoff: 0, freqSweepStart: 0, freqSweepTime: 0
   };
@@ -171,7 +183,7 @@ class AudioEngine {
       const now = this.ctx.currentTime;
       const rampTime = 0.05;
       this.activeVoices.forEach((voice) => {
-        const { osc, filter, env } = voice;
+        const { osc, osc2, osc2Gain, filter, env, vibratoOsc, filterLfoOsc } = voice;
 
         if (params.cutoff !== undefined) {
           filter.frequency.setTargetAtTime(params.cutoff, now, rampTime);
@@ -183,8 +195,23 @@ class AudioEngine {
         if (params.detune !== undefined) {
           osc.detune.setTargetAtTime(params.detune, now, rampTime);
         }
+        if (params.osc2Detune !== undefined && osc2) {
+          osc2.detune.setTargetAtTime((params.detune ?? this.config.detune) + params.osc2Detune, now, rampTime);
+        }
         if (params.waveType !== undefined && params.waveType !== osc.type) {
           osc.type = params.waveType as OscillatorType;
+        }
+        if (params.osc2WaveType !== undefined && osc2 && params.osc2WaveType !== osc2.type) {
+          osc2.type = params.osc2WaveType as OscillatorType;
+        }
+        if (params.osc2Mix !== undefined && osc2Gain) {
+          osc2Gain.gain.setTargetAtTime(Math.max(0, Math.min(1, params.osc2Mix)), now, rampTime);
+        }
+        if (params.vibratoRate !== undefined && vibratoOsc) {
+          vibratoOsc.frequency.setTargetAtTime(Math.max(0, params.vibratoRate), now, rampTime);
+        }
+        if (params.filterLfoRate !== undefined && filterLfoOsc) {
+          filterLfoOsc.frequency.setTargetAtTime(Math.max(0, params.filterLfoRate), now, rampTime);
         }
 
         if (params.sustain !== undefined || params.drive !== undefined) {
@@ -200,6 +227,20 @@ class AudioEngine {
 
   private midiToFreq(midi: number): number {
     return 440 * Math.pow(2, (midi - 69) / 12);
+  }
+
+  private withExpressiveDefaults(sc: SynthConfig) {
+    return {
+      ...sc,
+      osc2Detune: sc.osc2Detune ?? 0,
+      osc2Mix: sc.osc2Mix ?? 0,
+      vibratoRate: sc.vibratoRate ?? 0,
+      vibratoDepth: sc.vibratoDepth ?? 0,
+      filterLfoRate: sc.filterLfoRate ?? 0,
+      filterLfoDepth: sc.filterLfoDepth ?? 0,
+      velocityToCutoff: sc.velocityToCutoff ?? 0,
+      transientMix: sc.transientMix ?? 0,
+    };
   }
 
   // Track the end time of the last note to detect legato phrases (for potential future use or global legato logic)
@@ -227,21 +268,25 @@ class AudioEngine {
     trackVolume: number = 1,
     stopOffset: number = Infinity,
   ): number {
-    const noiseMix = sc.noiseMix;
-    const freqSweepStart = sc.freqSweepStart;
-    const freqSweepTime = sc.freqSweepTime;
+    const cfg = this.withExpressiveDefaults(sc);
+    const noiseMix = cfg.noiseMix;
+    const freqSweepStart = cfg.freqSweepStart;
+    const freqSweepTime = cfg.freqSweepTime;
+    const osc2Mix = Math.max(0, Math.min(1, cfg.osc2Mix));
+    const transientMix = Math.max(0, Math.min(1, cfg.transientMix));
+    const velocityNorm = velocity / 127;
 
-    const waveCorrection = sc.waveType === 'sine' ? 1.1 : (sc.waveType === 'sawtooth' ? 0.9 : 1.0);
+    const waveCorrection = cfg.waveType === 'sine' ? 1.1 : (cfg.waveType === 'sawtooth' ? 0.9 : 1.0);
     const vol = Math.max(0, Math.min(1, trackVolume));
-    const targetVolume = (velocity / 127) * 0.4 * sc.drive * waveCorrection * vol;
+    const targetVolume = velocityNorm * 0.4 * cfg.drive * waveCorrection * vol;
 
     const osc = ctx.createOscillator();
+    const osc2 = osc2Mix > 0 && cfg.osc2WaveType ? ctx.createOscillator() : null;
     const filter = ctx.createBiquadFilter();
     const env = ctx.createGain();
 
-    // 1. Oscillator frequency / sweep
-    osc.type = sc.waveType as OscillatorType;
-    osc.detune.setValueAtTime(sc.detune, actualStart);
+    osc.type = cfg.waveType as OscillatorType;
+    osc.detune.setValueAtTime(cfg.detune, actualStart);
     if (freqSweepStart > 0 && freqSweepTime > 0) {
       osc.frequency.setValueAtTime(freqSweepStart, actualStart);
       osc.frequency.exponentialRampToValueAtTime(0.01, actualStart + freqSweepTime);
@@ -252,30 +297,63 @@ class AudioEngine {
       osc.frequency.setValueAtTime(freq, actualStart);
     }
 
-    // 2. Filter envelope
-    const filterEnvAmount = sc.cutoff * 1.5;
-    filter.type = 'lowpass';
-    filter.Q.setValueAtTime(sc.resonance, actualStart);
-    filter.frequency.setValueAtTime(sc.cutoff, actualStart);
-    if (isLegatoTransition) {
-      filter.frequency.setValueAtTime(sc.cutoff + filterEnvAmount * 0.5, actualStart);
-      filter.frequency.exponentialRampToValueAtTime(sc.cutoff, actualStart + sc.decay);
-    } else {
-      filter.frequency.exponentialRampToValueAtTime(Math.min(20000, sc.cutoff + filterEnvAmount), actualStart + sc.attack);
-      filter.frequency.exponentialRampToValueAtTime(sc.cutoff, actualStart + sc.attack + sc.decay);
+    if (osc2) {
+      osc2.type = cfg.osc2WaveType as OscillatorType;
+      osc2.detune.setValueAtTime(cfg.detune + cfg.osc2Detune, actualStart);
+      if (freqSweepStart > 0 && freqSweepTime > 0) {
+        osc2.frequency.setValueAtTime(freqSweepStart, actualStart);
+        osc2.frequency.exponentialRampToValueAtTime(0.01, actualStart + freqSweepTime);
+      } else if (freqSweepTime > 0) {
+        osc2.frequency.setValueAtTime(freq, actualStart);
+        osc2.frequency.exponentialRampToValueAtTime(Math.max(0.01, freq * 0.5), actualStart + freqSweepTime);
+      } else {
+        osc2.frequency.setValueAtTime(freq, actualStart);
+      }
     }
 
-    // 3. ADSR amplitude envelope
-    const attackEnd = actualStart + sc.attack;
-    const decayEnd = attackEnd + sc.decay;
+    if (cfg.vibratoRate > 0 && cfg.vibratoDepth > 0) {
+      const vibratoOsc = ctx.createOscillator();
+      const vibratoGain = ctx.createGain();
+      vibratoOsc.type = 'sine';
+      vibratoOsc.frequency.setValueAtTime(cfg.vibratoRate, actualStart);
+      vibratoGain.gain.setValueAtTime(cfg.vibratoDepth, actualStart);
+      vibratoOsc.connect(vibratoGain);
+      vibratoGain.connect(osc.detune);
+      if (osc2) vibratoGain.connect(osc2.detune);
+      vibratoOsc.start(actualStart);
+      vibratoOsc.stop(Math.min((actualStart + noteDuration + cfg.release) + 0.1, stopOffset));
+    }
+
+    const baseCutoff = Math.max(100, cfg.cutoff + (velocityNorm * cfg.velocityToCutoff));
+    const filterEnvAmount = baseCutoff * 1.5;
+    filter.type = 'lowpass';
+    filter.Q.setValueAtTime(cfg.resonance, actualStart);
+    filter.frequency.setValueAtTime(baseCutoff, actualStart);
+    if (isLegatoTransition) {
+      filter.frequency.setValueAtTime(baseCutoff + filterEnvAmount * 0.5, actualStart);
+      filter.frequency.exponentialRampToValueAtTime(baseCutoff, actualStart + cfg.decay);
+    } else {
+      filter.frequency.exponentialRampToValueAtTime(Math.min(20000, baseCutoff + filterEnvAmount), actualStart + cfg.attack);
+      filter.frequency.exponentialRampToValueAtTime(baseCutoff, actualStart + cfg.attack + cfg.decay);
+    }
+    if (cfg.filterLfoRate > 0 && cfg.filterLfoDepth > 0) {
+      const filterLfoOsc = ctx.createOscillator();
+      const filterLfoGain = ctx.createGain();
+      filterLfoOsc.type = 'sine';
+      filterLfoOsc.frequency.setValueAtTime(cfg.filterLfoRate, actualStart);
+      filterLfoGain.gain.setValueAtTime(cfg.filterLfoDepth, actualStart);
+      filterLfoOsc.connect(filterLfoGain);
+      filterLfoGain.connect(filter.frequency);
+      filterLfoOsc.start(actualStart);
+      filterLfoOsc.stop(Math.min((actualStart + noteDuration + cfg.release) + 0.1, stopOffset));
+    }
+
+    const attackEnd = actualStart + cfg.attack;
+    const decayEnd = attackEnd + cfg.decay;
     const releaseStart = actualStart + noteDuration;
-    const releaseEnd = releaseStart + sc.release;
-    // Sustain=0 means percussive/one-shot: the sound dies in the decay phase.
-    // Scheduling a release from 0 is undefined in Web Audio (exponential ramp
-    // from 0 causes a click/burst in many browsers), so we skip hold+release
-    // and let the decay carry straight to silence.
-    const isOneShot = sc.sustain === 0;
-    const oneShotEnd = actualStart + sc.attack + sc.decay + sc.release;
+    const releaseEnd = releaseStart + cfg.release;
+    const isOneShot = cfg.sustain === 0;
+    const oneShotEnd = actualStart + cfg.attack + cfg.decay + cfg.release;
 
     env.gain.cancelScheduledValues(actualStart);
     if (isLegatoTransition) {
@@ -285,21 +363,31 @@ class AudioEngine {
     } else {
       env.gain.setValueAtTime(0, actualStart);
       env.gain.linearRampToValueAtTime(targetVolume, attackEnd);
-      env.gain.exponentialRampToValueAtTime(Math.max(0.001, targetVolume * sc.sustain), decayEnd);
-      if (!isOneShot) env.gain.setValueAtTime(targetVolume * sc.sustain, releaseStart);
+      env.gain.exponentialRampToValueAtTime(Math.max(0.001, targetVolume * cfg.sustain), decayEnd);
+      if (!isOneShot) env.gain.setValueAtTime(targetVolume * cfg.sustain, releaseStart);
     }
     env.gain.exponentialRampToValueAtTime(0.001, isOneShot ? oneShotEnd : releaseEnd);
 
-    // 4. Oscillator path (scaled by 1 - noiseMix)
     if (noiseMix < 1) {
       const oscPreGain = ctx.createGain();
-      oscPreGain.gain.setValueAtTime(1 - noiseMix, actualStart);
+      oscPreGain.gain.setValueAtTime((1 - noiseMix) * (1 - osc2Mix), actualStart);
       osc.connect(filter);
       filter.connect(oscPreGain);
       oscPreGain.connect(env);
     }
 
-    // 5. Noise path (active when noiseMix > 0)
+    if (osc2) {
+      const osc2Filter = ctx.createBiquadFilter();
+      const osc2Gain = ctx.createGain();
+      osc2Filter.type = 'lowpass';
+      osc2Filter.Q.setValueAtTime(cfg.resonance * 0.8, actualStart);
+      osc2Filter.frequency.setValueAtTime(Math.max(100, baseCutoff * 1.15), actualStart);
+      osc2Gain.gain.setValueAtTime((1 - noiseMix) * osc2Mix, actualStart);
+      osc2.connect(osc2Filter);
+      osc2Filter.connect(osc2Gain);
+      osc2Gain.connect(env);
+    }
+
     if (noiseMix > 0) {
       const noiseDuration = releaseEnd - actualStart + 0.05;
       const noiseSamples = Math.ceil(ctx.sampleRate * noiseDuration);
@@ -310,7 +398,7 @@ class AudioEngine {
       noiseSrc.buffer = noiseBuffer;
       const noiseHp = ctx.createBiquadFilter();
       noiseHp.type = 'highpass';
-      noiseHp.frequency.value = sc.noiseHpCutoff;
+      noiseHp.frequency.value = cfg.noiseHpCutoff;
       const noisePreGain = ctx.createGain();
       noisePreGain.gain.setValueAtTime(noiseMix, actualStart);
       noiseSrc.connect(noiseHp);
@@ -320,9 +408,32 @@ class AudioEngine {
       noiseSrc.stop(Math.min((isOneShot ? oneShotEnd : releaseEnd) + 0.05, stopOffset));
     }
 
+    if (transientMix > 0) {
+      const transientDuration = 0.025;
+      const transientSamples = Math.ceil(ctx.sampleRate * transientDuration);
+      const transientBuffer = ctx.createBuffer(1, transientSamples, ctx.sampleRate);
+      const data = transientBuffer.getChannelData(0);
+      for (let i = 0; i < transientSamples; i++) data[i] = (Math.random() * 2 - 1) * (1 - (i / transientSamples));
+      const transientSrc = ctx.createBufferSource();
+      transientSrc.buffer = transientBuffer;
+      const transientHp = ctx.createBiquadFilter();
+      transientHp.type = 'highpass';
+      transientHp.frequency.setValueAtTime(1500, actualStart);
+      const transientGain = ctx.createGain();
+      transientGain.gain.setValueAtTime(transientMix * 0.35 * velocityNorm, actualStart);
+      transientGain.gain.exponentialRampToValueAtTime(0.001, actualStart + transientDuration);
+      transientSrc.connect(transientHp);
+      transientHp.connect(transientGain);
+      transientGain.connect(env);
+      transientSrc.start(actualStart);
+      transientSrc.stop(Math.min(actualStart + transientDuration + 0.01, stopOffset));
+    }
+
     env.connect(destination);
     osc.start(actualStart);
+    osc2?.start(actualStart);
     osc.stop(Math.min((isOneShot ? oneShotEnd : releaseEnd) + 0.1, stopOffset));
+    osc2?.stop(Math.min((isOneShot ? oneShotEnd : releaseEnd) + 0.1, stopOffset));
 
     return isOneShot ? oneShotEnd : releaseEnd;
   }
@@ -369,21 +480,30 @@ class AudioEngine {
     const now = Math.max(startTime, this.ctx.currentTime);
     const freq = this.midiToFreq(midi);
 
-    const noiseMix = cfg.noiseMix;
-    const freqSweepStart = cfg.freqSweepStart;
-    const freqSweepTime = cfg.freqSweepTime;
+    const sc = this.withExpressiveDefaults(cfg);
+    const noiseMix = sc.noiseMix;
+    const freqSweepStart = sc.freqSweepStart;
+    const freqSweepTime = sc.freqSweepTime;
+    const osc2Mix = Math.max(0, Math.min(1, sc.osc2Mix));
+    const transientMix = Math.max(0, Math.min(1, sc.transientMix));
+    const velocityNorm = velocity / 127;
 
-    const waveCorrection = cfg.waveType === 'sine' ? 1.1 : (cfg.waveType === 'sawtooth' ? 0.9 : 1.0);
-    const levelPerDrive = (velocity / 127) * 0.4 * waveCorrection;
-    const targetVolume = levelPerDrive * cfg.drive;
+    const waveCorrection = sc.waveType === 'sine' ? 1.1 : (sc.waveType === 'sawtooth' ? 0.9 : 1.0);
+    const levelPerDrive = velocityNorm * 0.4 * waveCorrection;
+    const targetVolume = levelPerDrive * sc.drive;
 
     const osc = this.ctx.createOscillator();
+    const osc2 = osc2Mix > 0 && sc.osc2WaveType ? this.ctx.createOscillator() : undefined;
     const filter = this.ctx.createBiquadFilter();
     const env = this.ctx.createGain();
+    let osc2Gain: GainNode | undefined;
+    let voice_noiseSrc: AudioBufferSourceNode | undefined;
+    let transientSrc: AudioBufferSourceNode | undefined;
+    let vibratoOsc: OscillatorNode | undefined;
+    let filterLfoOsc: OscillatorNode | undefined;
 
-    // Oscillator frequency / sweep
-    osc.type = cfg.waveType as OscillatorType;
-    osc.detune.setValueAtTime(cfg.detune, now);
+    osc.type = sc.waveType as OscillatorType;
+    osc.detune.setValueAtTime(sc.detune, now);
     if (freqSweepStart > 0 && freqSweepTime > 0) {
       osc.frequency.setValueAtTime(freqSweepStart, now);
       osc.frequency.exponentialRampToValueAtTime(0.01, now + freqSweepTime);
@@ -394,50 +514,91 @@ class AudioEngine {
       osc.frequency.setValueAtTime(freq, now);
     }
 
-    const filterEnvAmount = cfg.cutoff * 1.5;
+    if (osc2) {
+      osc2.type = sc.osc2WaveType as OscillatorType;
+      osc2.detune.setValueAtTime(sc.detune + sc.osc2Detune, now);
+      if (freqSweepStart > 0 && freqSweepTime > 0) {
+        osc2.frequency.setValueAtTime(freqSweepStart, now);
+        osc2.frequency.exponentialRampToValueAtTime(0.01, now + freqSweepTime);
+      } else if (freqSweepTime > 0) {
+        osc2.frequency.setValueAtTime(freq, now);
+        osc2.frequency.exponentialRampToValueAtTime(Math.max(0.01, freq * 0.5), now + freqSweepTime);
+      } else {
+        osc2.frequency.setValueAtTime(freq, now);
+      }
+    }
+
+    if (sc.vibratoRate > 0 && sc.vibratoDepth > 0) {
+      vibratoOsc = this.ctx.createOscillator();
+      const vibratoGain = this.ctx.createGain();
+      vibratoOsc.type = 'sine';
+      vibratoOsc.frequency.setValueAtTime(sc.vibratoRate, now);
+      vibratoGain.gain.setValueAtTime(sc.vibratoDepth, now);
+      vibratoOsc.connect(vibratoGain);
+      vibratoGain.connect(osc.detune);
+      if (osc2) vibratoGain.connect(osc2.detune);
+      vibratoOsc.start(now);
+    }
+
+    const baseCutoff = Math.max(100, sc.cutoff + (velocityNorm * sc.velocityToCutoff));
+    const filterEnvAmount = baseCutoff * 1.5;
     filter.type = 'lowpass';
-    filter.Q.setValueAtTime(cfg.resonance, now);
+    filter.Q.setValueAtTime(sc.resonance, now);
 
-    const startCutoff = Math.max(100, cfg.cutoff);
-    filter.frequency.setValueAtTime(startCutoff, now);
+    filter.frequency.setValueAtTime(baseCutoff, now);
     filter.frequency.exponentialRampToValueAtTime(
-        Math.min(20000, Math.max(100, cfg.cutoff + filterEnvAmount)),
-        now + cfg.attack
+        Math.min(20000, Math.max(100, baseCutoff + filterEnvAmount)),
+        now + sc.attack
     );
     filter.frequency.exponentialRampToValueAtTime(
-        Math.max(100, cfg.cutoff),
-        now + cfg.attack + cfg.decay
+        Math.max(100, baseCutoff),
+        now + sc.attack + sc.decay
     );
+    if (sc.filterLfoRate > 0 && sc.filterLfoDepth > 0) {
+      filterLfoOsc = this.ctx.createOscillator();
+      const filterLfoGain = this.ctx.createGain();
+      filterLfoOsc.type = 'sine';
+      filterLfoOsc.frequency.setValueAtTime(sc.filterLfoRate, now);
+      filterLfoGain.gain.setValueAtTime(sc.filterLfoDepth, now);
+      filterLfoOsc.connect(filterLfoGain);
+      filterLfoGain.connect(filter.frequency);
+      filterLfoOsc.start(now);
+    }
 
-    const safeSustain = Math.max(0.001, targetVolume * cfg.sustain);
+    const safeSustain = Math.max(0.001, targetVolume * sc.sustain);
     const safeVolume = Math.max(0.001, targetVolume);
-
-    // For percussive (sustain=0) presets, auto-stop after the natural decay+release
-    // so they behave identically to sequencer playback regardless of hold duration.
-    const isOneShot = cfg.sustain === 0;
-    const oneShotEnd = isOneShot ? now + cfg.attack + cfg.decay + cfg.release : Infinity;
+    const isOneShot = sc.sustain === 0;
+    const oneShotEnd = isOneShot ? now + sc.attack + sc.decay + sc.release : Infinity;
 
     env.gain.setValueAtTime(0, now);
-    env.gain.linearRampToValueAtTime(safeVolume, now + cfg.attack);
-    env.gain.exponentialRampToValueAtTime(safeSustain, now + cfg.attack + cfg.decay);
+    env.gain.linearRampToValueAtTime(safeVolume, now + sc.attack);
+    env.gain.exponentialRampToValueAtTime(safeSustain, now + sc.attack + sc.decay);
     if (isOneShot) {
       env.gain.exponentialRampToValueAtTime(0.001, oneShotEnd);
     }
 
-    let voice_noiseSrc: AudioBufferSourceNode | undefined;
-
-    // Oscillator path (scaled by 1 - noiseMix)
     if (noiseMix < 1) {
       const oscPreGain = this.ctx.createGain();
-      oscPreGain.gain.setValueAtTime(1 - noiseMix, now);
+      oscPreGain.gain.setValueAtTime((1 - noiseMix) * (1 - osc2Mix), now);
       osc.connect(filter);
       filter.connect(oscPreGain);
       oscPreGain.connect(env);
     }
 
-    // Noise path — looped so it never runs out during an indefinite hold
+    if (osc2) {
+      const osc2Filter = this.ctx.createBiquadFilter();
+      osc2Filter.type = 'lowpass';
+      osc2Filter.Q.setValueAtTime(sc.resonance * 0.8, now);
+      osc2Filter.frequency.setValueAtTime(Math.max(100, baseCutoff * 1.15), now);
+      osc2Gain = this.ctx.createGain();
+      osc2Gain.gain.setValueAtTime((1 - noiseMix) * osc2Mix, now);
+      osc2.connect(osc2Filter);
+      osc2Filter.connect(osc2Gain);
+      osc2Gain.connect(env);
+    }
+
     if (noiseMix > 0) {
-      const loopSamples = this.ctx.sampleRate; // 1 s loop
+      const loopSamples = this.ctx.sampleRate;
       const noiseBuffer = this.ctx.createBuffer(1, loopSamples, this.ctx.sampleRate);
       const data = noiseBuffer.getChannelData(0);
       for (let i = 0; i < loopSamples; i++) data[i] = Math.random() * 2 - 1;
@@ -446,29 +607,59 @@ class AudioEngine {
       noiseSrc.loop = true;
       const noiseHp = this.ctx.createBiquadFilter();
       noiseHp.type = 'highpass';
-      noiseHp.frequency.value = cfg.noiseHpCutoff;
+      noiseHp.frequency.value = sc.noiseHpCutoff;
       const noisePreGain = this.ctx.createGain();
       noisePreGain.gain.setValueAtTime(noiseMix, now);
       noiseSrc.connect(noiseHp);
       noiseHp.connect(noisePreGain);
       noisePreGain.connect(env);
       noiseSrc.start(now);
-      // noiseSrc is stored on the voice so stop paths can call noiseSrc.stop() explicitly.
       voice_noiseSrc = noiseSrc;
+    }
+
+    if (transientMix > 0) {
+      const transientDuration = 0.025;
+      const transientSamples = Math.ceil(this.ctx.sampleRate * transientDuration);
+      const transientBuffer = this.ctx.createBuffer(1, transientSamples, this.ctx.sampleRate);
+      const data = transientBuffer.getChannelData(0);
+      for (let i = 0; i < transientSamples; i++) data[i] = (Math.random() * 2 - 1) * (1 - (i / transientSamples));
+      transientSrc = this.ctx.createBufferSource();
+      transientSrc.buffer = transientBuffer;
+      const transientHp = this.ctx.createBiquadFilter();
+      transientHp.type = 'highpass';
+      transientHp.frequency.setValueAtTime(1500, now);
+      const transientGain = this.ctx.createGain();
+      transientGain.gain.setValueAtTime(transientMix * 0.35 * velocityNorm, now);
+      transientGain.gain.exponentialRampToValueAtTime(0.001, now + transientDuration);
+      transientSrc.connect(transientHp);
+      transientHp.connect(transientGain);
+      transientGain.connect(env);
+      transientSrc.start(now);
+      transientSrc.stop(now + transientDuration + 0.01);
     }
 
     env.connect(this.masterGain);
     osc.start(now);
+    osc2?.start(now);
     if (isOneShot) {
       osc.stop(oneShotEnd + 0.05);
+      osc2?.stop(oneShotEnd + 0.05);
       voice_noiseSrc?.stop(oneShotEnd + 0.05);
+      transientSrc?.stop(oneShotEnd + 0.05);
+      vibratoOsc?.stop(oneShotEnd + 0.05);
+      filterLfoOsc?.stop(oneShotEnd + 0.05);
     }
 
     return {
       osc,
+      osc2,
       filter,
       env,
+      osc2Gain,
       noiseSrc: voice_noiseSrc,
+      transientSrc,
+      vibratoOsc,
+      filterLfoOsc,
       isOneShot,
       pitch: midi,
       levelPerDrive,
@@ -571,7 +762,7 @@ class AudioEngine {
     const releaseDuration = Math.max(0.01, this.config.release);
     const groupSet = new Set(group);
 
-    group.forEach(({ osc, noiseSrc, env, filter, startTime, isOneShot }) => {
+    group.forEach(({ osc, osc2, noiseSrc, transientSrc, vibratoOsc, filterLfoOsc, env, filter, startTime, isOneShot }) => {
       // One-shot voices self-terminate — cancelling their envelope would freeze
       // the gain mid-decay, causing an unintended sustain.
       if (isOneShot) return;
@@ -593,7 +784,11 @@ class AudioEngine {
 
         env.gain.exponentialRampToValueAtTime(0.001, releaseTime);
         osc.stop(releaseTime + 0.1);
+        osc2?.stop(releaseTime + 0.1);
         noiseSrc?.stop(releaseTime + 0.1);
+        transientSrc?.stop(releaseTime + 0.1);
+        vibratoOsc?.stop(releaseTime + 0.1);
+        filterLfoOsc?.stop(releaseTime + 0.1);
       } catch (e) {
         console.warn('Error stopping voice group', e);
       }
@@ -635,7 +830,7 @@ class AudioEngine {
     const now = this.ctx.currentTime;
     const releaseDuration = Math.max(0.01, this.config.release);
 
-    this.activeVoices.forEach(({ osc, noiseSrc, env, filter, startTime, isOneShot }) => {
+    this.activeVoices.forEach(({ osc, osc2, noiseSrc, transientSrc, vibratoOsc, filterLfoOsc, env, filter, startTime, isOneShot }) => {
       // One-shot voices self-terminate — cancelling their envelope would freeze
       // the gain mid-decay, causing an unintended sustain.
       if (isOneShot) return;
@@ -658,7 +853,11 @@ class AudioEngine {
 
         env.gain.exponentialRampToValueAtTime(0.001, releaseTime);
         osc.stop(releaseTime + 0.1);
+        osc2?.stop(releaseTime + 0.1);
         noiseSrc?.stop(releaseTime + 0.1);
+        transientSrc?.stop(releaseTime + 0.1);
+        vibratoOsc?.stop(releaseTime + 0.1);
+        filterLfoOsc?.stop(releaseTime + 0.1);
       } catch (e) {
         console.warn("Error stopping note", e);
       }

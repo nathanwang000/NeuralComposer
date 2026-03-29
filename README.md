@@ -346,7 +346,7 @@ Available override parameters:
 | `"Warm Rhodes"` | Triangle — mellow electric piano |
 | `"Soft Strings"` | Sawtooth — slow strings ensemble |
 | `"Spiccato Strings"` | Sawtooth — short, biting orchestral string pulse |
-| `"French Horn"` | Sawtooth — mellow heroic low-brass lead |
+| `"French Horn"` | Triangle/saw blend — dark, rounded solo horn bloom |
 | `"Brass Section"` | Square — broad cinematic brass stab |
 | `"Grand Choir"` | Sine — wide, slow cathedral-like vocal pad |
 | `"Acid Bass"` | Sawtooth — high-resonance acid bass |

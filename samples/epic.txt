@@ -72,7 +72,7 @@
 [P:57,V:68,T:56.000,D:4.000] [P:61,V:64,T:56.000,D:4.000]
 [P:50,V:76,T:60.000,D:8.000] [P:57,V:72,T:60.000,D:8.000] [P:62,V:68,T:60.000,D:8.000]
 
-[voice:4 name:"Low Strings" preset:"French Horn" cutoff:980 resonance:7 attack:0.015 decay:0.24 sustain:0.22 release:0.24 drive:1.45]
+[voice:4 name:"Horn Ostinato" preset:"French Horn"]
 # D minor ostinato
 [P:38,V:98,T:0.000,D:0.700] [P:45,V:92,T:1.000,D:0.700] [P:41,V:94,T:2.000,D:0.700] [P:45,V:92,T:3.000,D:0.700]
 # Bb
