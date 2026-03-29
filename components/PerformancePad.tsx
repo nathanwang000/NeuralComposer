@@ -3209,7 +3209,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
           }
         `}</style>
         <div
-            className="flex flex-col gap-4 min-h-0 select-none"
+            className="flex flex-col gap-4 flex-1 min-h-0 select-none"
             style={{ userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
             onContextMenu={(e) => e.preventDefault()}
         >
@@ -3220,7 +3220,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-none h-auto">
             {/* Sequence Input */}
             <div className="rounded-2xl border p-4 overflow-y-auto max-h-64" style={{ backgroundColor: 'var(--nc-glass-bg)', borderColor: 'var(--nc-glass-border)' }}>
-                <div className="sticky top-0 z-10 flex items-center gap-2 mb-3 text-slate-500 font-black uppercase text-xs backdrop-blur-sm py-1 -mx-4 px-4 -mt-1" style={{ backgroundColor: 'var(--nc-sticky-bg)' }}>
+                <div className="flex items-center gap-2 mb-3 text-slate-500 font-black uppercase text-xs">
                     <Music size={14} /> Note Sequence
                 </div>
                 {/* Chord presets */}
