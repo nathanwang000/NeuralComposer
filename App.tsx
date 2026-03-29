@@ -1646,6 +1646,7 @@ const App: React.FC = () => {
 
   return (
     <div className="app-shell flex flex-col w-full min-h-screen lg:h-screen overflow-x-hidden lg:overflow-hidden font-sans selection:bg-indigo-500/30" data-theme={colorScheme} style={{
+      minHeight: '100dvh',
         backgroundColor: t.bg,
         color: t.t1,
         '--nc-bg': t.bg, '--nc-hdr': t.hdr,
@@ -1672,7 +1673,7 @@ const App: React.FC = () => {
         '--nc-tint': t.tint,
         '--nc-indigo': t.indigo, '--nc-emerald': t.emerald, '--nc-cyan': t.cyan, '--nc-red': t.red,
       } as React.CSSProperties}>
-      <header className="flex-none flex flex-col md:flex-row justify-between items-center gap-4 p-4 lg:p-6 border-b nc-border" style={{ backgroundColor: t.hdr }}>
+      <header className="flex-none flex flex-col md:flex-row justify-between items-center gap-4 p-4 lg:p-6 border-b nc-border" style={{ backgroundColor: t.hdr, paddingTop: 'calc(1rem + env(safe-area-inset-top, 0px))' }}>
         <div className="flex items-center gap-4">
           <div className={`p-3 rounded-2xl transition-all duration-1000 ${state.isPlaying ? 'bg-indigo-600 shadow-[0_0_30px_rgba(79,70,229,0.3)]' : 'bg-slate-900'}`}>
             <Zap className={`${state.isPlaying && !isPaused ? 'text-white fill-white animate-pulse' : 'text-slate-700'}`} size={28} />
@@ -1761,8 +1762,8 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-6 p-4 lg:p-6 pt-0 lg:pt-0">
-        <div className="lg:col-span-9 flex flex-col gap-4 min-h-0">
+      <main className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-6 p-4 lg:p-6 pt-0 lg:pt-0" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
+        <div className="lg:col-span-9 flex flex-col gap-4 min-h-0 overflow-y-auto custom-scrollbar pr-1">
           {/* Both panels stay mounted at all times so their internal state is preserved across tab switches.
               Visibility is toggled purely with CSS (hidden / contents). */}
           <div className={mainTab === 'performance' ? 'flex-1 flex flex-col min-h-0 gap-2' : 'hidden'}>

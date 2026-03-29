@@ -1552,6 +1552,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
     const [isPlaying, setIsPlaying] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isFallbackFullscreen, setIsFallbackFullscreen] = useState(false);
+    const [fullscreenPortalHost, setFullscreenPortalHost] = useState<HTMLElement | null>(null);
     const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 }); // 0-1 normalised
     // Per-finger positions for multi-touch visualisation.
     const [touchPoints, setTouchPoints] = useState<{ id: number; x: number; y: number }[]>([]);
@@ -1564,6 +1565,12 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
     // 'relative': hue encodes interval from the base note (same pattern regardless of key).
     // 'absolute': hue encodes the resulting pitch class (C=red, D=yellow, …).
     const [bandColorMode, setBandColorMode] = useState<'relative' | 'absolute'>('relative');
+
+    useEffect(() => {
+        if (typeof document === 'undefined') return;
+        const host = padRef.current?.closest('[data-theme]') as HTMLElement | null;
+        setFullscreenPortalHost(host ?? document.body);
+    }, []);
 
     // Sequence
     const [sequenceInput, setSequenceInput] = useState(
@@ -3202,12 +3209,12 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
           }
         `}</style>
         <div
-            className="flex flex-col gap-4 h-full select-none"
+            className="flex flex-col gap-4 min-h-0 select-none"
             style={{ userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
             onContextMenu={(e) => e.preventDefault()}
         >
         {/* Main Pad Area */}
-        {isFallbackFullscreen ? createPortal(padElement, document.body) : padElement}
+        {isFallbackFullscreen ? createPortal(padElement, fullscreenPortalHost ?? document.body) : padElement}
 
         {/* Controls */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-none h-auto">
