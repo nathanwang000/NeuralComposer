@@ -1951,10 +1951,10 @@ const App: React.FC = () => {
                 <button
                   onClick={() => setSelectMode(v => !v)}
                   title={selectMode ? 'Exit Select Mode' : 'Select Mode: tap notes to select, drag to box-select'}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-colors border ${
+                  className={`nc-toolbar-btn flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-colors border ${
                     selectMode
                       ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40'
-                      : 'bg-transparent text-slate-500 border-transparent hover:bg-white/5'
+                      : 'text-slate-500 border-transparent'
                   }`}
                 >
                   <MousePointer2 size={13} /> {selectMode ? 'Selecting' : 'Select'}
@@ -1962,20 +1962,20 @@ const App: React.FC = () => {
                 <div className="w-px h-5 bg-white/10 mx-1" />
               </>
             )}
-            <button onClick={undo} disabled={history.past.length === 0} className="flex items-center gap-1.5 px-3 py-1.5 disabled:opacity-30 hover:bg-white/5 text-slate-400 rounded-xl text-xs font-black uppercase transition-colors"><Undo size={14} /> Undo</button>
-            <button onClick={redo} disabled={history.future.length === 0} className="flex items-center gap-1.5 px-3 py-1.5 disabled:opacity-30 hover:bg-white/5 text-slate-400 rounded-xl text-xs font-black uppercase transition-colors"><Redo size={14} /> Redo</button>
+            <button onClick={undo} disabled={history.past.length === 0} className="nc-toolbar-btn flex items-center gap-1.5 px-3 py-1.5 disabled:opacity-30 text-slate-400 rounded-xl text-xs font-black uppercase transition-colors"><Undo size={14} /> Undo</button>
+            <button onClick={redo} disabled={history.future.length === 0} className="nc-toolbar-btn flex items-center gap-1.5 px-3 py-1.5 disabled:opacity-30 text-slate-400 rounded-xl text-xs font-black uppercase transition-colors"><Redo size={14} /> Redo</button>
             <div className="w-px h-5 bg-white/10 mx-1" />
-            <button onClick={handleSelectAll} disabled={events.length === 0} className="flex items-center gap-1.5 px-3 py-1.5 disabled:opacity-30 hover:bg-indigo-500/10 text-slate-400 hover:text-indigo-400 rounded-xl text-xs font-black uppercase transition-colors"><Copy size={14} /> All</button>
+            <button onClick={handleSelectAll} disabled={events.length === 0} className="nc-toolbar-btn flex items-center gap-1.5 px-3 py-1.5 disabled:opacity-30 hover:bg-indigo-500/10 text-slate-400 hover:text-indigo-400 rounded-xl text-xs font-black uppercase transition-colors"><Copy size={14} /> All</button>
             {selectedEventIds.length > 0 && (
               <>
-                <button onClick={handleCopy} className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-indigo-500/10 text-indigo-400 rounded-xl text-xs font-black uppercase transition-colors"><Copy size={14} /> Copy</button>
-                <button onClick={handleCut} className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-red-500/10 text-red-400 rounded-xl text-xs font-black uppercase transition-colors"><Scissors size={14} /> Cut</button>
-                <button onClick={handleDelete} className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-red-500/10 text-red-400 rounded-xl text-xs font-black uppercase transition-colors"><Trash2 size={14} /> Del</button>
-                <button onClick={() => setSelectedEventIds([])} className="flex items-center gap-1.5 px-2 py-1.5 hover:bg-white/5 text-slate-600 hover:text-slate-400 rounded-xl transition-colors"><X size={14} /></button>
+                <button onClick={handleCopy} className="nc-toolbar-btn flex items-center gap-1.5 px-3 py-1.5 hover:bg-indigo-500/10 text-indigo-400 rounded-xl text-xs font-black uppercase transition-colors"><Copy size={14} /> Copy</button>
+                <button onClick={handleCut} className="nc-toolbar-btn flex items-center gap-1.5 px-3 py-1.5 hover:bg-red-500/10 text-red-400 rounded-xl text-xs font-black uppercase transition-colors"><Scissors size={14} /> Cut</button>
+                <button onClick={handleDelete} className="nc-toolbar-btn flex items-center gap-1.5 px-3 py-1.5 hover:bg-red-500/10 text-red-400 rounded-xl text-xs font-black uppercase transition-colors"><Trash2 size={14} /> Del</button>
+                <button onClick={() => setSelectedEventIds([])} className="nc-toolbar-btn flex items-center gap-1.5 px-2 py-1.5 text-slate-600 hover:text-slate-400 rounded-xl transition-colors"><X size={14} /></button>
               </>
             )}
             {clipboard.length > 0 && (
-              <button onClick={handlePaste} className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-emerald-500/10 text-emerald-400 rounded-xl text-xs font-black uppercase transition-colors"><ClipboardPaste size={14} /> Paste</button>
+              <button onClick={handlePaste} className="nc-toolbar-btn flex items-center gap-1.5 px-3 py-1.5 hover:bg-emerald-500/10 text-emerald-400 rounded-xl text-xs font-black uppercase transition-colors"><ClipboardPaste size={14} /> Paste</button>
             )}
             <div className="ml-auto" />
             {selectedEventIds.length > 0 && (
@@ -1986,27 +1986,27 @@ const App: React.FC = () => {
               onClick={handleExportWav}
               disabled={events.length === 0 || isExporting}
               title="Export audio as WAV using current synth settings"
-              className="flex items-center gap-1.5 px-3 py-1.5 disabled:opacity-30 hover:bg-emerald-500/10 text-slate-400 hover:text-emerald-400 rounded-xl text-xs font-black uppercase transition-colors"
+              className="nc-toolbar-btn flex items-center gap-1.5 px-3 py-1.5 disabled:opacity-30 hover:bg-emerald-500/10 text-slate-400 hover:text-emerald-400 rounded-xl text-xs font-black uppercase transition-colors"
             >
               {isExporting ? <Loader2 size={14} className="animate-spin" /> : <FileAudio size={14} />}
               {isExporting ? 'Rendering…' : 'WAV'}
             </button>
             <div className="w-px h-5 bg-white/10 mx-1" />
-            <button onClick={addTrack} title="Add a new track" className="flex items-center gap-1 px-2.5 py-1.5 hover:bg-white/5 text-slate-500 hover:text-slate-300 rounded-xl text-xs font-black uppercase transition-colors"><Plus size={13} /> Track</button>
+            <button onClick={addTrack} title="Add a new track" className="nc-toolbar-btn flex items-center gap-1 px-2.5 py-1.5 text-slate-500 hover:text-slate-300 rounded-xl text-xs font-black uppercase transition-colors"><Plus size={13} /> Track</button>
             <div className="w-px h-5 bg-white/10 mx-1" />
-            <button onClick={() => { setTrackHeight(v => clampTrackHeight(Math.round(v / 1.25))); setTrackHeights({}); }} title="Shrink all tracks (Y zoom out)" className="flex items-center gap-1 px-2 py-1.5 hover:bg-white/5 text-slate-500 hover:text-slate-300 rounded-xl text-xs font-black transition-colors"><ZoomOut size={14} /></button>
-            <button onClick={() => { setTrackHeight(100); setTrackHeights({}); }} title="Reset track height (33% = ~3 tracks fill viewport)" className="flex items-center justify-center gap-1.5 px-2 py-1.5 min-w-[5.25rem] hover:bg-white/5 text-slate-600 hover:text-slate-300 rounded-xl text-[10px] font-black tabular-nums transition-colors">
+            <button onClick={() => { setTrackHeight(v => clampTrackHeight(Math.round(v / 1.25))); setTrackHeights({}); }} title="Shrink all tracks (Y zoom out)" className="nc-toolbar-btn flex items-center gap-1 px-2 py-1.5 text-slate-500 hover:text-slate-300 rounded-xl text-xs font-black transition-colors"><ZoomOut size={14} /></button>
+            <button onClick={() => { setTrackHeight(100); setTrackHeights({}); }} title="Reset track height (33% = ~3 tracks fill viewport)" className="nc-toolbar-btn flex items-center justify-center gap-1.5 px-2 py-1.5 min-w-[5.25rem] text-slate-600 hover:text-slate-300 rounded-xl text-[10px] font-black tabular-nums transition-colors">
               <span className="w-[4ch] text-right">{Math.round(trackHeight)}%</span>
               <ArrowUpDown size={11} className="shrink-0" aria-hidden="true" />
             </button>
-            <button onClick={() => { setTrackHeight(v => clampTrackHeight(Math.round(v * 1.25))); setTrackHeights({}); }} title="Grow all tracks (Y zoom in)" className="flex items-center gap-1 px-2 py-1.5 hover:bg-white/5 text-slate-500 hover:text-slate-300 rounded-xl text-xs font-black transition-colors"><ZoomIn size={14} /></button>
+            <button onClick={() => { setTrackHeight(v => clampTrackHeight(Math.round(v * 1.25))); setTrackHeights({}); }} title="Grow all tracks (Y zoom in)" className="nc-toolbar-btn flex items-center gap-1 px-2 py-1.5 text-slate-500 hover:text-slate-300 rounded-xl text-xs font-black transition-colors"><ZoomIn size={14} /></button>
             <div className="w-px h-5 bg-white/10 mx-1" />
-            <button onClick={() => setBeatWidth(v => clampBeatWidth(v / 1.25))} title="Zoom out (Ctrl+scroll)" className="flex items-center gap-1 px-2 py-1.5 hover:bg-white/5 text-slate-500 hover:text-slate-300 rounded-xl text-xs font-black transition-colors"><ZoomOut size={14} /></button>
-            <button onClick={() => setBeatWidth(100)} title="Reset zoom" className="flex items-center justify-center gap-1.5 px-2 py-1.5 min-w-[5.25rem] hover:bg-white/5 text-slate-600 hover:text-slate-300 rounded-xl text-[10px] font-black tabular-nums transition-colors">
+            <button onClick={() => setBeatWidth(v => clampBeatWidth(v / 1.25))} title="Zoom out (Ctrl+scroll)" className="nc-toolbar-btn flex items-center gap-1 px-2 py-1.5 text-slate-500 hover:text-slate-300 rounded-xl text-xs font-black transition-colors"><ZoomOut size={14} /></button>
+            <button onClick={() => setBeatWidth(100)} title="Reset zoom" className="nc-toolbar-btn flex items-center justify-center gap-1.5 px-2 py-1.5 min-w-[5.25rem] text-slate-600 hover:text-slate-300 rounded-xl text-[10px] font-black tabular-nums transition-colors">
               <span className="w-[4ch] text-right">{Math.round(beatWidth / 100 * 100)}%</span>
               <ArrowLeftRight size={11} className="shrink-0" aria-hidden="true" />
             </button>
-            <button onClick={() => setBeatWidth(v => clampBeatWidth(v * 1.25))} title="Zoom in (Ctrl+scroll)" className="flex items-center gap-1 px-2 py-1.5 hover:bg-white/5 text-slate-500 hover:text-slate-300 rounded-xl text-xs font-black transition-colors"><ZoomIn size={14} /></button>
+            <button onClick={() => setBeatWidth(v => clampBeatWidth(v * 1.25))} title="Zoom in (Ctrl+scroll)" className="nc-toolbar-btn flex items-center gap-1 px-2 py-1.5 text-slate-500 hover:text-slate-300 rounded-xl text-xs font-black transition-colors"><ZoomIn size={14} /></button>
           </div>
 
           <div className="grid grid-cols-[1fr_3fr] gap-4 h-[12rem] flex-none">
@@ -2662,6 +2662,13 @@ const App: React.FC = () => {
 
         /* ── Semantic utility classes (NC-specific patterns) ── */
         .nc-border  { border-color: var(--nc-b1) !important; }
+        .nc-toolbar-btn {
+          background-color: var(--nc-panel);
+          border: 1px solid var(--nc-b0);
+        }
+        .nc-toolbar-btn:hover:not(:disabled) {
+          background-color: color-mix(in srgb, var(--nc-panel) 72%, var(--nc-card));
+        }
         .nc-input::placeholder { color: var(--nc-input-ph, var(--nc-t4)); }
         .nc-sample-btn {
           background-color: var(--nc-sample-btn) !important;
