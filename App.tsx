@@ -1968,32 +1968,16 @@ const App: React.FC = () => {
             <button onClick={handleSelectAll} disabled={events.length === 0} className="nc-toolbar-btn flex items-center gap-1.5 px-3 py-1.5 disabled:opacity-30 hover:bg-indigo-500/10 text-slate-400 hover:text-indigo-400 rounded-xl text-xs font-black uppercase transition-colors"><Copy size={14} /> All</button>
             {selectedEventIds.length > 0 && (
               <>
-                <button onClick={handleCopy} className="nc-toolbar-btn flex items-center gap-1.5 px-3 py-1.5 hover:bg-indigo-500/10 text-indigo-400 rounded-xl text-xs font-black uppercase transition-colors"><Copy size={14} /> Copy</button>
-                <button onClick={handleCut} className="nc-toolbar-btn flex items-center gap-1.5 px-3 py-1.5 hover:bg-red-500/10 text-red-400 rounded-xl text-xs font-black uppercase transition-colors"><Scissors size={14} /> Cut</button>
-                <button onClick={handleDelete} className="nc-toolbar-btn flex items-center gap-1.5 px-3 py-1.5 hover:bg-red-500/10 text-red-400 rounded-xl text-xs font-black uppercase transition-colors"><Trash2 size={14} /> Del</button>
+                <button onClick={handleCopy} className="nc-toolbar-btn flex items-center gap-1.5 px-3 py-1.5 hover:bg-indigo-500/10 hover:text-indigo-400 text-slate-400 rounded-xl text-xs font-black uppercase transition-colors"><Copy size={14} /> Copy</button>
+                <button onClick={handleCut} className="nc-toolbar-btn flex items-center gap-1.5 px-3 py-1.5 hover:bg-red-500/10 hover:text-red-400 text-slate-400 rounded-xl text-xs font-black uppercase transition-colors"><Scissors size={14} /> Cut</button>
+                <button onClick={handleDelete} className="nc-toolbar-btn flex items-center gap-1.5 px-3 py-1.5 hover:bg-red-500/10 hover:text-red-400 text-slate-400 rounded-xl text-xs font-black uppercase transition-colors"><Trash2 size={14} /> Del</button>
                 <button onClick={() => setSelectedEventIds([])} className="nc-toolbar-btn flex items-center gap-1.5 px-2 py-1.5 text-slate-600 hover:text-slate-400 rounded-xl transition-colors"><X size={14} /></button>
               </>
             )}
             {clipboard.length > 0 && (
-              <button onClick={handlePaste} className="nc-toolbar-btn flex items-center gap-1.5 px-3 py-1.5 hover:bg-emerald-500/10 text-emerald-400 rounded-xl text-xs font-black uppercase transition-colors"><ClipboardPaste size={14} /> Paste</button>
+              <button onClick={handlePaste} className="nc-toolbar-btn flex items-center gap-1.5 px-3 py-1.5 hover:bg-emerald-500/10 hover:text-emerald-400 text-slate-400 rounded-xl text-xs font-black uppercase transition-colors"><ClipboardPaste size={14} /> Paste</button>
             )}
             <div className="ml-auto" />
-            {selectedEventIds.length > 0 && (
-              <span className="text-[10px] text-slate-600 font-black uppercase mr-2">{selectedEventIds.length} selected</span>
-            )}
-            <div className="w-px h-5 bg-white/10 mx-1" />
-            <button
-              onClick={handleExportWav}
-              disabled={events.length === 0 || isExporting}
-              title="Export audio as WAV using current synth settings"
-              className="nc-toolbar-btn flex items-center gap-1.5 px-3 py-1.5 disabled:opacity-30 hover:bg-emerald-500/10 text-slate-400 hover:text-emerald-400 rounded-xl text-xs font-black uppercase transition-colors"
-            >
-              {isExporting ? <Loader2 size={14} className="animate-spin" /> : <FileAudio size={14} />}
-              {isExporting ? 'Rendering…' : 'WAV'}
-            </button>
-            <div className="w-px h-5 bg-white/10 mx-1" />
-            <button onClick={addTrack} title="Add a new track" className="nc-toolbar-btn flex items-center gap-1 px-2.5 py-1.5 text-slate-500 hover:text-slate-300 rounded-xl text-xs font-black uppercase transition-colors"><Plus size={13} /> Track</button>
-            <div className="w-px h-5 bg-white/10 mx-1" />
             <button onClick={() => { setTrackHeight(v => clampTrackHeight(Math.round(v / 1.25))); setTrackHeights({}); }} title="Shrink all tracks (Y zoom out)" className="nc-toolbar-btn flex items-center gap-1 px-2 py-1.5 text-slate-500 hover:text-slate-300 rounded-xl text-xs font-black transition-colors"><ZoomOut size={14} /></button>
             <button onClick={() => { setTrackHeight(100); setTrackHeights({}); }} title="Reset track height (33% = ~3 tracks fill viewport)" className="nc-toolbar-btn flex items-center justify-center gap-1.5 px-2 py-1.5 min-w-[5.25rem] text-slate-600 hover:text-slate-300 rounded-xl text-[10px] font-black tabular-nums transition-colors">
               <span className="w-[4ch] text-right">{Math.round(trackHeight)}%</span>
@@ -2012,11 +1996,11 @@ const App: React.FC = () => {
           <div className="grid grid-cols-[1fr_3fr] gap-4 h-[12rem] flex-none">
             <div className="rounded-2xl border p-4 font-mono text-xs flex flex-col overflow-hidden" style={{ backgroundColor: t.cardDeep, borderColor: t.b1 }}>
                <div className="flex items-center gap-2 text-slate-500 uppercase font-black text-xs mb-2 border-b border-white/5 pb-1"><Terminal size={12} /> Neural Stream</div>
-               <div className="flex-1 text-indigo-400/40 break-all overflow-y-auto custom-scrollbar italic leading-relaxed">{rawStream || "Standby..."}</div>
+              <div className="flex-1 text-slate-500 break-all overflow-y-auto custom-scrollbar italic leading-relaxed">{rawStream || "Standby..."}</div>
             </div>
             <div className="rounded-2xl border p-4 flex flex-col overflow-hidden group transition-all" style={{ backgroundColor: t.cardDeep, borderColor: t.b1 }}>
                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2 text-indigo-400 uppercase font-black text-xs"><Cpu size={12} /> Manual Patch Bay</div>
+                <div className="flex items-center gap-2 text-slate-500 uppercase font-black text-xs"><Cpu size={12} /> Manual Patch Bay</div>
                   <button
                     onClick={handleInjectUserNotes}
                     disabled={validation.validEvents.length === 0 || validation.errors.length > 0}
@@ -2120,7 +2104,13 @@ const App: React.FC = () => {
                         <div className="text-3xl font-black tabular-nums tracking-tighter text-indigo-800">{events.filter(e => !e.isUser).length}</div>
                         <span className="text-xs text-slate-700 font-black uppercase">N</span>
                      </div>
-                     <button onClick={handleDownload} className="w-full mt-4 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-lg border border-indigo-500/20 text-xs font-bold uppercase"><Download size={12} className="inline mr-2" /> Export</button>
+                     <div className="mt-4 grid grid-cols-2 gap-2">
+                       <button onClick={handleDownload} className="w-full py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-lg border border-indigo-500/20 text-xs font-bold uppercase"><Download size={12} className="inline mr-2" /> Export Text</button>
+                       <button onClick={handleExportWav} disabled={events.length === 0 || isExporting} className="w-full py-2 disabled:opacity-30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg border border-emerald-500/20 text-xs font-bold uppercase">
+                         {isExporting ? <Loader2 size={12} className="inline mr-2 animate-spin" /> : <FileAudio size={12} className="inline mr-2" />}
+                         {isExporting ? 'Rendering…' : 'Export WAV'}
+                       </button>
+                     </div>
                   </div>
 
                   <div className="p-5 rounded-2xl border" style={{ backgroundColor: t.card, borderColor: t.b1 }}>
@@ -2576,6 +2566,7 @@ const App: React.FC = () => {
         [data-theme] .text-slate-200, [data-theme] .text-slate-300 { color: var(--nc-t2) !important; }
         [data-theme] .text-slate-400, [data-theme] .text-slate-500 { color: var(--nc-t3) !important; }
         [data-theme] .text-slate-600, [data-theme] .text-slate-700 { color: var(--nc-t4) !important; }
+        [data-theme] .text-slate-800, [data-theme] .text-slate-900, [data-theme] .text-black { color: var(--nc-t2) !important; }
         /* Accent text */
         [data-theme] .text-indigo-400, [data-theme] .text-indigo-500 { color: var(--nc-indigo) !important; }
         [data-theme] .text-indigo-300, [data-theme] .text-indigo-800 { color: var(--nc-indigo) !important; }
@@ -2585,6 +2576,10 @@ const App: React.FC = () => {
         [data-theme] .text-amber-500 { color: var(--nc-red) !important; }
         [data-theme] .text-teal-300, [data-theme] .text-teal-600 { color: var(--nc-emerald) !important; }
         [data-theme] .text-violet-300 { color: var(--nc-indigo) !important; }
+        [data-theme] [class~="text-indigo-400/40"] { color: color-mix(in srgb, var(--nc-indigo) 40%, transparent) !important; }
+        [data-theme] [class~="text-emerald-400/40"] { color: color-mix(in srgb, var(--nc-emerald) 40%, transparent) !important; }
+        [data-theme] [class~="text-red-400/40"] { color: color-mix(in srgb, var(--nc-red) 40%, transparent) !important; }
+        [data-theme] [class~="text-cyan-400/40"] { color: color-mix(in srgb, var(--nc-cyan) 40%, transparent) !important; }
 
         /* ── Protect white text inside explicit dark accent buttons ──
            Must include [data-theme] to match the specificity (0,2,0) of the
@@ -2665,9 +2660,14 @@ const App: React.FC = () => {
         .nc-toolbar-btn {
           background-color: var(--nc-panel);
           border: 1px solid var(--nc-b0);
+          color: var(--nc-t3);
         }
         .nc-toolbar-btn:hover:not(:disabled) {
           background-color: color-mix(in srgb, var(--nc-panel) 72%, var(--nc-card));
+          color: var(--nc-t2);
+        }
+        .nc-toolbar-btn:disabled {
+          color: var(--nc-t4);
         }
         .nc-input::placeholder { color: var(--nc-input-ph, var(--nc-t4)); }
         .nc-sample-btn {
