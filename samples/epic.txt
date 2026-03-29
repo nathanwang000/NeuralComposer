@@ -16,7 +16,7 @@
 # T:32  Dm   | T:36  Bb   | T:40  F    | T:44  C
 # T:48  Gm   | T:52  Bb   | T:56  A    | T:60  Dm
 
-[voice:1 name:"War Lead" preset:"Crystal Lead" cutoff:2200 resonance:9 attack:0.01 decay:0.18 sustain:0.22 release:0.45 drive:1.5]
+[voice:1 name:"War Lead" preset:"Brass Section" cutoff:2100 resonance:8 attack:0.01 decay:0.2 sustain:0.26 release:0.5 drive:1.55]
 # Opening call
 [P:74,V:108,T:0.000,D:1.500] [P:77,V:112,T:1.500,D:0.500] [P:81,V:116,T:2.000,D:1.500]
 [P:79,V:108,T:4.000,D:1.000] [P:77,V:104,T:5.000,D:1.000] [P:74,V:102,T:6.000,D:1.500]
@@ -61,7 +61,7 @@
 [P:61,V:90,T:56.000,D:4.000] [P:69,V:88,T:56.000,D:4.000] [P:76,V:86,T:56.000,D:4.000]
 [P:62,V:96,T:60.000,D:6.000] [P:69,V:92,T:60.000,D:6.000] [P:74,V:90,T:60.000,D:6.000]
 
-[voice:3 name:"Choir Bed" preset:"Ghostly Pad" cutoff:1400 resonance:1 attack:0.8 decay:1.0 sustain:0.92 release:2.4 drive:1.0]
+[voice:3 name:"Choir Bed" preset:"Grand Choir" cutoff:1250 resonance:1 attack:1.0 decay:0.9 sustain:0.95 release:2.6 drive:1.0]
 [P:50,V:58,T:0.000,D:8.000] [P:57,V:54,T:0.000,D:8.000]
 [P:53,V:56,T:8.000,D:8.000] [P:60,V:52,T:8.000,D:8.000]
 [P:50,V:60,T:16.000,D:8.000] [P:57,V:56,T:16.000,D:8.000]
@@ -72,7 +72,7 @@
 [P:57,V:68,T:56.000,D:4.000] [P:61,V:64,T:56.000,D:4.000]
 [P:50,V:76,T:60.000,D:8.000] [P:57,V:72,T:60.000,D:8.000] [P:62,V:68,T:60.000,D:8.000]
 
-[voice:4 name:"Low Strings" preset:"Deep Bass" cutoff:950 resonance:10 attack:0.01 decay:0.22 sustain:0.18 release:0.22 drive:1.6]
+[voice:4 name:"Low Strings" preset:"French Horn" cutoff:980 resonance:7 attack:0.015 decay:0.24 sustain:0.22 release:0.24 drive:1.45]
 # D minor ostinato
 [P:38,V:98,T:0.000,D:0.700] [P:45,V:92,T:1.000,D:0.700] [P:41,V:94,T:2.000,D:0.700] [P:45,V:92,T:3.000,D:0.700]
 # Bb
@@ -99,7 +99,7 @@
 [P:33,V:112,T:56.000,D:0.700] [P:40,V:106,T:57.000,D:0.700] [P:45,V:108,T:58.000,D:0.700] [P:40,V:106,T:59.000,D:0.700]
 [P:38,V:120,T:60.000,D:3.000] [P:45,V:112,T:61.000,D:2.000] [P:50,V:108,T:62.000,D:2.000]
 
-[voice:5 name:"Piano Pulse" preset:"Grand Piano" cutoff:4200 resonance:2 attack:0.001 decay:0.45 sustain:0.08 release:0.35 drive:2.3]
+[voice:5 name:"String Pulse" preset:"Spiccato Strings" cutoff:3200 resonance:3 attack:0.001 decay:0.15 sustain:0.03 release:0.12 drive:1.08]
 # Repeating eighth-note chord pulses
 [P:62,V:54,T:0.000,D:0.450] [P:65,V:48,T:0.000,D:0.450] [P:69,V:46,T:0.000,D:0.450]
 [P:62,V:50,T:2.000,D:0.450] [P:65,V:44,T:2.000,D:0.450] [P:69,V:42,T:2.000,D:0.450]
@@ -122,7 +122,7 @@
 [P:57,V:66,T:56.000,D:0.450] [P:61,V:60,T:56.000,D:0.450] [P:64,V:58,T:56.000,D:0.450]
 [P:62,V:78,T:60.000,D:2.500] [P:65,V:72,T:60.000,D:2.500] [P:69,V:68,T:60.000,D:2.500]
 
-[voice:6 name:"War Drums" preset:"Kick Drum"]
+[voice:6 name:"War Drums" preset:"Concert Timpani"]
 # Downbeat hits every bar, with extra strikes in the second half
 [P:36,V:122,T:0.000,D:0.200] [P:36,V:110,T:2.500,D:0.150]
 [P:38,V:122,T:4.000,D:0.200] [P:38,V:110,T:6.500,D:0.150]

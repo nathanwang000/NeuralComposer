@@ -1845,7 +1845,9 @@ const App: React.FC = () => {
 [P:45,V:90,T:0,D:2] [P:47,V:85,T:2,D:2]
 
 # Presets: Grand Piano, Crystal Lead, Deep Bass,
-# Ghostly Pad, Neon Pluck, Warm Rhodes, Soft Strings, Acid Bass`}
+# Ghostly Pad, Neon Pluck, Warm Rhodes, Soft Strings,
+# Spiccato Strings, French Horn, Brass Section, Grand Choir,
+# Acid Bass, Kick Drum, Concert Timpani, Snare Hit, Rim Shot`}
                   className="flex-1 border rounded-xl p-3 font-mono text-[11px] focus:outline-none resize-none nc-input"
                   style={{ backgroundColor: t.inputBg, color: t.inputText, borderColor: validation.errors.length > 0 ? 'rgba(239,68,68,0.4)' : t.b1, ['--placeholder-color' as string]: t.inputPH }}
                />

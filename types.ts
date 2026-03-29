@@ -160,6 +160,66 @@ export const SYNTH_PRESETS: Record<string, SynthConfig> = {
     drive: 1.0,
     noiseMix: 0, noiseHpCutoff: 0, freqSweepStart: 0, freqSweepTime: 0
   },
+  "French Horn": {
+    waveType: 'sawtooth',
+    detune: 4,
+    cutoff: 1400,
+    resonance: 4,
+    attack: 0.05,
+    decay: 0.35,
+    sustain: 0.55,
+    release: 0.8,
+    drive: 1.2,
+    noiseMix: 0,
+    noiseHpCutoff: 0,
+    freqSweepStart: 0,
+    freqSweepTime: 0
+  },
+  "Brass Section": {
+    waveType: 'square',
+    detune: 8,
+    cutoff: 2400,
+    resonance: 6,
+    attack: 0.015,
+    decay: 0.22,
+    sustain: 0.35,
+    release: 0.45,
+    drive: 1.45,
+    noiseMix: 0,
+    noiseHpCutoff: 0,
+    freqSweepStart: 0,
+    freqSweepTime: 0
+  },
+  "Spiccato Strings": {
+    waveType: 'sawtooth',
+    detune: 6,
+    cutoff: 3000,
+    resonance: 3,
+    attack: 0.001,
+    decay: 0.18,
+    sustain: 0.05,
+    release: 0.14,
+    drive: 1.1,
+    noiseMix: 0,
+    noiseHpCutoff: 0,
+    freqSweepStart: 0,
+    freqSweepTime: 0
+  },
+  "Grand Choir": {
+    waveType: 'sine',
+    detune: 11,
+    cutoff: 1200,
+    resonance: 1,
+    attack: 1.2,
+    decay: 0.9,
+    sustain: 0.94,
+    release: 2.8,
+    drive: 1.0,
+    noiseMix: 0,
+    noiseHpCutoff: 0,
+    freqSweepStart: 0,
+    freqSweepTime: 0
+  },
   "Acid Bass": {
     waveType: 'sawtooth',
     detune: 0,
@@ -188,6 +248,21 @@ export const SYNTH_PRESETS: Record<string, SynthConfig> = {
     freqSweepTime: 0.5,
     noiseMix: 0,
     noiseHpCutoff: 0
+  },
+  "Concert Timpani": {
+    waveType: 'triangle',
+    detune: 0,
+    cutoff: 420,
+    resonance: 8,
+    attack: 0.001,
+    decay: 0.45,
+    sustain: 0.0,
+    release: 0.28,
+    drive: 2.4,
+    freqSweepStart: 110,
+    freqSweepTime: 0.18,
+    noiseMix: 0.08,
+    noiseHpCutoff: 200
   },
   "Snare Hit": {
     // 70% white noise (highpassed at 1 kHz) + 30% triangle body tone.

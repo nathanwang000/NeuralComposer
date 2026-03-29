@@ -345,8 +345,13 @@ Available override parameters:
 | `"Neon Pluck"` | Sawtooth — resonant staccato pluck |
 | `"Warm Rhodes"` | Triangle — mellow electric piano |
 | `"Soft Strings"` | Sawtooth — slow strings ensemble |
+| `"Spiccato Strings"` | Sawtooth — short, biting orchestral string pulse |
+| `"French Horn"` | Sawtooth — mellow heroic low-brass lead |
+| `"Brass Section"` | Square — broad cinematic brass stab |
+| `"Grand Choir"` | Sine — wide, slow cathedral-like vocal pad |
 | `"Acid Bass"` | Sawtooth — high-resonance acid bass |
 | `"Kick Drum"` | Triangle — deep thud with punchy drive |
+| `"Concert Timpani"` | Triangle — orchestral kettle drum with a rounded pitch drop |
 | `"Snare Hit"` | Square wave — bright crack with mid-high bite |
 | `"Rim Shot"` | Square wave — tight click, very short decay |
 | `"Marimba"` | Triangle — wooden mallet, fast decay |
