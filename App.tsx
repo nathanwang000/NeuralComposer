@@ -1278,6 +1278,23 @@ const App: React.FC = () => {
       const padFocused = isMouseInPadRef.current;
       if (padFocused) return;
 
+      // Seek to `beat` and, if a mark is active, select all notes in the
+      // half-open interval [mark, point) — emacs region semantics.
+      const seekToPoint = (beat: number) => {
+        handleSeek(beat);
+        if (markBeatRef.current !== null) {
+          const lo = Math.min(markBeatRef.current, beat);
+          const hi = Math.max(markBeatRef.current, beat);
+          const ids = events
+            .filter(ev => {
+              const start = ev.beatOffset + ev.event.t;
+              return start >= lo - 0.001 && start < hi - 0.001;
+            })
+            .map(ev => ev.id);
+          setSelectedEventIds(ids);
+        }
+      };
+
       if (e.ctrlKey || e.metaKey) {
         switch (e.key.toLowerCase()) {
           case KB_SEQ.CUT.key:        e.preventDefault(); handleCut();       break;
@@ -1291,29 +1308,12 @@ const App: React.FC = () => {
         // ── Ctrl-only (emacs-style note navigation) ──────────────────────
         // These intentionally fire on Ctrl but NOT Cmd to keep Cmd slots free.
         if (e.ctrlKey && !e.metaKey) {
-          // seekCtrl: seek + update mark-region selection if mark is active
-          const seekCtrl = (beat: number) => {
-            handleSeek(beat);
-            if (markBeatRef.current !== null) {
-              const lo = Math.min(markBeatRef.current, beat);
-              const hi = Math.max(markBeatRef.current, beat);
-              const ids = events
-                .filter(ev => {
-                  const start = ev.beatOffset + ev.event.t;
-                  return start >= lo - 0.001 && start <= hi + 0.001;
-                })
-                .map(ev => ev.id);
-              setSelectedEventIds(ids);
-            }
-          };
-
           const cur = playbackBeatRef.current;
           switch (e.key) {
             case KB_SEQ.SET_MARK.key: {
               // C-Space: set mark at current playhead position
               e.preventDefault();
               markBeatRef.current = cur;
-              // Visual feedback: clear any existing selection so the mark is obvious
               setSelectedEventIds([]);
               break;
             }
@@ -1321,14 +1321,14 @@ const App: React.FC = () => {
               // C-f: jump to the start of the next note after the playhead
               e.preventDefault();
               const nexts = events.map(ev => ev.beatOffset + ev.event.t).filter(b => b > cur + 0.001).sort((a, b) => a - b);
-              if (nexts.length) seekCtrl(nexts[0]);
+              if (nexts.length) seekToPoint(nexts[0]);
               break;
             }
             case KB_SEQ.NAV_PREV_NOTE.key: {
               // C-b: jump to the start of the previous note before the playhead
               e.preventDefault();
               const prevs = events.map(ev => ev.beatOffset + ev.event.t).filter(b => b < cur - 0.001).sort((a, b) => b - a);
-              if (prevs.length) seekCtrl(prevs[0]);
+              if (prevs.length) seekToPoint(prevs[0]);
               break;
             }
             case KB_SEQ.NAV_END_NOTE.key: {
@@ -1337,31 +1337,13 @@ const App: React.FC = () => {
               const candidate = [...events]
                 .filter(ev => ev.beatOffset + ev.event.t <= cur + 0.001)
                 .sort((a, b) => (b.beatOffset + b.event.t) - (a.beatOffset + a.event.t))[0];
-              if (candidate) seekCtrl(candidate.beatOffset + candidate.event.t + candidate.event.d);
+              if (candidate) seekToPoint(candidate.beatOffset + candidate.event.t + candidate.event.d);
               break;
             }
           }
         }
         return;
       }
-
-      // ── Non-modifier shortcuts ──────────────────────────────────────────
-      // Shared mark-aware seek helper (also used by Ctrl-nav above via closure hoisting).
-      // Seeks to `beat` and, if a mark is active, selects all notes in [mark, point].
-      const seekToPoint = (beat: number) => {
-        handleSeek(beat);
-        if (markBeatRef.current !== null) {
-          const lo = Math.min(markBeatRef.current, beat);
-          const hi = Math.max(markBeatRef.current, beat);
-          const ids = events
-            .filter(ev => {
-              const start = ev.beatOffset + ev.event.t;
-              return start >= lo - 0.001 && start <= hi + 0.001;
-            })
-            .map(ev => ev.id);
-          setSelectedEventIds(ids);
-        }
-      };
 
       // Delete / Backspace — always available (pad doesn't use them)
       if (e.key === KB_SEQ.DELETE.key || e.key === 'Backspace') {
