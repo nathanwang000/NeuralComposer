@@ -12,6 +12,12 @@ It is built around two ideas:
 
 It is not trying to replace a full DAW like Ableton. The goal is intentional simplicity: good enough for lightweight composition, education, and fast idea capture, while staying low-friction and easy to understand.
 
+## Philosophy
+
+NeuralComposer started from a simple frustration: too many music tools are expensive, heavy, opaque, or full of workflow friction. This project exists to keep music-making lightweight enough that it is easy to return to, easy to understand, and enjoyable to keep improving.
+
+The design goal is not maximal power. It is to remove the wrong kinds of complexity while keeping enough expressive range to write real music. The constraints are intentional.
+
 ## Features
 
 - **Voice to notes** — hum or sing into the mic; the app transcribes to MIDI (voice icon at the top)
