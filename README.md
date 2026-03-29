@@ -4,7 +4,13 @@
 
 # NeuralComposer
 
-A playground for experimenting with musical ideas. The central goal of the **Perform tab** is to make a digital instrument intuitive enough that anyone — not just trained musicians — can enjoy *playing* music, not just listening to it. Much of the work here is exploring keyboard and touch configurations toward that end.
+NeuralComposer is a lightweight browser-based composition tool for sketching, performing, and recording musical ideas without specialized hardware.
+
+It is built around two ideas:
+- **Playable anywhere** — the Perform tab offers preconfigured keyboard and touch layouts so people can record music on a laptop, phone, or tablet without needing a MIDI keyboard.
+- **Portable by design** — compositions live in a human-readable text format, making them easy to inspect, version, share, and adapt to other systems.
+
+It is not trying to replace a full DAW like Ableton. The goal is intentional simplicity: good enough for lightweight composition, education, and fast idea capture, while staying low-friction and easy to understand.
 
 ## Features
 
