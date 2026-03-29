@@ -64,7 +64,7 @@ const _MOD = _IS_MAC ? '⌘' : '⌃';
 
 const KB_SEQ = {
   // ── Clipboard / edit ──────────────────────────────────────────────────────
-  SELECT_ALL: { key: 'a',          display: `${_MOD}A`,     hint: 'Select all notes',          mod: true },
+  SELECT_ALL: { key: 'a',          display: `${_IS_MAC ? '⌘' : 'Ctrl+'}A`, hint: 'Select all notes',          mod: true },
   COPY:       { key: 'c',          display: `${_MOD}C`,     hint: 'Copy selection',            mod: true },
   CUT:        { key: 'x',          display: `${_MOD}X`,     hint: 'Cut selection',             mod: true },
   PASTE:      { key: 'v',          display: `${_MOD}V`,     hint: 'Paste at playhead',         mod: true },
@@ -75,7 +75,7 @@ const KB_SEQ = {
   CANCEL_SELECTION:  { key: 'g',          display: `${_MOD}G`,     hint: 'Cancel selection',          mod: true },
   // ── Transport ─────────────────────────────────────────────────────────────
   PLAY_PAUSE:   { key: ' ',          display: 'Space',        hint: 'Play / Pause' },
-  REWIND:       { key: '0',          display: '0',            hint: 'Rewind to beginning' },
+  REWIND:       { key: ['0', 'a'] as const, display: '0 / ^A',       hint: 'Rewind to beginning' },
   PREV_BAR:     { key: 'ArrowLeft',  display: '←',            hint: 'Back 1 measure' },
   NEXT_BAR:     { key: 'ArrowRight', display: '→',            hint: 'Forward 1 measure' },
   TOGGLE_TAB:   { key: 't',          display: 'T',            hint: 'Toggle Sequencer / Perform tab' },
@@ -218,7 +218,7 @@ type NcThemeId = string;
 /** Grouped sections shown in the sequencer shortcuts modal. */
 const SEQ_TUTORIAL_SECTIONS: { title: string; rows: { display: string; hint: string }[] }[] = [
   { title: 'Transport',  rows: [KB_SEQ.PLAY_PAUSE, KB_SEQ.REWIND, KB_SEQ.PREV_BAR, KB_SEQ.NEXT_BAR, KB_SEQ.TOGGLE_TAB] },
-  { title: 'Navigate',   rows: [KB_SEQ.SET_MARK, KB_SEQ.NAV_NEXT_NOTE, KB_SEQ.NAV_PREV_NOTE, KB_SEQ.NAV_END_NOTE] },
+  { title: 'Navigate',   rows: [KB_SEQ.SET_MARK, KB_SEQ.REWIND, KB_SEQ.NAV_NEXT_NOTE, KB_SEQ.NAV_PREV_NOTE, KB_SEQ.NAV_END_NOTE] },
   { title: 'Tracks',     rows: [KB_SEQ.SELECT_TRACK, KB_SEQ.MUTE_TRACK] },
   { title: 'Selection',  rows: [KB_SEQ.SELECT_ALL, KB_SEQ.CANCEL_SELECTION] },
   { title: 'Clipboard',  rows: [KB_SEQ.COPY, KB_SEQ.CUT, KB_SEQ.PASTE, KB_SEQ.DELETE] },
@@ -1298,7 +1298,7 @@ const App: React.FC = () => {
       if (e.ctrlKey || e.metaKey) {
         switch (e.key.toLowerCase()) {
           case KB_SEQ.CUT.key:        e.preventDefault(); handleCut();       break;
-          case KB_SEQ.SELECT_ALL.key: e.preventDefault(); handleSelectAll(); break;
+          case KB_SEQ.SELECT_ALL.key: if (e.metaKey || (!_IS_MAC && e.ctrlKey)) { e.preventDefault(); handleSelectAll(); } break;
           case KB_SEQ.COPY.key:       e.preventDefault(); handleCopy();      break;
           case KB_SEQ.PASTE.key:      e.preventDefault(); handlePaste();     break;
           case KB_SEQ.UNDO.key:              e.preventDefault(); if (e.shiftKey) redo(); else undo(); break;
@@ -1309,37 +1309,32 @@ const App: React.FC = () => {
         // These intentionally fire on Ctrl but NOT Cmd to keep Cmd slots free.
         if (e.ctrlKey && !e.metaKey) {
           const cur = playbackBeatRef.current;
-          switch (e.key) {
-            case KB_SEQ.SET_MARK.key: {
-              // C-Space: set mark at current playhead position
-              e.preventDefault();
-              markBeatRef.current = cur;
-              setSelectedEventIds([]);
-              break;
-            }
-            case KB_SEQ.NAV_NEXT_NOTE.key: {
-              // C-f: jump to the start of the next note after the playhead
-              e.preventDefault();
-              const nexts = events.map(ev => ev.beatOffset + ev.event.t).filter(b => b > cur + 0.001).sort((a, b) => a - b);
-              if (nexts.length) seekToPoint(nexts[0]);
-              break;
-            }
-            case KB_SEQ.NAV_PREV_NOTE.key: {
-              // C-b: jump to the start of the previous note before the playhead
-              e.preventDefault();
-              const prevs = events.map(ev => ev.beatOffset + ev.event.t).filter(b => b < cur - 0.001).sort((a, b) => b - a);
-              if (prevs.length) seekToPoint(prevs[0]);
-              break;
-            }
-            case KB_SEQ.NAV_END_NOTE.key: {
-              // C-e: jump to the end of the most-recently-started note at or before the playhead
-              e.preventDefault();
-              const candidate = [...events]
-                .filter(ev => ev.beatOffset + ev.event.t <= cur + 0.001)
-                .sort((a, b) => (b.beatOffset + b.event.t) - (a.beatOffset + a.event.t))[0];
-              if (candidate) seekToPoint(candidate.beatOffset + candidate.event.t + candidate.event.d);
-              break;
-            }
+          if (e.key === KB_SEQ.SET_MARK.key) {
+            // C-Space: set mark at current playhead position
+            e.preventDefault();
+            markBeatRef.current = cur;
+            setSelectedEventIds([]);
+          } else if ((KB_SEQ.REWIND.key as readonly string[]).includes(e.key)) {
+            // C-a: rewind to beginning (emacs C-a)
+            e.preventDefault();
+            seekToPoint(0);
+          } else if (e.key === KB_SEQ.NAV_NEXT_NOTE.key) {
+            // C-f: jump to the start of the next note after the playhead
+            e.preventDefault();
+            const nexts = events.map(ev => ev.beatOffset + ev.event.t).filter(b => b > cur + 0.001).sort((a, b) => a - b);
+            if (nexts.length) seekToPoint(nexts[0]);
+          } else if (e.key === KB_SEQ.NAV_PREV_NOTE.key) {
+            // C-b: jump to the start of the previous note before the playhead
+            e.preventDefault();
+            const prevs = events.map(ev => ev.beatOffset + ev.event.t).filter(b => b < cur - 0.001).sort((a, b) => b - a);
+            if (prevs.length) seekToPoint(prevs[0]);
+          } else if (e.key === KB_SEQ.NAV_END_NOTE.key) {
+            // C-e: jump to the end of the most-recently-started note at or before the playhead
+            e.preventDefault();
+            const candidate = [...events]
+              .filter(ev => ev.beatOffset + ev.event.t <= cur + 0.001)
+              .sort((a, b) => (b.beatOffset + b.event.t) - (a.beatOffset + a.event.t))[0];
+            if (candidate) seekToPoint(candidate.beatOffset + candidate.event.t + candidate.event.d);
           }
         }
         return;
@@ -1352,7 +1347,7 @@ const App: React.FC = () => {
         return;
       }
       // KB_SEQ.REWIND — rewind to beginning
-      if (e.key === KB_SEQ.REWIND.key) {
+      if ((KB_SEQ.REWIND.key as readonly string[]).includes(e.key)) {
         e.preventDefault();
         seekToPoint(0);
         return;
