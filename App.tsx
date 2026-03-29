@@ -89,6 +89,7 @@ const KB_SEQ = {
   NAV_NEXT_NOTE: { key: 'f',         display: '^F',           hint: 'Jump to next note start' },
   NAV_PREV_NOTE: { key: 'b',         display: '^B',           hint: 'Jump to previous note start' },
   NAV_END_NOTE:  { key: 'e',         display: '^E',           hint: 'Jump to end of current note' },
+  KILL_TO_END:   { key: 'k',         display: '^K',           hint: 'Kill (cut) notes from playhead to end' },
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -221,7 +222,7 @@ const SEQ_TUTORIAL_SECTIONS: { title: string; rows: { display: string; hint: str
   { title: 'Navigate',   rows: [KB_SEQ.SET_MARK, KB_SEQ.REWIND, KB_SEQ.NAV_NEXT_NOTE, KB_SEQ.NAV_PREV_NOTE, KB_SEQ.NAV_END_NOTE] },
   { title: 'Tracks',     rows: [KB_SEQ.SELECT_TRACK, KB_SEQ.MUTE_TRACK] },
   { title: 'Selection',  rows: [KB_SEQ.SELECT_ALL, KB_SEQ.CANCEL_SELECTION] },
-  { title: 'Clipboard',  rows: [KB_SEQ.COPY, KB_SEQ.CUT, KB_SEQ.PASTE, KB_SEQ.DELETE] },
+  { title: 'Clipboard',  rows: [KB_SEQ.COPY, KB_SEQ.CUT, KB_SEQ.PASTE, KB_SEQ.DELETE, KB_SEQ.KILL_TO_END] },
   { title: 'History',    rows: [KB_SEQ.UNDO, KB_SEQ.REDO, KB_SEQ.REDO_ALT] },
 ];
 // ---------------------------------------------------------------------------
@@ -1335,6 +1336,24 @@ const App: React.FC = () => {
               .filter(ev => ev.beatOffset + ev.event.t <= cur + 0.001)
               .sort((a, b) => (b.beatOffset + b.event.t) - (a.beatOffset + a.event.t))[0];
             if (candidate) seekToPoint(candidate.beatOffset + candidate.event.t + candidate.event.d);
+          } else if (e.key === KB_SEQ.KILL_TO_END.key) {
+            // C-k: kill (cut) all notes from playhead to end — emacs kill-line
+            e.preventDefault();
+            const killBeat = playbackBeatRef.current;
+            const toKill = events.filter(ev => ev.beatOffset + ev.event.t >= killBeat - 0.001);
+            if (toKill.length) {
+              pushHistory(events);
+              const killIds = new Set<string>(toKill.map(ev => ev.id));
+              // Put killed notes in clipboard (relative to killBeat)
+              setClipboard(toKill.map(ev => ({
+                event: { ...ev.event },
+                relativeBeat: (ev.beatOffset + ev.event.t) - killBeat,
+                trackId: ev.trackId,
+                comment: ev.comment,
+              })));
+              setEvents(prev => deleteEventsPreservingComments(prev, killIds));
+              setSelectedEventIds([]);
+            }
           }
         }
         return;
