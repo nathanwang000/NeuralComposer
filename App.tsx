@@ -123,7 +123,7 @@ interface NcTokens {
   t1: string; t2: string; t3: string; t4: string;
   axisLabel: string;    // X/Y axis labels on pad
   // Borders
-  b1: string; b2: string; b3: string;
+  b0: string; b1: string; b2: string; b3: string;
   // Subtle tint used for hover/active states (bg-white/5 → this)
   tint: string;
   // Accent colours (for text/icons — buttons that are bg-indigo-600 keep white text)
@@ -160,7 +160,7 @@ const NC_THEMES: NcTheme[] = [
       stickyBg: 'rgba(2,6,23,0.9)',
       sampleBtn: '#0f172a', sampleBtnHov: '#1e293b', sampleBtnText: '#64748b', sampleBtnHovText: '#ffffff',
       t1: '#ffffff', t2: '#cbd5e1', t3: '#64748b', t4: '#334155', axisLabel: '#334155',
-      b1: 'rgba(255,255,255,0.05)', b2: 'rgba(255,255,255,0.1)', b3: 'rgba(255,255,255,0.2)',
+      b0: 'rgba(255,255,255,0.035)', b1: 'rgba(255,255,255,0.06)', b2: 'rgba(255,255,255,0.11)', b3: 'rgba(255,255,255,0.2)',
       tint: 'rgba(255,255,255,0.05)',
       indigo: '#818cf8', emerald: '#34d399', cyan: '#22d3ee', red: '#f87171',
       gridBar: 'rgba(255,255,255,0.22)', gridBeat: 'rgba(255,255,255,0.10)', gridEighth: 'rgba(255,255,255,0.06)', gridSixteenth: 'rgba(255,255,255,0.03)', gridOctave: 'rgba(255,255,255,0.18)', gridPitch: 'rgba(255,255,255,0.04)',
@@ -182,7 +182,7 @@ const NC_THEMES: NcTheme[] = [
       stickyBg: 'rgba(216,207,188,0.95)',
       sampleBtn: '#d4ccb8', sampleBtnHov: '#c9c0a8', sampleBtnText: '#78716c', sampleBtnHovText: '#1a150d',
       t1: '#1a150d', t2: '#3d3120', t3: '#7a6650', t4: '#a89278', axisLabel: '#78716c',
-      b1: 'rgba(40,28,8,0.09)', b2: 'rgba(40,28,8,0.15)', b3: 'rgba(40,28,8,0.24)',
+      b0: 'rgba(40,28,8,0.04)', b1: 'rgba(40,28,8,0.07)', b2: 'rgba(40,28,8,0.11)', b3: 'rgba(40,28,8,0.18)',
       tint: 'rgba(40,28,8,0.04)',
       indigo: '#3730a3', emerald: '#047857', cyan: '#0e7490', red: '#b91c1c',
       gridBar: 'rgba(40,28,8,0.30)', gridBeat: 'rgba(40,28,8,0.15)', gridEighth: 'rgba(40,28,8,0.09)', gridSixteenth: 'rgba(40,28,8,0.05)',
@@ -205,7 +205,7 @@ const NC_THEMES: NcTheme[] = [
       stickyBg: 'rgba(8,22,44,0.92)',
       sampleBtn: '#0d2647', sampleBtnHov: '#163660', sampleBtnText: '#4d8ec4', sampleBtnHovText: '#cce4ff',
       t1: '#e8f4ff', t2: '#a8cef0', t3: '#4d8ec4', t4: '#2d5a8a', axisLabel: '#2d5a8a',
-      b1: 'rgba(80,160,255,0.08)', b2: 'rgba(80,160,255,0.14)', b3: 'rgba(80,160,255,0.24)',
+      b0: 'rgba(80,160,255,0.05)', b1: 'rgba(80,160,255,0.09)', b2: 'rgba(80,160,255,0.15)', b3: 'rgba(80,160,255,0.24)',
       tint: 'rgba(80,160,255,0.06)',
       indigo: '#60a5fa', emerald: '#34d399', cyan: '#22d3ee', red: '#f87171',
       gridBar: 'rgba(100,180,255,0.22)', gridBeat: 'rgba(100,180,255,0.10)', gridEighth: 'rgba(100,180,255,0.06)', gridSixteenth: 'rgba(100,180,255,0.03)', gridOctave: 'rgba(100,180,255,0.18)', gridPitch: 'rgba(100,180,255,0.04)',
@@ -1669,11 +1669,11 @@ const App: React.FC = () => {
         '--nc-sample-btn-hov-text': t.sampleBtnHovText,
         '--nc-t1': t.t1, '--nc-t2': t.t2, '--nc-t3': t.t3, '--nc-t4': t.t4,
         '--nc-axis': t.axisLabel,
-        '--nc-b1': t.b1, '--nc-b2': t.b2, '--nc-b3': t.b3,
+        '--nc-b0': t.b0, '--nc-b1': t.b1, '--nc-b2': t.b2, '--nc-b3': t.b3,
         '--nc-tint': t.tint,
         '--nc-indigo': t.indigo, '--nc-emerald': t.emerald, '--nc-cyan': t.cyan, '--nc-red': t.red,
       } as React.CSSProperties}>
-      <header className="flex-none flex flex-col md:flex-row justify-between items-center gap-4 p-4 lg:p-6 border-b nc-border" style={{ backgroundColor: t.hdr, paddingTop: 'calc(1rem + env(safe-area-inset-top, 0px))' }}>
+      <header className="flex-none flex flex-col md:flex-row justify-between items-center gap-4 p-4 lg:p-6" style={{ backgroundColor: t.hdr, paddingTop: 'calc(1rem + env(safe-area-inset-top, 0px))' }}>
         <div className="flex items-center gap-4">
           <div className={`p-3 rounded-2xl transition-all duration-1000 ${state.isPlaying ? 'bg-indigo-600 shadow-[0_0_30px_rgba(79,70,229,0.3)]' : 'bg-slate-900'}`}>
             <Zap className={`${state.isPlaying && !isPaused ? 'text-white fill-white animate-pulse' : 'text-slate-700'}`} size={28} />
@@ -1689,8 +1689,8 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex gap-3 items-center flex-wrap justify-center bg-slate-900/50 backdrop-blur-xl p-2 rounded-2xl border border-white/5">
-          <div className="flex items-center gap-1 bg-slate-900/50 p-1 rounded-xl border border-white/5 mr-2">
+        <div className="flex gap-3 items-center flex-wrap justify-center p-1">
+          <div className="flex items-center gap-1 p-1 rounded-xl mr-2" style={{ backgroundColor: t.card }}>
              <button
                onClick={() => setMainTab('sequencer')}
                className={`px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${mainTab === 'sequencer' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}
@@ -1714,7 +1714,7 @@ const App: React.FC = () => {
             </button>
           </div>
 
-          <div className="flex items-center bg-black rounded-xl border border-white/5 p-1 mr-1">
+          <div className="flex items-center rounded-xl p-1 mr-1" style={{ backgroundColor: t.cardDeep }}>
              <div className="px-2 border-r border-white/10 flex items-center gap-2 mr-1">
                 <Gauge size={14} className="text-slate-600" />
                 <span className="text-[10px] font-black text-slate-600 hidden xl:inline">BPM</span>
@@ -1724,7 +1724,7 @@ const App: React.FC = () => {
              <button onClick={() => updateBpm(state.tempo + 1)} className="w-6 h-8 flex items-center justify-center hover:bg-white/10 rounded-lg text-slate-500 hover:text-indigo-400"><Plus size={12} /></button>
           </div>
 
-          <div className="flex items-center gap-1 bg-black rounded-xl border border-white/5 p-1">
+          <div className="flex items-center gap-1 rounded-xl p-1" style={{ backgroundColor: t.cardDeep }}>
              <button title="Toggle Legato Mode" onClick={() => setState(s => ({ ...s, legatoMode: !s.legatoMode }))} className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${state.legatoMode ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/50' : 'bg-transparent text-slate-500 border-transparent hover:bg-white/5'}`}>
                <Waves size={14} /> Legato
              </button>
@@ -1768,7 +1768,7 @@ const App: React.FC = () => {
               Visibility is toggled purely with CSS (hidden / contents). */}
           <div className={mainTab === 'performance' ? 'flex-1 flex flex-col min-h-0 gap-2' : 'hidden'}>
             {/* Recording target track selector */}
-            <div className="flex-none flex items-center gap-2 px-2 py-1.5 bg-slate-900/40 border border-white/5 rounded-2xl">
+            <div className="flex-none flex items-center gap-2 px-1 py-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
               <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Rec →</span>
               <div className="flex gap-1 flex-wrap">
@@ -1776,8 +1776,8 @@ const App: React.FC = () => {
                   <button
                     key={track.id}
                     onClick={() => { setRecordingTrackId(track.id); setActiveTrackId(track.id); }}
-                    className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-black transition-all ${recordingTrackId === track.id ? 'text-white border border-white/20' : 'text-slate-600 hover:text-slate-300 border border-transparent'}`}
-                    style={{ background: recordingTrackId === track.id ? `${track.color}22` : undefined, borderColor: recordingTrackId === track.id ? `${track.color}66` : undefined }}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black transition-all ${recordingTrackId === track.id ? 'text-white' : 'text-slate-600 hover:text-slate-300'}`}
+                    style={{ background: recordingTrackId === track.id ? `${track.color}1f` : undefined }}
                   >
                     <div className="w-1.5 h-1.5 rounded-full" style={{ background: track.color }} />
                     {track.name}
@@ -2616,6 +2616,12 @@ const App: React.FC = () => {
         [data-theme] .bg-slate-800  { background-color: var(--nc-card)  !important; }
 
         /* ── Borders: slash-variant catch-alls ── */
+        [data-theme] [class~="border-white/5"]  { border-color: var(--nc-b0) !important; }
+        [data-theme] [class~="border-white/8"]  { border-color: var(--nc-b1) !important; }
+        [data-theme] [class~="border-white/10"] { border-color: var(--nc-b1) !important; }
+        [data-theme] [class~="border-white/15"] { border-color: var(--nc-b2) !important; }
+        [data-theme] [class~="border-white/20"] { border-color: var(--nc-b2) !important; }
+        [data-theme] [class~="border-white/25"] { border-color: var(--nc-b3) !important; }
         [data-theme] [class*="border-white/"] { border-color: var(--nc-b1) !important; }
         /* Accent borders */
         [data-theme] [class~="border-indigo-500/10"],
