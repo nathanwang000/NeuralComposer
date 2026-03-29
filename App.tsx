@@ -170,18 +170,18 @@ const NC_THEMES: NcTheme[] = [
   {
     id: 'studio', label: 'Studio', desc: 'Warm paper — easy on eyes', swatch: '#f0ebe0',
     tokens: {
-      bg: '#f0ebe0', hdr: '#e8e2d5',
-      toolbar: '#dcd5c4',
-      panel: 'rgba(224,217,203,0.6)',
-      card: 'rgba(220,213,196,0.7)',
-      cardDeep: '#dcd5c4',
-      inset: '#e0d9cb',
-      inputBg: '#cdc3ae', inputText: '#1a150d', inputPH: '#a89278',
-      padBg: '#cdc3b0',
-      glassBg: 'rgba(0,0,0,0.06)', glassBorder: 'rgba(40,28,8,0.1)', glassText: '#78716c',
-      stickyBg: 'rgba(216,207,188,0.95)',
-      sampleBtn: '#d4ccb8', sampleBtnHov: '#c9c0a8', sampleBtnText: '#78716c', sampleBtnHovText: '#1a150d',
-      t1: '#1a150d', t2: '#3d3120', t3: '#7a6650', t4: '#a89278', axisLabel: '#78716c',
+      bg: '#f5efe4', hdr: '#efe7d9',
+      toolbar: 'rgba(226,216,197,0.9)',
+      panel: 'rgba(255,249,240,0.74)',
+      card: '#f8f1e5',
+      cardDeep: '#e5d9c5',
+      inset: '#d7cab4',
+      inputBg: '#efe4d2', inputText: '#1f170d', inputPH: '#9b8264',
+      padBg: '#ded1ba',
+      glassBg: 'rgba(255,248,238,0.68)', glassBorder: 'rgba(66,46,14,0.08)', glassText: '#6f5b43',
+      stickyBg: 'rgba(239,231,217,0.96)',
+      sampleBtn: '#e4d8c6', sampleBtnHov: '#dacdb8', sampleBtnText: '#6f5b43', sampleBtnHovText: '#1f170d',
+      t1: '#1f170d', t2: '#43311f', t3: '#7a6650', t4: '#a58d72', axisLabel: '#826d56',
       b0: 'rgba(40,28,8,0.04)', b1: 'rgba(40,28,8,0.07)', b2: 'rgba(40,28,8,0.11)', b3: 'rgba(40,28,8,0.18)',
       tint: 'rgba(40,28,8,0.04)',
       indigo: '#3730a3', emerald: '#047857', cyan: '#0e7490', red: '#b91c1c',
@@ -2596,11 +2596,20 @@ const App: React.FC = () => {
         [data-theme] [class*="bg-cyan-6"],
         [data-theme] [class*="bg-cyan-6"] * { color: white !important; }
 
-        /* ── Backgrounds: slash-variant catch-alls ── */
-        [data-theme] [class*="bg-black/"]     { background-color: var(--nc-card)      !important; }
-        [data-theme] [class*="bg-slate-950/"] { background-color: var(--nc-card-deep) !important; }
-        [data-theme] [class*="bg-slate-900/"] { background-color: var(--nc-card)      !important; }
-        [data-theme] [class*="bg-white/"]     { background-color: var(--nc-tint)      !important; }
+        /* ── Backgrounds: semantic tiers for shared Tailwind utilities ── */
+        [data-theme] [class~="bg-black/40"]     { background-color: var(--nc-panel)     !important; }
+        [data-theme] [class~="bg-black/70"]     { background-color: color-mix(in srgb, var(--nc-bg) 60%, black) !important; }
+        [data-theme] [class~="bg-black/95"]     { background-color: color-mix(in srgb, var(--nc-bg) 25%, black) !important; }
+        [data-theme] [class~="bg-slate-950/95"] { background-color: var(--nc-card-deep) !important; }
+        [data-theme] [class~="bg-slate-900/40"] { background-color: var(--nc-panel)     !important; }
+        [data-theme] [class~="bg-slate-900/50"] { background-color: var(--nc-toolbar)   !important; }
+        [data-theme] [class~="bg-slate-900/95"] { background-color: var(--nc-card-deep) !important; }
+        [data-theme] [class~="bg-white/5"]      { background-color: var(--nc-tint)      !important; }
+        [data-theme] [class~="bg-white/10"]     { background-color: color-mix(in srgb, var(--nc-tint) 160%, white) !important; }
+        [data-theme] [class*="bg-black/"]       { background-color: var(--nc-card)      !important; }
+        [data-theme] [class*="bg-slate-950/"]   { background-color: var(--nc-card-deep) !important; }
+        [data-theme] [class*="bg-slate-900/"]   { background-color: var(--nc-card)      !important; }
+        [data-theme] [class*="bg-white/"]       { background-color: var(--nc-tint)      !important; }
         /* Accent tints — higher specificity via [class~=], override catch-alls above */
         [data-theme] [class~="bg-indigo-500/5"]   { background-color: color-mix(in srgb, var(--nc-indigo)  5%, transparent) !important; }
         [data-theme] [class~="bg-indigo-500/10"]  { background-color: color-mix(in srgb, var(--nc-indigo) 10%, transparent) !important; }
@@ -2611,9 +2620,9 @@ const App: React.FC = () => {
         [data-theme] [class~="bg-cyan-500/10"]    { background-color: color-mix(in srgb, var(--nc-cyan)     10%, transparent) !important; }
         [data-theme] [class~="bg-amber-500/20"]   { background-color: color-mix(in srgb, var(--nc-red)      12%, transparent) !important; }
         /* Opaque Tailwind bg classes → inset token */
-        [data-theme] .bg-black      { background-color: var(--nc-inset) !important; }
-        [data-theme] .bg-slate-900  { background-color: var(--nc-inset) !important; }
-        [data-theme] .bg-slate-800  { background-color: var(--nc-card)  !important; }
+        [data-theme] .bg-black      { background-color: var(--nc-inset)     !important; }
+        [data-theme] .bg-slate-900  { background-color: var(--nc-inset)     !important; }
+        [data-theme] .bg-slate-800  { background-color: var(--nc-card-deep) !important; }
 
         /* ── Borders: slash-variant catch-alls ── */
         [data-theme] [class~="border-white/5"]  { border-color: var(--nc-b0) !important; }
