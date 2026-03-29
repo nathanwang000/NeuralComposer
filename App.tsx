@@ -74,13 +74,20 @@ const KB_SEQ = {
   DELETE:            { key: 'Delete',     display: 'Del / ⌫',      hint: 'Delete selected notes' },
   CANCEL_SELECTION:  { key: 'g',          display: `${_MOD}G`,     hint: 'Cancel selection',          mod: true },
   // ── Transport ─────────────────────────────────────────────────────────────
-  PLAY_PAUSE: { key: ' ',          display: 'Space',        hint: 'Play / Pause' },
-  REWIND:     { key: '0',          display: '0',            hint: 'Rewind to beginning' },
-  PREV_BAR:   { key: 'ArrowLeft',  display: '←',            hint: 'Back 1 measure' },
-  NEXT_BAR:   { key: 'ArrowRight', display: '→',            hint: 'Forward 1 measure' },
+  PLAY_PAUSE:   { key: ' ',          display: 'Space',        hint: 'Play / Pause' },
+  REWIND:       { key: '0',          display: '0',            hint: 'Rewind to beginning' },
+  PREV_BAR:     { key: 'ArrowLeft',  display: '←',            hint: 'Back 1 measure' },
+  NEXT_BAR:     { key: 'ArrowRight', display: '→',            hint: 'Forward 1 measure' },
+  TOGGLE_TAB:   { key: 't',          display: 'T',            hint: 'Toggle Sequencer / Perform tab' },
   // ── Tracks ────────────────────────────────────────────────────────────────
   SELECT_TRACK: { key: '1-9' /* regex */, display: '1 – 9', hint: 'Select track by number' },
-  MUTE_TRACK:   { key: 'm',        display: 'M',            hint: 'Mute / unmute active track' },
+  MUTE_TRACK:   { key: 'm',          display: 'M',            hint: 'Mute / unmute active track' },
+  // ── Emacs-style note navigation (Ctrl only) ────────────────────────────────
+  // These move the playhead (the "point") forward/back note by note.
+  // C-Space will later set the mark so these can define a selection region.
+  NAV_NEXT_NOTE: { key: 'f',         display: '^F',           hint: 'Jump to next note start' },
+  NAV_PREV_NOTE: { key: 'b',         display: '^B',           hint: 'Jump to previous note start' },
+  NAV_END_NOTE:  { key: 'e',         display: '^E',           hint: 'Jump to end of current note' },
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -209,7 +216,8 @@ type NcThemeId = string;
 
 /** Grouped sections shown in the sequencer shortcuts modal. */
 const SEQ_TUTORIAL_SECTIONS: { title: string; rows: { display: string; hint: string }[] }[] = [
-  { title: 'Transport',  rows: [KB_SEQ.PLAY_PAUSE, KB_SEQ.REWIND, KB_SEQ.PREV_BAR, KB_SEQ.NEXT_BAR] },
+  { title: 'Transport',  rows: [KB_SEQ.PLAY_PAUSE, KB_SEQ.REWIND, KB_SEQ.PREV_BAR, KB_SEQ.NEXT_BAR, KB_SEQ.TOGGLE_TAB] },
+  { title: 'Navigate',   rows: [KB_SEQ.NAV_NEXT_NOTE, KB_SEQ.NAV_PREV_NOTE, KB_SEQ.NAV_END_NOTE] },
   { title: 'Tracks',     rows: [KB_SEQ.SELECT_TRACK, KB_SEQ.MUTE_TRACK] },
   { title: 'Selection',  rows: [KB_SEQ.SELECT_ALL, KB_SEQ.CANCEL_SELECTION] },
   { title: 'Clipboard',  rows: [KB_SEQ.COPY, KB_SEQ.CUT, KB_SEQ.PASTE, KB_SEQ.DELETE] },
@@ -1276,6 +1284,36 @@ const App: React.FC = () => {
           case KB_SEQ.REDO_ALT.key:          e.preventDefault(); redo();            break;
           case KB_SEQ.CANCEL_SELECTION.key:  e.preventDefault(); setSelectedEventIds([]); break;
         }
+        // ── Ctrl-only (emacs-style note navigation) ──────────────────────
+        // These intentionally fire on Ctrl but NOT Cmd to keep Cmd slots free.
+        if (e.ctrlKey && !e.metaKey) {
+          const cur = playbackBeatRef.current;
+          switch (e.key.toLowerCase()) {
+            case KB_SEQ.NAV_NEXT_NOTE.key: {
+              // C-f: jump to the start of the next note after the playhead
+              e.preventDefault();
+              const nexts = events.map(ev => ev.beatOffset + ev.event.t).filter(b => b > cur + 0.01).sort((a, b) => a - b);
+              if (nexts.length) handleSeek(nexts[0]);
+              break;
+            }
+            case KB_SEQ.NAV_PREV_NOTE.key: {
+              // C-b: jump to the start of the previous note before the playhead
+              e.preventDefault();
+              const prevs = events.map(ev => ev.beatOffset + ev.event.t).filter(b => b < cur - 0.01).sort((a, b) => b - a);
+              if (prevs.length) handleSeek(prevs[0]);
+              break;
+            }
+            case KB_SEQ.NAV_END_NOTE.key: {
+              // C-e: jump to the end of the most-recently-started note at or before the playhead
+              e.preventDefault();
+              const candidate = [...events]
+                .filter(ev => ev.beatOffset + ev.event.t <= cur + 0.01)
+                .sort((a, b) => (b.beatOffset + b.event.t) - (a.beatOffset + a.event.t))[0];
+              if (candidate) handleSeek(candidate.beatOffset + candidate.event.t + candidate.event.d);
+              break;
+            }
+          }
+        }
         return;
       }
 
@@ -1314,6 +1352,13 @@ const App: React.FC = () => {
         return;
       }
 
+      // KB_SEQ.TOGGLE_TAB — toggle between sequencer and performance tab
+      if (e.key.toLowerCase() === KB_SEQ.TOGGLE_TAB.key) {
+        e.preventDefault();
+        setMainTab(prev => prev === 'sequencer' ? 'performance' : 'sequencer');
+        return;
+      }
+
       // KB_SEQ.SELECT_TRACK — 1-9 selects track by index
       if (/^[1-9]$/.test(e.key)) {
         const idx = parseInt(e.key) - 1;
@@ -1328,7 +1373,7 @@ const App: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleCut, handleCopy, handlePaste, handleDelete, handleSelectAll, undo, redo, togglePlayback, activeTrackId, tracks]);
+  }, [handleCut, handleCopy, handlePaste, handleDelete, handleSelectAll, undo, redo, togglePlayback, activeTrackId, tracks, events]);
 
   const waveOptions: SynthWaveType[] = ['sine', 'square', 'sawtooth', 'triangle'];
 
