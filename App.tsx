@@ -2255,7 +2255,8 @@ const App: React.FC = () => {
           </div>
 
           {/* ── Sequencer edit toolbar ── */}
-          <div className="flex-none flex flex-wrap items-center gap-1 backdrop-blur-md nc-border rounded-2xl px-2 py-1.5" style={{ backgroundColor: t.toolbar, borderColor: t.b1 }}>
+          <div className="flex-none overflow-x-auto overflow-y-hidden custom-scrollbar">
+          <div className="flex flex-nowrap items-center gap-1 min-w-max backdrop-blur-md nc-border rounded-2xl px-2 py-1.5" style={{ backgroundColor: t.toolbar, borderColor: t.b1 }}>
             {isTouchDevice && (
               <>
                 <button
@@ -2302,6 +2303,7 @@ const App: React.FC = () => {
             </button>
             <button onClick={() => setBeatWidth(v => clampBeatWidth(v * 1.25))} title="Zoom in (Ctrl+scroll)" className="nc-toolbar-btn flex items-center gap-1 px-2 py-1.5 text-slate-500 hover:text-slate-300 rounded-xl text-xs font-black transition-colors"><ZoomIn size={14} /></button>
           </div>
+          </div>
 
           <div className="grid grid-cols-[1fr_3fr] gap-4 h-[12rem] flex-none">
             <div className="rounded-2xl border p-4 font-mono text-xs flex flex-col overflow-hidden" style={{ backgroundColor: t.cardDeep, borderColor: t.b1 }}>
@@ -2345,7 +2347,8 @@ const App: React.FC = () => {
                </div>
 
                {/* Signal transform toolbar */}
-               <div className="flex flex-wrap gap-1 mb-2 pb-2 border-b border-white/5">
+               <div className="mb-2 pb-2 border-b border-white/5 overflow-x-auto overflow-y-hidden custom-scrollbar">
+               <div className="flex flex-nowrap gap-1 min-w-max pr-2">
                  {/* Time */}
                  <span className="text-[10px] font-black text-slate-600 uppercase self-center mr-0.5">T</span>
                  <button onClick={patchTransforms.reverseTime} title="Reverse time: reflects every note's start time so T → (totalDuration − T − D). The last note becomes the first; the sequence plays backwards. Durations are unchanged." className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-indigo-500/20 hover:text-indigo-300 text-slate-400 text-[10px] font-black border border-white/5 transition-colors">
@@ -2373,6 +2376,7 @@ const App: React.FC = () => {
                  <button onClick={patchTransforms.normalizeVelocity} title="Normalize velocity: linearly stretches the velocity range so the quietest note → V=10 and the loudest → V=110, preserving relative dynamics. If all notes share the same velocity (no range), every note is set to V=90." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-emerald-500/20 hover:text-emerald-300 text-slate-400 text-[10px] font-black border border-white/5 transition-colors">Norm</button>
                  <button onClick={() => patchTransforms.volShift(10)} title="Volume +10: adds 10 to every velocity. Clamps at 127." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-emerald-500/20 hover:text-emerald-300 text-slate-400 text-[10px] font-black border border-white/5 transition-colors">+10</button>
                  <button onClick={() => patchTransforms.volShift(-10)} title="Volume −10: subtracts 10 from every velocity. Clamps at 0." className="px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-emerald-500/20 hover:text-emerald-300 text-slate-400 text-[10px] font-black border border-white/5 transition-colors">−10</button>
+               </div>
                </div>
                <textarea
                   value={userInput}
@@ -2997,7 +3001,7 @@ const App: React.FC = () => {
           -webkit-user-select: text;
           -webkit-touch-callout: default;
         }
-        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 3px; height: 2px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
         input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 10px; width: 10px; border-radius: 50%; background: var(--thumb-color, #6366f1); cursor: pointer; border: 2px solid #000; box-shadow: 0 0 10px var(--thumb-color, #6366f1); }
