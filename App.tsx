@@ -68,6 +68,7 @@ const KB_SEQ = {
   COPY:       { key: 'c',          display: `${_MOD}C`,     hint: 'Copy selection',            mod: true },
   CUT:        { key: 'x',          display: `${_MOD}X`,     hint: 'Cut selection',             mod: true },
   PASTE:      { key: 'v',          display: `${_MOD}V`,     hint: 'Paste at playhead',         mod: true },
+  INJECT:     { key: 'i',          display: 'I',            hint: 'Inject patch bay notes' },
   UNDO:       { key: 'z',          display: `${_MOD}Z`,     hint: 'Undo',                      mod: true },
   REDO:       { key: 'z',          display: `${_MOD}⇧Z`,    hint: 'Redo',                      mod: true, shift: true },
   REDO_ALT:   { key: 'y',          display: `${_MOD}Y`,     hint: 'Redo (alt)',                mod: true },
@@ -223,6 +224,7 @@ const SEQ_TUTORIAL_SECTIONS: { title: string; rows: { display: string; hint: str
   { title: 'Tracks',     rows: [KB_SEQ.SELECT_TRACK, KB_SEQ.MUTE_TRACK] },
   { title: 'Selection',  rows: [KB_SEQ.SELECT_ALL, KB_SEQ.CANCEL_SELECTION] },
   { title: 'Clipboard',  rows: [KB_SEQ.COPY, KB_SEQ.CUT, KB_SEQ.PASTE, KB_SEQ.DELETE, KB_SEQ.KILL_TO_END] },
+  { title: 'Actions',    rows: [KB_SEQ.INJECT] },
   { title: 'History',    rows: [KB_SEQ.UNDO, KB_SEQ.REDO, KB_SEQ.REDO_ALT] },
 ];
 // ---------------------------------------------------------------------------
@@ -1591,6 +1593,13 @@ const App: React.FC = () => {
         handleDelete();
         return;
       }
+
+      if (e.key.toLowerCase() === KB_SEQ.INJECT.key) {
+        e.preventDefault();
+        handleInjectUserNotes();
+        return;
+      }
+
       // KB_SEQ.REWIND — rewind to beginning
       if ((KB_SEQ.REWIND.key as readonly string[]).includes(e.key)) {
         e.preventDefault();
@@ -1640,7 +1649,7 @@ const App: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleCut, handleCopy, handlePaste, handleDelete, handleSelectAll, undo, redo, togglePlayback, activeTrackId, tracks, events]);
+  }, [handleCut, handleCopy, handlePaste, handleDelete, handleSelectAll, handleInjectUserNotes, undo, redo, togglePlayback, activeTrackId, tracks, events]);
 
   const waveOptions: SynthWaveType[] = ['sine', 'square', 'sawtooth', 'triangle'];
 
