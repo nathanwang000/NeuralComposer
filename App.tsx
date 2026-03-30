@@ -791,6 +791,41 @@ const App: React.FC = () => {
   useEffect(() => { localStorage.setItem('nc-theme', colorScheme); }, [colorScheme]);
   const currentTheme = NC_THEMES.find(th => th.id === colorScheme) ?? NC_THEMES[0];
   const t = currentTheme.tokens;
+  const themeVars = {
+    '--nc-bg': t.bg,
+    '--nc-hdr': t.hdr,
+    '--nc-toolbar': t.toolbar,
+    '--nc-panel': t.panel,
+    '--nc-card': t.card,
+    '--nc-card-deep': t.cardDeep,
+    '--nc-inset': t.inset,
+    '--nc-input-bg': t.inputBg,
+    '--nc-input-text': t.inputText,
+    '--nc-input-ph': t.inputPH,
+    '--nc-pad-bg': t.padBg,
+    '--nc-glass-bg': t.glassBg,
+    '--nc-glass-border': t.glassBorder,
+    '--nc-glass-text': t.glassText,
+    '--nc-sticky-bg': t.stickyBg,
+    '--nc-sample-btn': t.sampleBtn,
+    '--nc-sample-btn-hov': t.sampleBtnHov,
+    '--nc-sample-btn-text': t.sampleBtnText,
+    '--nc-sample-btn-hov-text': t.sampleBtnHovText,
+    '--nc-t1': t.t1,
+    '--nc-t2': t.t2,
+    '--nc-t3': t.t3,
+    '--nc-t4': t.t4,
+    '--nc-axis': t.axisLabel,
+    '--nc-b0': t.b0,
+    '--nc-b1': t.b1,
+    '--nc-b2': t.b2,
+    '--nc-b3': t.b3,
+    '--nc-tint': t.tint,
+    '--nc-indigo': t.indigo,
+    '--nc-emerald': t.emerald,
+    '--nc-cyan': t.cyan,
+    '--nc-red': t.red,
+  } as React.CSSProperties;
   const noticeAccent = notice?.kind === 'error'
     ? t.red
     : notice?.kind === 'success'
@@ -814,6 +849,17 @@ const App: React.FC = () => {
   const showNotice = useCallback((kind: AppNotice['kind'], message: string) => {
     setNotice({ kind, message });
   }, []);
+
+  useEffect(() => {
+    const body = document.body;
+    body.dataset.theme = colorScheme;
+    body.style.backgroundColor = '';
+    body.style.color = '';
+
+    Object.entries(themeVars).forEach(([key, value]) => {
+      body.style.setProperty(key, String(value));
+    });
+  }, [colorScheme, t, themeVars]);
 
   // Keep containerHeightRef in sync with the scroll container's rendered size
   // so the drag-resize math always converts pixels → % correctly.
@@ -1681,29 +1727,7 @@ const App: React.FC = () => {
       minHeight: '100dvh',
         backgroundColor: t.bg,
         color: t.t1,
-        '--nc-bg': t.bg, '--nc-hdr': t.hdr,
-        '--nc-toolbar': t.toolbar,
-        '--nc-panel': t.panel,
-        '--nc-card': t.card,
-        '--nc-card-deep': t.cardDeep,
-        '--nc-inset': t.inset,
-        '--nc-input-bg': t.inputBg,
-        '--nc-input-text': t.inputText,
-        '--nc-input-ph': t.inputPH,
-        '--nc-pad-bg': t.padBg,
-        '--nc-glass-bg': t.glassBg,
-        '--nc-glass-border': t.glassBorder,
-        '--nc-glass-text': t.glassText,
-        '--nc-sticky-bg': t.stickyBg,
-        '--nc-sample-btn': t.sampleBtn,
-        '--nc-sample-btn-hov': t.sampleBtnHov,
-        '--nc-sample-btn-text': t.sampleBtnText,
-        '--nc-sample-btn-hov-text': t.sampleBtnHovText,
-        '--nc-t1': t.t1, '--nc-t2': t.t2, '--nc-t3': t.t3, '--nc-t4': t.t4,
-        '--nc-axis': t.axisLabel,
-        '--nc-b0': t.b0, '--nc-b1': t.b1, '--nc-b2': t.b2, '--nc-b3': t.b3,
-        '--nc-tint': t.tint,
-        '--nc-indigo': t.indigo, '--nc-emerald': t.emerald, '--nc-cyan': t.cyan, '--nc-red': t.red,
+        ...themeVars,
       } as React.CSSProperties}>
       <header className="flex-none flex flex-col md:flex-row justify-between items-center gap-4 p-4 lg:p-6" style={{ backgroundColor: t.hdr, paddingTop: 'calc(1rem + env(safe-area-inset-top, 0px))' }}>
         <div className="flex items-center gap-4">
@@ -1799,7 +1823,7 @@ const App: React.FC = () => {
           className="fixed inset-0 z-[9998] flex items-center justify-center px-4 py-6"
           onPointerDown={() => setNotice(null)}
         >
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <div className="absolute inset-0 nc-modal-backdrop" />
           <div
             className="relative z-10 mx-auto flex w-full max-w-xl items-start justify-between gap-3 rounded-3xl border px-5 py-4 text-sm shadow-2xl"
             onPointerDown={e => e.stopPropagation()}
@@ -1862,6 +1886,15 @@ const App: React.FC = () => {
               onCommitRecording={handleCommitRecording}
               onRecordingStart={() => { recordingStartBeatRef.current = playbackBeatRef.current; }}
               isMouseInPadRef={isMouseInPadRef}
+              theme={{
+                cardDeep: t.cardDeep,
+                border: t.b1,
+                textPrimary: t.t1,
+                textSecondary: t.t3,
+                textMuted: t.t4,
+                tint: t.tint,
+                accent: t.indigo,
+              }}
               onStartPlayback={() => {
                 audioEngine.init();
                 isPausedRef.current = false;
@@ -2501,7 +2534,7 @@ const App: React.FC = () => {
           className="fixed inset-0 z-[9999] flex items-center justify-center"
           onPointerDown={() => setShowSettings(false)}
         >
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <div className="absolute inset-0 nc-modal-backdrop" />
           <div
             className="relative z-10 w-full max-w-xs mx-4 rounded-2xl border shadow-2xl overflow-hidden"
             onPointerDown={e => e.stopPropagation()}
@@ -2569,7 +2602,7 @@ const App: React.FC = () => {
           onPointerDown={() => setShowShortcuts(false)}
         >
           {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <div className="absolute inset-0 nc-modal-backdrop" />
 
           {/* Panel */}
           <div
@@ -2641,6 +2674,11 @@ const App: React.FC = () => {
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
         input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 10px; width: 10px; border-radius: 50%; background: var(--thumb-color, #6366f1); cursor: pointer; border: 2px solid #000; box-shadow: 0 0 10px var(--thumb-color, #6366f1); }
+        .nc-modal-backdrop {
+          background: rgba(0, 0, 0, 0.42);
+          backdrop-filter: blur(4px);
+          -webkit-backdrop-filter: blur(4px);
+        }
 
         /* =============================================================
            THEME-ADAPTIVE CSS

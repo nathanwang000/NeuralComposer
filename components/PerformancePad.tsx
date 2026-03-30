@@ -1524,12 +1524,23 @@ const TOUCH_COLORS = [
     { dot: '#34d399', glow: 'rgba(16,185,129,0.22)',  ring: 'rgba(52,211,153,0.55)'  }, // emerald
 ];
 
-const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: MidiEvent[]) => void; onRecordingStart?: () => void; onStartPlayback?: () => void; isMouseInPadRef?: React.MutableRefObject<boolean> }> = ({
+type PadTheme = {
+    cardDeep: string;
+    border: string;
+    textPrimary: string;
+    textSecondary: string;
+    textMuted: string;
+    tint: string;
+    accent: string;
+};
+
+const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: MidiEvent[]) => void; onRecordingStart?: () => void; onStartPlayback?: () => void; isMouseInPadRef?: React.MutableRefObject<boolean>; theme?: PadTheme }> = ({
     bpm = 120,
     onCommitRecording,
     onRecordingStart,
     onStartPlayback,
     isMouseInPadRef: externalMouseInPadRef,
+    theme,
 }) => {
     // Keep a ref to the latest bpm so audio callbacks always see the current value
     // without needing to be re-created whenever bpm changes.
@@ -3714,24 +3725,24 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
             onPointerDown={() => setShowTutorial(false)}
         >
             {/* Backdrop */}
-            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+            <div className="absolute inset-0 nc-modal-backdrop" />
 
             {/* Panel */}
             <div
                 className="relative z-10 w-full max-w-lg mx-4 rounded-2xl border shadow-2xl overflow-hidden"
                 onPointerDown={e => e.stopPropagation()}
-                style={{ backgroundColor: 'var(--nc-card-deep)', borderColor: 'var(--nc-b1)' }}
+                style={{ backgroundColor: theme?.cardDeep ?? '#111827', borderColor: theme?.border ?? 'rgba(255,255,255,0.1)' }}
             >
                 {/* Header */}
-                <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--nc-b1)' }}>
+                <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: theme?.border ?? 'rgba(255,255,255,0.1)' }}>
                     <div className="flex items-center gap-2">
-                        <Settings size={16} style={{ color: 'var(--nc-indigo)' }} />
-                        <span className="text-sm font-black uppercase tracking-widest" style={{ color: 'var(--nc-t1)' }}>Settings</span>
+                        <Settings size={16} style={{ color: theme?.accent ?? '#818cf8' }} />
+                        <span className="text-sm font-black uppercase tracking-widest" style={{ color: theme?.textPrimary ?? '#ffffff' }}>Settings</span>
                     </div>
                     <button
                         onClick={() => setShowTutorial(false)}
                         className="transition-colors"
-                        style={{ color: 'var(--nc-t3)' }}
+                        style={{ color: theme?.textSecondary ?? '#94a3b8' }}
                     >
                         <X size={16} />
                     </button>
@@ -3740,7 +3751,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                 <div className="p-5 flex flex-col gap-6 max-h-[70vh] overflow-y-auto">
                     {/* Metronome */}
                     <div>
-                        <div className="text-[9px] font-black uppercase tracking-widest mb-3" style={{ color: 'var(--nc-indigo)' }}>Metronome</div>
+                        <div className="text-[9px] font-black uppercase tracking-widest mb-3" style={{ color: theme?.accent ?? '#818cf8' }}>Metronome</div>
                         <button
                             onClick={() => setMetronomeEnabled(v => !v)}
                             className={`w-full py-2 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-colors ${
@@ -3751,7 +3762,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                         >
                             {metronomeEnabled ? 'Metronome Sound ON' : 'Metronome Sound OFF'}
                         </button>
-                        <p className="mt-2 text-[9px] leading-relaxed" style={{ color: 'var(--nc-t3)' }}>
+                        <p className="mt-2 text-[9px] leading-relaxed" style={{ color: theme?.textSecondary ?? '#94a3b8' }}>
                             When recording, a 4-beat count-in plays before capture starts.
                             {metronomeEnabled
                                 ? ' Audible click plays on every beat (accented on beat 1).'
@@ -3761,7 +3772,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
 
                     {/* Auto-play sequencer */}
                     <div>
-                        <div className="text-[9px] font-black uppercase tracking-widest mb-3" style={{ color: 'var(--nc-indigo)' }}>Sequencer Auto-Play</div>
+                        <div className="text-[9px] font-black uppercase tracking-widest mb-3" style={{ color: theme?.accent ?? '#818cf8' }}>Sequencer Auto-Play</div>
                         <button
                             onClick={() => setAutoPlayOnRecord(v => !v)}
                             className={`w-full py-2 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-colors ${
@@ -3772,7 +3783,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                         >
                             {autoPlayOnRecord ? 'Auto-Play ON' : 'Auto-Play OFF'}
                         </button>
-                        <p className="mt-2 text-[9px] leading-relaxed" style={{ color: 'var(--nc-t3)' }}>
+                        <p className="mt-2 text-[9px] leading-relaxed" style={{ color: theme?.textSecondary ?? '#94a3b8' }}>
                             {autoPlayOnRecord
                                 ? 'The piano roll will automatically start playing from the current playhead position when recording begins (after the count-in). Recorded notes will be in sync with the existing track.'
                                 : 'The piano roll stays in its current state when recording starts. Use this if you want to record freely without the backing track running.'}
@@ -3781,7 +3792,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
 
                     {/* Solo timbre mode */}
                     <div>
-                        <div className="text-[9px] font-black uppercase tracking-widest mb-3" style={{ color: 'var(--nc-indigo)' }}>Solo Timbre</div>
+                        <div className="text-[9px] font-black uppercase tracking-widest mb-3" style={{ color: theme?.accent ?? '#818cf8' }}>Solo Timbre</div>
                         <button
                             onClick={() => {
                                 const next = !soloTimbreFromPointer;
@@ -3796,7 +3807,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                         >
                             {soloTimbreFromPointer ? 'Pointer Timbre ON' : 'Pointer Timbre OFF'}
                         </button>
-                        <p className="mt-2 text-[9px] leading-relaxed" style={{ color: 'var(--nc-t3)' }}>
+                        <p className="mt-2 text-[9px] leading-relaxed" style={{ color: theme?.textSecondary ?? '#94a3b8' }}>
                             {soloTimbreFromPointer
                                 ? 'Solo and random notes read the current pointer position and apply the pad\'s XY axis mapping (cutoff, resonance, detune…) before each note.'
                                 : 'Solo and random notes use the synth\'s current settings unchanged. Enable to have pointer position shape the timbre of every note you play.'}
@@ -3805,7 +3816,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
 
                     {/* Colour mode */}
                     <div>
-                        <div className="text-[9px] font-black uppercase tracking-widest mb-3" style={{ color: 'var(--nc-indigo)' }}>Pad Colours</div>
+                        <div className="text-[9px] font-black uppercase tracking-widest mb-3" style={{ color: theme?.accent ?? '#818cf8' }}>Pad Colours</div>
                         <div className="flex gap-2">
                             {(['relative', 'absolute'] as const).map(mode => (
                                 <button
@@ -3821,7 +3832,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                                 </button>
                             ))}
                         </div>
-                        <p className="mt-2 text-[9px] leading-relaxed" style={{ color: 'var(--nc-t3)' }}>
+                        <p className="mt-2 text-[9px] leading-relaxed" style={{ color: theme?.textSecondary ?? '#94a3b8' }}>
                             {bandColorMode === 'relative'
                                 ? 'Hue encodes the interval from the base note — same colour pattern in every key.'
                                 : 'Hue encodes the absolute pitch class — C is always the same colour regardless of key.'}
@@ -3831,13 +3842,13 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                     {/* Keyboard shortcuts */}
                     <div>
                         <div className="flex items-center gap-2 mb-3">
-                            <HelpCircle size={11} style={{ color: 'var(--nc-indigo)' }} />
-                            <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: 'var(--nc-indigo)' }}>Keyboard Shortcuts</span>
+                            <HelpCircle size={11} style={{ color: theme?.accent ?? '#818cf8' }} />
+                            <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: theme?.accent ?? '#818cf8' }}>Keyboard Shortcuts</span>
                         </div>
                         <div className="grid grid-cols-2 gap-x-6 gap-y-5">
                             {TUTORIAL_SECTIONS.map(section => (
                                 <div key={section.title}>
-                                    <div className="text-[9px] font-black uppercase tracking-widest mb-2" style={{ color: 'var(--nc-t3)' }}>
+                                    <div className="text-[9px] font-black uppercase tracking-widest mb-2" style={{ color: theme?.textSecondary ?? '#94a3b8' }}>
                                         {section.title}
                                     </div>
                                     <div className="flex flex-col gap-1">
@@ -3845,11 +3856,11 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                                             <div key={row.display} className="flex items-center justify-between gap-3">
                                                 <span
                                                     className="text-[10px] font-black px-1.5 py-0.5 rounded shrink-0 tabular-nums border"
-                                                    style={{ backgroundColor: 'var(--nc-tint)', borderColor: 'var(--nc-b1)', color: 'var(--nc-t2)' }}
+                                                    style={{ backgroundColor: theme?.tint ?? 'rgba(255,255,255,0.05)', borderColor: theme?.border ?? 'rgba(255,255,255,0.1)', color: theme?.textPrimary ?? '#ffffff' }}
                                                 >
                                                     {row.display}
                                                 </span>
-                                                <span className="text-[10px] text-right leading-tight" style={{ color: 'var(--nc-t3)' }}>
+                                                <span className="text-[10px] text-right leading-tight" style={{ color: theme?.textSecondary ?? '#94a3b8' }}>
                                                     {row.hint}
                                                 </span>
                                             </div>
@@ -3861,7 +3872,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                     </div>
                 </div>
 
-                <div className="px-5 py-3 border-t text-[9px] uppercase tracking-widest" style={{ borderColor: 'var(--nc-b1)', color: 'var(--nc-t4)' }}>
+                <div className="px-5 py-3 border-t text-[9px] uppercase tracking-widest" style={{ borderColor: theme?.border ?? 'rgba(255,255,255,0.1)', color: theme?.textMuted ?? '#64748b' }}>
                     Click anywhere outside to close
                 </div>
             </div>
