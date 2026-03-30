@@ -541,6 +541,15 @@ interface VoiceBlock {
   events: { event: MidiEvent; comment?: string }[];
 }
 
+type StartHerePath = 'hear-demo' | 'play-record' | 'compose-ai' | 'write-notes';
+
+interface HearDemoGuideProgress {
+  hasPlayed: boolean;
+  hasPaused: boolean;
+  hasRewound: boolean;
+  hasPlayedAgain: boolean;
+}
+
 /** Parse key:value pairs (including quoted strings) from a voice header body. */
 const parseSynthParams = (paramStr: string): Partial<SynthConfig> | null => {
   const result: Record<string, any> = {};
@@ -785,6 +794,13 @@ const App: React.FC = () => {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [notice, setNotice] = useState<AppNotice | null>(null);
+  const [startHerePath, setStartHerePath] = useState<StartHerePath | null>(null);
+  const [hearDemoGuide, setHearDemoGuide] = useState<HearDemoGuideProgress>({
+    hasPlayed: false,
+    hasPaused: false,
+    hasRewound: false,
+    hasPlayedAgain: false,
+  });
   const [colorScheme, setColorScheme] = useState<NcThemeId>(
     () => (typeof localStorage !== 'undefined' ? localStorage.getItem('nc-theme') as NcThemeId : null) || 'void'
   );
@@ -840,8 +856,16 @@ const App: React.FC = () => {
   const trackResizeDragRef = useRef<{ trackId: string; startY: number; startHeightPct: number } | null>(null);
   const containerHeightRef = useRef(400); // live pixel height of the scroll container
   const trackScrollContainerRef = useRef<HTMLDivElement>(null);
+  const sessionPanelScrollRef = useRef<HTMLDivElement>(null);
+  const samplesCardRef = useRef<HTMLDivElement>(null);
+  const noteInputCardRef = useRef<HTMLDivElement>(null);
+  const timelineCardRef = useRef<HTMLDivElement>(null);
+  const transportControlsRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
+  const [isCompactLayout, setIsCompactLayout] = useState(
+    () => (typeof window !== 'undefined' ? window.innerWidth < 1024 : false)
+  );
   // Detect touch/coarse-pointer device to show the Select Mode button
   const isTouchDevice = useMemo(() => typeof window !== 'undefined' && (navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches), []);
   const clampBeatWidth = (v: number) => Math.max(20, Math.min(600, v));
@@ -918,6 +942,26 @@ const App: React.FC = () => {
   // Create an array of file names (stripped of path)
   const SAMPLE_FILES = Object.keys(sampleModules).map(path => path.split('/').pop() || path);
 
+  const resetHearDemoGuide = useCallback(() => {
+    setHearDemoGuide({
+      hasPlayed: false,
+      hasPaused: false,
+      hasRewound: false,
+      hasPlayedAgain: false,
+    });
+  }, []);
+
+  const startHearDemoGuide = useCallback(() => {
+    setStartHerePath('hear-demo');
+    resetHearDemoGuide();
+    setMainTab('sequencer');
+  }, [resetHearDemoGuide]);
+
+  const exitStartHereGuide = useCallback(() => {
+    setStartHerePath(null);
+    resetHearDemoGuide();
+  }, [resetHearDemoGuide]);
+
   const loadSample = (filename: string) => {
     // Reconstruct the path key to find the content
     const pathKey = `./samples/${filename}`;
@@ -931,6 +975,58 @@ const App: React.FC = () => {
       showNotice('error', 'Could not load that sample. Try another file.');
     }
   };
+
+  useEffect(() => {
+    if (startHerePath !== 'hear-demo' || events.length === 0) return;
+
+    if (state.isPlaying && !isPaused) {
+      setHearDemoGuide(prev => {
+        if (!prev.hasPlayed) return { ...prev, hasPlayed: true };
+        if (prev.hasRewound && !prev.hasPlayedAgain) return { ...prev, hasPlayedAgain: true };
+        return prev;
+      });
+      return;
+    }
+
+    if (hearDemoGuide.hasPlayed && !hearDemoGuide.hasPaused && isPaused) {
+      setHearDemoGuide(prev => ({ ...prev, hasPaused: true }));
+    }
+  }, [startHerePath, events.length, state.isPlaying, isPaused, hearDemoGuide.hasPlayed, hearDemoGuide.hasPaused, hearDemoGuide.hasRewound]);
+
+  useEffect(() => {
+    if (startHerePath === 'hear-demo') {
+      setMainTab('sequencer');
+    }
+  }, [startHerePath]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const updateLayout = () => setIsCompactLayout(window.innerWidth < 1024);
+    updateLayout();
+    window.addEventListener('resize', updateLayout);
+    return () => window.removeEventListener('resize', updateLayout);
+  }, []);
+
+  useEffect(() => {
+    if (startHerePath !== 'hear-demo') return;
+
+    const isTimelinePhaseDone = events.length > 0
+      && hearDemoGuide.hasPlayed
+      && hearDemoGuide.hasPaused
+      && hearDemoGuide.hasRewound
+      && hearDemoGuide.hasPlayedAgain;
+
+    const focus = events.length > 0
+      ? ((isCompactLayout && !isTimelinePhaseDone) ? transportControlsRef.current : timelineCardRef.current)
+      : userInput.trim()
+        ? noteInputCardRef.current
+        : samplesCardRef.current;
+
+    if (!focus) return;
+
+    focus.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+  }, [startHerePath, userInput, events.length, hearDemoGuide.hasPlayed, hearDemoGuide.hasPaused, hearDemoGuide.hasRewound, hearDemoGuide.hasPlayedAgain, isCompactLayout]);
 
   const validation = useMemo(() => {
     const errors: ValidationError[] = [];
@@ -1201,6 +1297,10 @@ const App: React.FC = () => {
     playbackBeatRef.current = Math.max(0, beat);
     setPlaybackBeat(playbackBeatRef.current);
     scheduledNoteIds.current.clear();
+
+    if (startHerePath === 'hear-demo' && hearDemoGuide.hasPaused && beat === 0) {
+      setHearDemoGuide(prev => prev.hasRewound ? prev : { ...prev, hasRewound: true });
+    }
   };
 
   const handleInjectUserNotes = () => {
@@ -1480,6 +1580,8 @@ const App: React.FC = () => {
   const handleHardStop = () => {
     setIsAIStreamActive(false);
     isGeneratingRef.current = false;
+    setStartHerePath(null);
+    resetHearDemoGuide();
     audioEngine.stopAll();
     beatsGeneratedRef.current = 0;
     playbackBeatRef.current = 0;
@@ -1505,6 +1607,78 @@ const App: React.FC = () => {
 
   const bufferRemaining = Math.max(0, beatsGeneratedRef.current - playbackBeat);
   const totalViewRange = Math.max(beatsGeneratedRef.current, playbackBeat + 32, 128);
+  const isHearDemoGuideActive = startHerePath === 'hear-demo';
+  const hearDemoStep = events.length > 0
+    ? !hearDemoGuide.hasPlayed
+      ? 'play'
+      : !hearDemoGuide.hasPaused
+        ? 'pause'
+        : !hearDemoGuide.hasRewound
+          ? 'rewind'
+          : !hearDemoGuide.hasPlayedAgain
+            ? 'play-again'
+            : 'done'
+    : userInput.trim()
+      ? 'add-to-timeline'
+      : 'select-sample';
+  const hearDemoStepMeta: Record<typeof hearDemoStep, { step: number; total: number; title: string; body: string }> = {
+    'select-sample': {
+      step: 1,
+      total: 6,
+      title: 'Choose a demo phrase',
+      body: 'Pick any phrase from Samples. It will load into Note Input so you can place it on the timeline.',
+    },
+    'add-to-timeline': {
+      step: 2,
+      total: 6,
+      title: 'Add it to the timeline',
+      body: 'Click Add to Timeline. These lines are the composition format used by Neural Composer.',
+    },
+    'play': {
+      step: 3,
+      total: 6,
+      title: 'Play the phrase',
+      body: 'The notes are on the timeline. Use the transport controls above this timeline and press Play to hear the phrase.',
+    },
+    'pause': {
+      step: 4,
+      total: 6,
+      title: 'Pause playback',
+      body: 'Use the same transport controls above the timeline and press Pause at any time to stop.',
+    },
+    'rewind': {
+      step: 5,
+      total: 6,
+      title: 'Return to the start',
+      body: 'Use the Rewind button above the timeline to jump back to the beginning of the phrase.',
+    },
+    'play-again': {
+      step: 6,
+      total: 6,
+      title: 'Play it again',
+      body: 'Press Play once more in the transport controls above the timeline to hear the phrase from the start.',
+    },
+    'done': {
+      step: 6,
+      total: 6,
+      title: 'Demo complete',
+      body: 'You loaded a phrase, placed it on the timeline, and used the transport controls. If you click Clear, the Start Here choices will appear again in the right panel.',
+    },
+  };
+  const hearDemoStepInfo = hearDemoStepMeta[hearDemoStep];
+  const hearDemoFocus = hearDemoStep === 'done'
+    ? 'done'
+    : hearDemoStep === 'select-sample'
+    ? 'samples'
+    : hearDemoStep === 'add-to-timeline'
+      ? 'note-input'
+      : 'timeline';
+  const tourSectionClass = (section: 'start-here' | 'samples' | 'note-input' | 'timeline' | 'transport') => {
+    if (!isHearDemoGuideActive) return '';
+    if (hearDemoStep === 'done') return '';
+    const active = section === hearDemoFocus || (hearDemoFocus === 'timeline' && section === 'transport');
+    return active ? 'opacity-100 blur-0 scale-100' : 'opacity-45 blur-[1.5px] scale-[0.985]';
+  };
 
   /** Update a single synth param on the currently-active track. */
   const updateSynth = (key: keyof SynthConfig, val: any) => {
@@ -1761,11 +1935,17 @@ const App: React.FC = () => {
              </button>
           </div>
 
-          <div className="flex items-center gap-1 border-r border-white/10 pr-2 mr-1">
-            <button onClick={() => handleSeek(0)} className="p-2 hover:bg-white/10 rounded-lg text-slate-400">
+          <div ref={transportControlsRef} className={`flex items-center gap-1 border-r border-white/10 pr-2 mr-1 transition-all duration-300 ${tourSectionClass('transport')}`}>
+            <button
+              onClick={() => handleSeek(0)}
+              className={`p-2 rounded-lg text-slate-400 ${isHearDemoGuideActive && hearDemoStep === 'rewind' ? 'ring-2 ring-indigo-400/70 bg-indigo-500/10' : 'hover:bg-white/10'}`}
+            >
               <RotateCcw size={18} />
             </button>
-            <button onClick={togglePlayback} className={`p-2 rounded-lg ${isPaused ? 'bg-emerald-500/20 text-emerald-500' : 'bg-amber-500/20 text-amber-500'}`}>
+            <button
+              onClick={togglePlayback}
+              className={`p-2 rounded-lg ${isPaused ? 'bg-emerald-500/20 text-emerald-500' : 'bg-amber-500/20 text-amber-500'} ${isHearDemoGuideActive && (hearDemoStep === 'play' || hearDemoStep === 'pause' || hearDemoStep === 'play-again') ? 'ring-2 ring-indigo-400/70' : ''}`}
+            >
               {isPaused ? <Play size={18} fill="currentColor" /> : <Pause size={18} fill="currentColor" />}
             </button>
           </div>
@@ -1907,7 +2087,32 @@ const App: React.FC = () => {
           {/* ── Multi-track stacked piano roll ── */}
           {/* Each track is a fixed 320px lane; the container scrolls vertically
               so adding many tracks never squashes the canvas area. */}
-          <div className="relative flex flex-col border border-white/5 rounded-3xl overflow-hidden bg-black shadow-inner" style={{ minHeight: '350px', flex: 1 }}>
+          <div ref={timelineCardRef} className={`relative flex flex-col border border-white/5 rounded-3xl overflow-hidden bg-black shadow-inner transition-all duration-300 ${isHearDemoGuideActive && (hearDemoStep === 'play' || hearDemoStep === 'pause' || hearDemoStep === 'rewind' || hearDemoStep === 'play-again' || hearDemoStep === 'done') ? 'ring-2 ring-indigo-400/70' : ''} ${tourSectionClass('timeline')}`} style={{ minHeight: '350px', flex: 1 }}>
+            {isHearDemoGuideActive && (hearDemoStep === 'play' || hearDemoStep === 'pause' || hearDemoStep === 'rewind' || hearDemoStep === 'play-again' || hearDemoStep === 'done') && (
+              <div className="absolute left-4 top-4 z-20 max-w-sm rounded-2xl border px-4 py-3 shadow-2xl backdrop-blur-md" style={{ backgroundColor: `color-mix(in srgb, ${t.cardDeep} 88%, black)`, borderColor: `color-mix(in srgb, ${hearDemoStep === 'done' ? t.emerald : t.indigo} 35%, ${t.b1})` }}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-[10px] font-black uppercase tracking-[0.24em]" style={{ color: hearDemoStep === 'done' ? t.emerald : t.indigo }}>
+                      {hearDemoStep === 'done' ? 'Mini Tour Complete' : 'Hear a Demo'}
+                    </div>
+                    <div className="mt-1 text-sm font-black" style={{ color: t.t1 }}>{hearDemoStepInfo.title}</div>
+                  </div>
+                  <button
+                    onClick={exitStartHereGuide}
+                    className="text-[10px] font-black uppercase tracking-widest"
+                    style={{ color: t.t3 }}
+                  >
+                    {hearDemoStep === 'done' ? 'Close' : 'Exit'}
+                  </button>
+                </div>
+                <p className="mt-1 text-sm leading-relaxed" style={{ color: t.t2 }}>{hearDemoStepInfo.body}</p>
+                {hearDemoStep !== 'done' && (
+                  <div className="mt-2 text-[11px]" style={{ color: t.t3 }}>
+                    The transport controls are the Play, Pause, and Rewind buttons above this timeline.
+                  </div>
+                )}
+              </div>
+            )}
             {/* Scrollable track stack */}
             <div className="flex-1 overflow-y-auto custom-scrollbar" ref={trackScrollContainerRef}>
               {tracks.map((track) => (
@@ -2103,7 +2308,24 @@ const App: React.FC = () => {
                <div className="flex items-center gap-2 text-slate-500 uppercase font-black text-xs mb-2 border-b border-white/5 pb-1"><Terminal size={12} /> AI Output</div>
               <div className="flex-1 text-slate-500 break-all overflow-y-auto custom-scrollbar italic leading-relaxed">{rawStream || "Waiting for notes..."}</div>
             </div>
-            <div className="rounded-2xl border p-4 flex flex-col overflow-hidden group transition-all" style={{ backgroundColor: t.cardDeep, borderColor: t.b1 }}>
+            <div ref={noteInputCardRef} className={`relative rounded-2xl border p-4 flex flex-col overflow-hidden group transition-all duration-300 ${isHearDemoGuideActive && hearDemoStep === 'add-to-timeline' ? 'ring-2 ring-indigo-400/70' : ''} ${tourSectionClass('note-input')}`} style={{ backgroundColor: t.cardDeep, borderColor: t.b1 }}>
+               {isHearDemoGuideActive && hearDemoStep === 'add-to-timeline' && (
+                 <div className="absolute left-3 right-3 top-12 z-10 rounded-xl border px-3 py-2 shadow-xl backdrop-blur-md sm:left-auto sm:right-3 sm:max-w-sm" style={{ backgroundColor: `color-mix(in srgb, ${t.cardDeep} 90%, black)`, borderColor: `color-mix(in srgb, ${t.indigo} 30%, ${t.b1})` }}>
+                   <div className="flex items-start justify-between gap-3">
+                     <div className="text-[10px] font-black uppercase tracking-[0.22em]" style={{ color: t.indigo }}>Hear a Demo</div>
+                     <button
+                       onClick={exitStartHereGuide}
+                       className="text-[10px] font-black uppercase tracking-widest"
+                       style={{ color: t.t3 }}
+                     >
+                       Exit
+                     </button>
+                   </div>
+                   <p className="mt-1 text-sm leading-relaxed" style={{ color: t.t2 }}>
+                     The sample is loaded. Click <span style={{ color: t.t1, fontWeight: 800 }}>Add to Timeline</span> to turn this phrase into notes on the timeline.
+                   </p>
+                 </div>
+               )}
                <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2 text-slate-500 uppercase font-black text-xs"><Cpu size={12} /> Note Input</div>
                   <button
@@ -2113,7 +2335,7 @@ const App: React.FC = () => {
                       validation.validEvents.length > 0 && validation.errors.length === 0
                         ? 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-500/20'
                         : 'cursor-not-allowed border'
-                    }`}
+                    } ${isHearDemoGuideActive && hearDemoStep === 'add-to-timeline' ? 'ring-2 ring-indigo-400/70' : ''}`}
                     style={validation.validEvents.length === 0 || validation.errors.length > 0
                       ? { backgroundColor: t.inset, color: t.t4, borderColor: t.b1 }
                       : undefined}
@@ -2192,43 +2414,95 @@ const App: React.FC = () => {
                 <button onClick={() => setRightPanelTab('synth')} className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${rightPanelTab === 'synth' ? 'bg-indigo-500/20 text-indigo-400' : 'text-slate-600 hover:text-slate-400'}`}>Sound</button>
             </div>
 
-            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
+            <div ref={sessionPanelScrollRef} className="flex-1 overflow-y-auto custom-scrollbar pr-2">
             {rightPanelTab === 'session' ? (
                 <div className="space-y-6">
                   {events.length === 0 && !isAIStreamActive && (
-                    <div className="p-5 rounded-2xl border space-y-3" style={{ backgroundColor: t.card, borderColor: t.b1 }}>
+                    <div className={`p-5 rounded-2xl border space-y-3 transition-all duration-300 ${tourSectionClass('start-here')}`} style={{ backgroundColor: t.card, borderColor: t.b1 }}>
                       <div className="text-xs font-bold uppercase" style={{ color: t.t4 }}>Start Here</div>
-                      <p className="text-sm leading-relaxed" style={{ color: t.t2 }}>
-                        Choose how you want to begin: load a demo into the timeline, play the pads live, or let AI start the first phrase.
-                      </p>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                        {SAMPLE_FILES[0] && (
-                          <button
-                            onClick={() => {
-                              setMainTab('sequencer');
-                              loadSample(SAMPLE_FILES[0]);
-                            }}
-                            className="w-full py-2 px-3 rounded-lg border text-xs font-bold uppercase transition-colors"
-                            style={{ backgroundColor: t.tint, borderColor: t.b1, color: t.t2 }}
-                          >
-                            Load Demo Timeline
-                          </button>
-                        )}
-                        <button
-                          onClick={() => setMainTab('performance')}
-                          className="w-full py-2 px-3 rounded-lg border text-xs font-bold uppercase transition-colors"
-                          style={{ backgroundColor: t.tint, borderColor: t.b1, color: t.t2 }}
-                        >
-                          Play Pads
-                        </button>
-                        <button
-                          onClick={handleInitializeAI}
-                          className="w-full py-2 px-3 rounded-lg border text-xs font-bold uppercase transition-colors"
-                          style={{ backgroundColor: `color-mix(in srgb, ${t.indigo} 12%, ${t.card})`, borderColor: `color-mix(in srgb, ${t.indigo} 30%, ${t.b1})`, color: t.indigo }}
-                        >
-                          Start AI
-                        </button>
-                      </div>
+                      {isHearDemoGuideActive ? (
+                        <>
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <div className="text-[10px] font-black uppercase tracking-[0.24em]" style={{ color: t.t4 }}>
+                                  Hear a Demo
+                                </div>
+                                <div className="text-xs font-bold" style={{ color: t.t3 }}>
+                                  Step {hearDemoStepInfo.step} of {hearDemoStepInfo.total}
+                                </div>
+                              </div>
+                              <button
+                                onClick={exitStartHereGuide}
+                                className="text-[10px] font-black uppercase tracking-widest"
+                                style={{ color: t.t3 }}
+                              >
+                                Exit Guide
+                              </button>
+                            </div>
+                            <div className="rounded-xl border px-4 py-3" style={{ backgroundColor: t.tint, borderColor: hearDemoStep === 'done' ? `color-mix(in srgb, ${t.emerald} 40%, ${t.b1})` : `color-mix(in srgb, ${t.indigo} 30%, ${t.b1})` }}>
+                              <div className="text-sm font-black" style={{ color: t.t1 }}>{hearDemoStepInfo.title}</div>
+                              <p className="mt-1 text-sm leading-relaxed" style={{ color: t.t2 }}>{hearDemoStepInfo.body}</p>
+                            </div>
+                          </div>
+                          <div className="text-[11px] leading-relaxed" style={{ color: t.t3 }}>
+                            {hearDemoFocus === 'samples'
+                              ? 'The tour is focusing the Samples section now.'
+                              : hearDemoFocus === 'note-input'
+                                ? 'The tour is focusing Note Input now.'
+                                : hearDemoStep === 'done'
+                                  ? 'The mini tour is complete.'
+                                  : 'The tour is focusing the timeline and transport controls now.'}
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] font-bold uppercase tracking-widest" style={{ color: t.t4 }}>
+                            <div className={`rounded-lg border px-3 py-2 ${hearDemoStep === 'select-sample' || !userInput.trim() ? 'ring-1 ring-indigo-400/60' : ''}`} style={{ borderColor: t.b1, backgroundColor: t.cardDeep }}>
+                              1. Load a sample
+                            </div>
+                            <div className={`rounded-lg border px-3 py-2 ${hearDemoStep === 'add-to-timeline' ? 'ring-1 ring-indigo-400/60' : ''}`} style={{ borderColor: t.b1, backgroundColor: t.cardDeep }}>
+                              2. Add to timeline
+                            </div>
+                            <div className={`rounded-lg border px-3 py-2 ${hearDemoStep === 'play' || hearDemoStep === 'pause' ? 'ring-1 ring-indigo-400/60' : ''}`} style={{ borderColor: t.b1, backgroundColor: t.cardDeep }}>
+                              3. Play and pause
+                            </div>
+                            <div className={`rounded-lg border px-3 py-2 ${hearDemoStep === 'rewind' || hearDemoStep === 'play-again' || hearDemoStep === 'done' ? 'ring-1 ring-indigo-400/60' : ''}`} style={{ borderColor: t.b1, backgroundColor: t.cardDeep }}>
+                              4. Rewind and replay
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-sm leading-relaxed" style={{ color: t.t2 }}>
+                            Choose what you want to do first. Hear a Demo is ready now. The other guided paths are placeholders for the next pass.
+                          </p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <button
+                              onClick={startHearDemoGuide}
+                              className="w-full py-2 px-3 rounded-lg border text-xs font-bold uppercase transition-colors text-left"
+                              style={{ backgroundColor: `color-mix(in srgb, ${t.indigo} 12%, ${t.card})`, borderColor: `color-mix(in srgb, ${t.indigo} 30%, ${t.b1})`, color: t.indigo }}
+                            >
+                              Hear a Demo
+                            </button>
+                            <button
+                              className="w-full py-2 px-3 rounded-lg border text-xs font-bold uppercase transition-colors text-left opacity-60 cursor-default"
+                              style={{ backgroundColor: t.tint, borderColor: t.b1, color: t.t2 }}
+                            >
+                              Play and Record
+                            </button>
+                            <button
+                              className="w-full py-2 px-3 rounded-lg border text-xs font-bold uppercase transition-colors text-left opacity-60 cursor-default"
+                              style={{ backgroundColor: t.tint, borderColor: t.b1, color: t.t2 }}
+                            >
+                              Compose with AI
+                            </button>
+                            <button
+                              className="w-full py-2 px-3 rounded-lg border text-xs font-bold uppercase transition-colors text-left opacity-60 cursor-default"
+                              style={{ backgroundColor: t.tint, borderColor: t.b1, color: t.t2 }}
+                            >
+                              Write Notes by Hand
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   )}
                   <div className="p-5 rounded-2xl border" style={{ backgroundColor: t.card, borderColor: t.b1 }}>
@@ -2254,14 +2528,31 @@ const App: React.FC = () => {
                      </div>
                   </div>
 
-                  <div className="p-5 rounded-2xl border" style={{ backgroundColor: t.card, borderColor: t.b1 }}>
+                  <div ref={samplesCardRef} className={`p-5 rounded-2xl border transition-all duration-300 ${isHearDemoGuideActive && hearDemoStep === 'select-sample' ? 'ring-2 ring-indigo-400/70' : ''} ${tourSectionClass('samples')}`} style={{ backgroundColor: t.card, borderColor: t.b1 }}>
                     <div className="text-xs font-bold uppercase mb-2" style={{ color: t.t4 }}>Samples</div>
+                     {isHearDemoGuideActive && hearDemoStep === 'select-sample' && (
+                       <div className="mb-3 rounded-xl border px-3 py-2" style={{ backgroundColor: `color-mix(in srgb, ${t.indigo} 10%, ${t.card})`, borderColor: `color-mix(in srgb, ${t.indigo} 30%, ${t.b1})` }}>
+                         <div className="flex items-start justify-between gap-3">
+                           <div className="text-[10px] font-black uppercase tracking-[0.22em]" style={{ color: t.indigo }}>Hear a Demo</div>
+                           <button
+                             onClick={exitStartHereGuide}
+                             className="text-[10px] font-black uppercase tracking-widest"
+                             style={{ color: t.t3 }}
+                           >
+                             Exit
+                           </button>
+                         </div>
+                         <p className="mt-1 text-sm leading-relaxed" style={{ color: t.t2 }}>
+                           Choose any sample below. This loads a demo phrase into Note Input so you can place it on the timeline.
+                         </p>
+                       </div>
+                     )}
                      <div className="space-y-2">
                         {SAMPLE_FILES.map((file) => (
                            <button
                               key={file}
                               onClick={() => loadSample(file)}
-                              className="w-full py-2 px-3 rounded-lg border text-xs font-mono text-left truncate transition-colors flex items-center gap-2 nc-sample-btn"
+                          className={`w-full py-2 px-3 rounded-lg border text-xs font-mono text-left truncate transition-colors flex items-center gap-2 nc-sample-btn ${isHearDemoGuideActive && hearDemoStep === 'select-sample' ? 'ring-1 ring-indigo-400/60' : ''}`}
                            >
                               <Music size={12} />
                               {file}
