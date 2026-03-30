@@ -3235,103 +3235,107 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                     <Music size={14} /> Note Sequence
                 </div>
                 {/* Chord presets */}
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                    {CHORD_PRESETS.map(preset => (
-                        <button
-                            key={preset.label}
-                            title={preset.description}
-                            onPointerDown={(e) => e.stopPropagation()}
-                            onPointerUp={(e) => { e.stopPropagation(); setSequenceInput(preset.sequence); }}
-                            className="px-2 py-1 rounded-lg text-[9px] font-bold uppercase border border-white/5 bg-slate-900 text-slate-500 hover:text-indigo-300 hover:border-indigo-500/30 transition-all"
-                        >
-                            {preset.label}
-                        </button>
-                    ))}
-                    {PAD_SAMPLE_PRESETS.length > 0 && (
-                        <>
-                            <span className="text-[9px] text-slate-700 font-black uppercase self-center px-1">·</span>
-                            {PAD_SAMPLE_PRESETS.map(preset => (
-                                <button
-                                    key={preset.label}
-                                    title={preset.description}
-                                    onPointerDown={(e) => e.stopPropagation()}
-                                    onPointerUp={(e) => { e.stopPropagation(); setSequenceInput(preset.sequence); }}
-                                    className="px-2 py-1 rounded-lg text-[9px] font-bold uppercase border border-teal-900/60 bg-slate-900 text-teal-600 hover:text-teal-300 hover:border-teal-500/40 transition-all"
-                                >
-                                    {preset.label}
-                                </button>
-                            ))}
-                        </>
-                    )}
+                <div className="mb-2 overflow-x-auto overflow-y-hidden custom-scrollbar">
+                    <div className="flex flex-nowrap gap-1.5 min-w-max pr-2">
+                        {CHORD_PRESETS.map(preset => (
+                            <button
+                                key={preset.label}
+                                title={preset.description}
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onPointerUp={(e) => { e.stopPropagation(); setSequenceInput(preset.sequence); }}
+                                className="px-2 py-1 rounded-lg text-[9px] font-bold uppercase border border-white/5 bg-slate-900 text-slate-500 hover:text-indigo-300 hover:border-indigo-500/30 transition-all whitespace-nowrap"
+                            >
+                                {preset.label}
+                            </button>
+                        ))}
+                        {PAD_SAMPLE_PRESETS.length > 0 && (
+                            <>
+                                <span className="text-[9px] text-slate-700 font-black uppercase self-center px-1 whitespace-nowrap">·</span>
+                                {PAD_SAMPLE_PRESETS.map(preset => (
+                                    <button
+                                        key={preset.label}
+                                        title={preset.description}
+                                        onPointerDown={(e) => e.stopPropagation()}
+                                        onPointerUp={(e) => { e.stopPropagation(); setSequenceInput(preset.sequence); }}
+                                        className="px-2 py-1 rounded-lg text-[9px] font-bold uppercase border border-teal-900/60 bg-slate-900 text-teal-600 hover:text-teal-300 hover:border-teal-500/40 transition-all whitespace-nowrap"
+                                    >
+                                        {preset.label}
+                                    </button>
+                                ))}
+                            </>
+                        )}
+                    </div>
                 </div>
                 {/* Step navigation — shown above the sequence editor */}
-                <div className="flex items-center gap-1 flex-wrap mb-2">
-                    <div className="text-[10px] text-slate-600 font-bold uppercase">
-                        Step: <span className="text-indigo-400">{currentNoteIndex + 1}</span>/<span className="text-slate-600">{chordSequence.length}</span>
-                    </div>
-                    <button
-                        title={`${KB.BACK.hint} (${KB.BACK.display})`}
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onPointerUp={(e) => {
-                            e.stopPropagation();
-                            const seqLen = chordSequence.length > 0 ? chordSequence.length : 1;
-                            const prev = (currentNoteIndexRef.current - 1 + seqLen) % seqLen;
-                            currentNoteIndexRef.current = prev;
-                            setCurrentNoteIndex(prev);
-                        }}
-                        className="text-[10px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 uppercase font-bold"
-                    >
-                        ←
-                    </button>
-                    <button
-                        title={`Reset to beginning (${KB.RESET.display})`}
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onPointerUp={(e) => { e.stopPropagation(); setCurrentNoteIndex(0); currentNoteIndexRef.current = 0; }}
-                        className="text-[10px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 uppercase font-bold"
-                    >
-                        Reset
-                    </button>
-                    <button
-                        title={`${KB.FORWARD.hint} (${KB.FORWARD.display})`}
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onPointerUp={(e) => {
-                            e.stopPropagation();
-                            const seqLen = chordSequence.length > 0 ? chordSequence.length : 1;
-                            const next = (currentNoteIndexRef.current + 1) % seqLen;
-                            currentNoteIndexRef.current = next;
-                            setCurrentNoteIndex(next);
-                        }}
-                        className="text-[10px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 uppercase font-bold"
-                    >
-                        →
-                    </button>
-                    {(['lo', '2nd', '3rd', 'hi'] as const).map((label, i) => (
+                <div className="mb-2 overflow-x-auto overflow-y-hidden custom-scrollbar">
+                    <div className="flex items-center gap-1 flex-nowrap min-w-max pr-2">
+                        <div className="text-[10px] text-slate-600 font-bold uppercase whitespace-nowrap">
+                            Step: <span className="text-indigo-400">{currentNoteIndex + 1}</span>/<span className="text-slate-600">{chordSequence.length}</span>
+                        </div>
                         <button
-                            key={label}
-                            title={`Play chord note ${label} — touch/click to hold`}
-                            onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); playNoteFromCurrentStepByLinearIndex(i); }}
+                            title={`${KB.BACK.hint} (${KB.BACK.display})`}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onPointerUp={(e) => {
+                                e.stopPropagation();
+                                const seqLen = chordSequence.length > 0 ? chordSequence.length : 1;
+                                const prev = (currentNoteIndexRef.current - 1 + seqLen) % seqLen;
+                                currentNoteIndexRef.current = prev;
+                                setCurrentNoteIndex(prev);
+                            }}
+                            className="text-[10px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 uppercase font-bold whitespace-nowrap"
+                        >
+                            ←
+                        </button>
+                        <button
+                            title={`Reset to beginning (${KB.RESET.display})`}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onPointerUp={(e) => { e.stopPropagation(); setCurrentNoteIndex(0); currentNoteIndexRef.current = 0; }}
+                            className="text-[10px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 uppercase font-bold whitespace-nowrap"
+                        >
+                            Reset
+                        </button>
+                        <button
+                            title={`${KB.FORWARD.hint} (${KB.FORWARD.display})`}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onPointerUp={(e) => {
+                                e.stopPropagation();
+                                const seqLen = chordSequence.length > 0 ? chordSequence.length : 1;
+                                const next = (currentNoteIndexRef.current + 1) % seqLen;
+                                currentNoteIndexRef.current = next;
+                                setCurrentNoteIndex(next);
+                            }}
+                            className="text-[10px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 uppercase font-bold whitespace-nowrap"
+                        >
+                            →
+                        </button>
+                        {(['lo', '2nd', '3rd', 'hi'] as const).map((label, i) => (
+                            <button
+                                key={label}
+                                title={`Play chord note ${label} — touch/click to hold`}
+                                onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); playNoteFromCurrentStepByLinearIndex(i); }}
+                                onPointerUp={() => stopTriggerIfIdle()}
+                                onPointerLeave={() => stopTriggerIfIdle()}
+                                onPointerCancel={() => stopTriggerIfIdle()}
+                                className="text-[10px] bg-white/5 hover:bg-violet-500/20 hover:text-violet-300 px-2 py-1 rounded text-slate-400 uppercase font-bold select-none whitespace-nowrap"
+                            >
+                                ♪ {label}
+                            </button>
+                        ))}
+                        <button
+                            title={`${KB.RAND_NOTE.hint} (${KB.RAND_NOTE.display})`}
+                            onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); playRandomNoteFromCurrentStep(); }}
                             onPointerUp={() => stopTriggerIfIdle()}
                             onPointerLeave={() => stopTriggerIfIdle()}
                             onPointerCancel={() => stopTriggerIfIdle()}
-                            className="text-[10px] bg-white/5 hover:bg-violet-500/20 hover:text-violet-300 px-2 py-1 rounded text-slate-400 uppercase font-bold select-none"
+                            className="text-[10px] bg-white/5 hover:bg-fuchsia-500/20 hover:text-fuchsia-300 px-2 py-1 rounded text-slate-400 uppercase font-bold select-none whitespace-nowrap"
                         >
-                            ♪ {label}
+                            {KB.RAND_NOTE.display} (rand)
                         </button>
-                    ))}
-                    <button
-                        title={`${KB.RAND_NOTE.hint} (${KB.RAND_NOTE.display})`}
-                        onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); playRandomNoteFromCurrentStep(); }}
-                        onPointerUp={() => stopTriggerIfIdle()}
-                        onPointerLeave={() => stopTriggerIfIdle()}
-                        onPointerCancel={() => stopTriggerIfIdle()}
-                        className="text-[10px] bg-white/5 hover:bg-fuchsia-500/20 hover:text-fuchsia-300 px-2 py-1 rounded text-slate-400 uppercase font-bold select-none"
-                    >
-                        {KB.RAND_NOTE.display} (rand)
-                    </button>
+                    </div>
                 </div>
                 <textarea
-                    className="w-full bg-black/40 border border-white/5 rounded-xl p-3 text-xs font-mono text-indigo-300 focus:outline-none focus:border-indigo-500/50 h-24 resize-none"
-                    style={{ touchAction: 'pan-y' }}
+                    className="w-full border rounded-xl p-3 text-xs font-mono focus:outline-none focus:border-indigo-500/50 h-24 resize-none nc-input"
+                    style={{ touchAction: 'pan-y', backgroundColor: 'var(--nc-input-bg)', color: 'var(--nc-input-text)', borderColor: 'var(--nc-b2)' }}
                     autoCorrect="off"
                     autoCapitalize="off"
                     spellCheck={false}
@@ -3340,109 +3344,120 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                     placeholder="e.g. [verse]:\nC4+E4+G4@0.1b, // tonic\n[chorus]:\nG3+B3+D4@0.25b"
                 />
                 <div className="flex flex-col gap-1.5 mt-2">
-                    <div className="flex items-center gap-1 flex-wrap">
-                        <span className="text-[9px] text-slate-500 font-black uppercase w-16 shrink-0">Transpose</span>
-                        {([
-                            [-12, `Octave −1 (${KB.OCTAVE_DN.display})`],
-                            [-1,  `Semitone −1 (${KB.SEMITONE_DN.display})`],
-                            [1,   `Semitone +1 (${KB.SEMITONE_UP.display})`],
-                            [12,  `Octave +1 (${KB.OCTAVE_UP.display})`],
-                        ] as [number, string][]).map(([delta, tooltip]) => (
-                            <button
-                                key={delta}
-                                title={tooltip}
-                                onPointerDown={(e) => e.stopPropagation()}
-                                onPointerUp={(e) => { e.stopPropagation(); applyTranspose(delta); }}
-                                className="text-[9px] bg-white/5 hover:bg-indigo-500/20 hover:text-indigo-300 px-2 py-1 rounded text-slate-400 font-bold tabular-nums transition-all"
-                            >
-                                {delta > 0 ? `+${delta}` : delta}
-                            </button>
-                        ))}
-                    </div>
-                    <div className="flex items-center gap-1 flex-wrap">
-                        <span className="text-[9px] text-slate-500 font-black uppercase w-16 shrink-0">Chord Vol</span>
-                        <button
-                            title="Decrease chord volume by 0.1 (⇧← Arrow)"
-                            onPointerDown={(e) => e.stopPropagation()}
-                            onPointerUp={(e) => { e.stopPropagation(); setChordVolume(prev => { const v = Math.max(0, Math.round((prev - 0.1) * 10) / 10); chordVolumeRef.current = v; return v; }); }}
-                            className="text-[9px] bg-white/5 hover:bg-rose-500/20 hover:text-rose-300 px-2 py-1 rounded text-slate-400 font-bold tabular-nums transition-all"
-                        >
-                            −0.1
-                        </button>
-                        <div className="text-[10px] font-bold tabular-nums px-2 py-1 rounded bg-black/30 border border-white/5" style={{ color: chordVolume < 0.4 ? '#f87171' : chordVolume < 0.8 ? '#fbbf24' : '#a5b4fc' }}>
-                            {chordVolume.toFixed(1)}
-                        </div>
-                        <button
-                            title="Increase chord volume by 0.1 (⇧→ Arrow)"
-                            onPointerDown={(e) => e.stopPropagation()}
-                            onPointerUp={(e) => { e.stopPropagation(); setChordVolume(prev => { const v = Math.min(1, Math.round((prev + 0.1) * 10) / 10); chordVolumeRef.current = v; return v; }); }}
-                            className="text-[9px] bg-white/5 hover:bg-indigo-500/20 hover:text-indigo-300 px-2 py-1 rounded text-slate-400 font-bold tabular-nums transition-all"
-                        >
-                            +0.1
-                        </button>
-                        <div className="w-24 h-1.5 rounded-full bg-white/5 overflow-hidden ml-1">
-                            <div className="h-full rounded-full transition-all duration-150" style={{ width: `${chordVolume * 100}%`, background: chordVolume < 0.4 ? '#f87171' : chordVolume < 0.8 ? '#fbbf24' : '#818cf8' }} />
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-1 flex-wrap">
-                        <span className="text-[9px] text-slate-500 font-black uppercase w-16 shrink-0">Strum</span>
-                        {([
-                            { factor: 1/1.5, label: '÷1.5', entry: KB.STRUM_DN },
-                            { factor: 1.5,   label: '×1.5', entry: KB.STRUM_UP },
-                        ] as { factor: number; label: string; entry: { display: string; hint: string } }[]).map(({ factor, label, entry }) => (
-                            <button
-                                key={label}
-                                title={`${entry.hint} (${entry.display})`}
-                                onPointerDown={(e) => e.stopPropagation()}
-                                onPointerUp={(e) => { e.stopPropagation(); setSequenceInput(prev => scaleStrumSpeed(prev, factor)); }}
-                                className="text-[9px] bg-white/5 hover:bg-emerald-500/20 hover:text-emerald-300 px-2 py-1 rounded text-slate-400 font-bold tabular-nums transition-all"
-                            >
-                                {label}
-                            </button>
-                        ))}
-                    </div>
-                    {/* Solo key layout switcher */}
-                    <div className="flex items-center gap-1 flex-wrap">
-                        <span className="text-[9px] text-slate-500 font-black uppercase w-16 shrink-0">Solo Layout</span>
-                        {(Object.entries(SOLO_LAYOUTS) as [SoloLayoutName, typeof SOLO_LAYOUTS[SoloLayoutName]][]).map(([name, spec]) => (
-                            <button
-                                key={name}
-                                title={spec.description}
-                                onPointerDown={(e) => e.stopPropagation()}
-                                onPointerUp={(e) => { e.stopPropagation(); setCurrentLayout(name); currentLayoutRef.current = name; }}
-                                className={`text-[9px] px-2 py-1 rounded font-bold uppercase border transition-all ${
-                                    currentLayout === name
-                                        ? 'bg-violet-600 border-violet-500 text-white'
-                                        : 'bg-white/5 hover:bg-violet-500/20 hover:text-violet-300 border-white/5 text-slate-500'
-                                }`}
-                            >
-                                {spec.label}
-                            </button>
-                        ))}
-                    </div>
-                    {sections.length > 0 && (
-                        <div className="flex items-center gap-1 flex-wrap">
-                            <span className="text-[9px] text-slate-500 font-black uppercase w-16 shrink-0">Sections</span>
-                            {sections.map((s, i) => (
+                    <div className="overflow-x-auto overflow-y-hidden custom-scrollbar">
+                        <div className="flex items-center gap-1 flex-nowrap min-w-max pr-2">
+                            <span className="text-[9px] text-slate-500 font-black uppercase w-16 shrink-0 whitespace-nowrap">Transpose</span>
+                            {([
+                                [-12, `Octave −1 (${KB.OCTAVE_DN.display})`],
+                                [-1,  `Semitone −1 (${KB.SEMITONE_DN.display})`],
+                                [1,   `Semitone +1 (${KB.SEMITONE_UP.display})`],
+                                [12,  `Octave +1 (${KB.OCTAVE_UP.display})`],
+                            ] as [number, string][]).map(([delta, tooltip]) => (
                                 <button
-                                    key={s.label}
-                                    title={`Jump to [${s.label}] — step ${s.startStep + 1} · Key ${i + 1}`}
+                                    key={delta}
+                                    title={tooltip}
                                     onPointerDown={(e) => e.stopPropagation()}
-                                    onPointerUp={(e) => { e.stopPropagation(); jumpToSection(i); }}
-                                    className={`text-[9px] px-2 py-1 rounded font-bold uppercase border transition-all ${
-                                        currentSection?.label === s.label
-                                            ? 'bg-indigo-600 border-indigo-500 text-white'
-                                            : 'bg-white/5 hover:bg-indigo-500/20 hover:text-indigo-300 border-white/5 text-slate-500'
-                                    }`}
+                                    onPointerUp={(e) => { e.stopPropagation(); applyTranspose(delta); }}
+                                    className="text-[9px] bg-white/5 hover:bg-indigo-500/20 hover:text-indigo-300 px-2 py-1 rounded text-slate-400 font-bold tabular-nums transition-all whitespace-nowrap"
                                 >
-                                    {i + 1}: {s.label}
+                                    {delta > 0 ? `+${delta}` : delta}
                                 </button>
                             ))}
                         </div>
+                    </div>
+                    <div className="overflow-x-auto overflow-y-hidden custom-scrollbar">
+                        <div className="flex items-center gap-1 flex-nowrap min-w-max pr-2">
+                            <span className="text-[9px] text-slate-500 font-black uppercase w-16 shrink-0 whitespace-nowrap">Chord Vol</span>
+                            <button
+                                title="Decrease chord volume by 0.1 (⇧← Arrow)"
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onPointerUp={(e) => { e.stopPropagation(); setChordVolume(prev => { const v = Math.max(0, Math.round((prev - 0.1) * 10) / 10); chordVolumeRef.current = v; return v; }); }}
+                                className="text-[9px] bg-white/5 hover:bg-rose-500/20 hover:text-rose-300 px-2 py-1 rounded text-slate-400 font-bold tabular-nums transition-all whitespace-nowrap"
+                            >
+                                −0.1
+                            </button>
+                            <div className="text-[10px] font-bold tabular-nums px-2 py-1 rounded bg-black/30 border border-white/5 whitespace-nowrap" style={{ color: chordVolume < 0.4 ? '#f87171' : chordVolume < 0.8 ? '#fbbf24' : '#a5b4fc' }}>
+                                {chordVolume.toFixed(1)}
+                            </div>
+                            <button
+                                title="Increase chord volume by 0.1 (⇧→ Arrow)"
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onPointerUp={(e) => { e.stopPropagation(); setChordVolume(prev => { const v = Math.min(1, Math.round((prev + 0.1) * 10) / 10); chordVolumeRef.current = v; return v; }); }}
+                                className="text-[9px] bg-white/5 hover:bg-indigo-500/20 hover:text-indigo-300 px-2 py-1 rounded text-slate-400 font-bold tabular-nums transition-all whitespace-nowrap"
+                            >
+                                +0.1
+                            </button>
+                            <div className="w-24 h-1.5 rounded-full bg-white/5 overflow-hidden ml-1 shrink-0">
+                                <div className="h-full rounded-full transition-all duration-150" style={{ width: `${chordVolume * 100}%`, background: chordVolume < 0.4 ? '#f87171' : chordVolume < 0.8 ? '#fbbf24' : '#818cf8' }} />
+                            </div>
+                        </div>
+                    </div>
+                    <div className="overflow-x-auto overflow-y-hidden custom-scrollbar">
+                        <div className="flex items-center gap-1 flex-nowrap min-w-max pr-2">
+                            <span className="text-[9px] text-slate-500 font-black uppercase w-16 shrink-0 whitespace-nowrap">Strum</span>
+                            {([
+                                { factor: 1/1.5, label: '÷1.5', entry: KB.STRUM_DN },
+                                { factor: 1.5,   label: '×1.5', entry: KB.STRUM_UP },
+                            ] as { factor: number; label: string; entry: { display: string; hint: string } }[]).map(({ factor, label, entry }) => (
+                                <button
+                                    key={label}
+                                    title={`${entry.hint} (${entry.display})`}
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onPointerUp={(e) => { e.stopPropagation(); setSequenceInput(prev => scaleStrumSpeed(prev, factor)); }}
+                                    className="text-[9px] bg-white/5 hover:bg-emerald-500/20 hover:text-emerald-300 px-2 py-1 rounded text-slate-400 font-bold tabular-nums transition-all whitespace-nowrap"
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    {/* Solo key layout switcher */}
+                    <div className="overflow-x-auto overflow-y-hidden custom-scrollbar">
+                        <div className="flex items-center gap-1 flex-nowrap min-w-max pr-2">
+                            <span className="text-[9px] text-slate-500 font-black uppercase w-16 shrink-0 whitespace-nowrap">Solo Layout</span>
+                            {(Object.entries(SOLO_LAYOUTS) as [SoloLayoutName, typeof SOLO_LAYOUTS[SoloLayoutName]][]).map(([name, spec]) => (
+                                <button
+                                    key={name}
+                                    title={spec.description}
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onPointerUp={(e) => { e.stopPropagation(); setCurrentLayout(name); currentLayoutRef.current = name; }}
+                                    className={`text-[9px] px-2 py-1 rounded font-bold uppercase border transition-all whitespace-nowrap ${
+                                        currentLayout === name
+                                            ? 'bg-violet-600 border-violet-500 text-white'
+                                            : 'bg-white/5 hover:bg-violet-500/20 hover:text-violet-300 border-white/5 text-slate-500'
+                                    }`}
+                                >
+                                    {spec.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    {sections.length > 0 && (
+                        <div className="overflow-x-auto overflow-y-hidden custom-scrollbar">
+                            <div className="flex items-center gap-1 flex-nowrap min-w-max pr-2">
+                                <span className="text-[9px] text-slate-500 font-black uppercase w-16 shrink-0 whitespace-nowrap">Sections</span>
+                                {sections.map((s, i) => (
+                                    <button
+                                        key={s.label}
+                                        title={`Jump to [${s.label}] — step ${s.startStep + 1} · Key ${i + 1}`}
+                                        onPointerDown={(e) => e.stopPropagation()}
+                                        onPointerUp={(e) => { e.stopPropagation(); jumpToSection(i); }}
+                                        className={`text-[9px] px-2 py-1 rounded font-bold uppercase border transition-all whitespace-nowrap ${
+                                            currentSection?.label === s.label
+                                                ? 'bg-indigo-600 border-indigo-500 text-white'
+                                                : 'bg-white/5 hover:bg-indigo-500/20 hover:text-indigo-300 border-white/5 text-slate-500'
+                                        }`}
+                                    >
+                                        {i + 1}: {s.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                     )}
-                    <div className="flex items-center gap-1 flex-wrap">
-                        <span className="text-[9px] text-slate-500 font-black uppercase w-16 shrink-0">Voicing</span>
-                        <button
+                    <div className="overflow-x-auto overflow-y-hidden custom-scrollbar">
+                        <div className="flex items-center gap-1 flex-nowrap min-w-max pr-2">
+                            <span className="text-[9px] text-slate-500 font-black uppercase w-16 shrink-0 whitespace-nowrap">Voicing</span>
+                            <button
                             title={voicingBase ? `Restore original voicing for all steps (${KB.ORIGINAL.display})` : `No voicing changes yet (${KB.ORIGINAL.display})`}
                             disabled={!voicingBase}
                             onPointerDown={(e) => e.stopPropagation()}
@@ -3453,7 +3468,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                                 setSequenceInput(voicingBase);
                                 setVoicingBase(null);
                             }}
-                            className={`text-[9px] px-2 py-1 rounded font-bold transition-all ${voicingBase ? 'bg-white/5 hover:bg-orange-500/20 hover:text-orange-300 text-slate-400' : 'opacity-25 cursor-not-allowed bg-white/5 text-slate-600'}`}
+                            className={`text-[9px] px-2 py-1 rounded font-bold transition-all whitespace-nowrap ${voicingBase ? 'bg-white/5 hover:bg-orange-500/20 hover:text-orange-300 text-slate-400' : 'opacity-25 cursor-not-allowed bg-white/5 text-slate-600'}`}
                         >
                             Original
                         </button>
@@ -3461,7 +3476,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                             title={`Compress all steps: pull each note into the octave below the leading tone; duplicate pitch classes are spread one octave apart (${KB.COMPRESS.display})`}
                             onPointerDown={(e) => e.stopPropagation()}
                             onPointerUp={(e) => { e.stopPropagation(); applyVoicing(compressVoicing); }}
-                            className="text-[9px] bg-white/5 hover:bg-teal-500/20 hover:text-teal-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
+                            className="text-[9px] bg-white/5 hover:bg-teal-500/20 hover:text-teal-300 px-2 py-1 rounded text-slate-400 font-bold transition-all whitespace-nowrap"
                         >
                             Compress
                         </button>
@@ -3469,7 +3484,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                             title={`Smooth (${KB.SMOOTH.display}): revoice every step so voices move as little as possible between chords. Anchored to the current step (its voicing is unchanged). Melody, bass and inner voices are matched by role across chord changes — not by fixed position — so chords with different note counts smooth correctly.`}
                             onPointerDown={(e) => e.stopPropagation()}
                             onPointerUp={(e) => { e.stopPropagation(); applySmooth(); }}
-                            className="text-[9px] bg-white/5 hover:bg-cyan-500/20 hover:text-cyan-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
+                            className="text-[9px] bg-white/5 hover:bg-cyan-500/20 hover:text-cyan-300 px-2 py-1 rounded text-slate-400 font-bold transition-all whitespace-nowrap"
                         >
                             Smooth
                         </button>
@@ -3481,7 +3496,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                                     title={`Drop ${n} (all steps): lower the ${ordinal(n)}-highest note by octaves until it no longer duplicates another note${n === 1 ? ` (${KB.DROP_1.display})` : n === 2 ? ` (${KB.DROP_2.display})` : ''}`}
                                     onPointerDown={(e) => e.stopPropagation()}
                                     onPointerUp={(e) => { e.stopPropagation(); applyVoicing(m => dropChord(m, n)); }}
-                                    className="text-[9px] bg-white/5 hover:bg-sky-500/20 hover:text-sky-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
+                                    className="text-[9px] bg-white/5 hover:bg-sky-500/20 hover:text-sky-300 px-2 py-1 rounded text-slate-400 font-bold transition-all whitespace-nowrap"
                                 >
                                     Drop {n}
                                 </button>
@@ -3496,20 +3511,22 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                                     title={`${ordinal(k)} inversion (all steps): rotate the ${k} lowest pitch class${k > 1 ? 'es' : ''} above the top — octave doublings stay in place${k === 1 ? ` (${KB.INVERT_1.display})` : ''}`}
                                     onPointerDown={(e) => e.stopPropagation()}
                                     onPointerUp={(e) => { e.stopPropagation(); applyVoicing(m => invertChord(m, k)); }}
-                                    className="text-[9px] bg-white/5 hover:bg-purple-500/20 hover:text-purple-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
+                                    className="text-[9px] bg-white/5 hover:bg-purple-500/20 hover:text-purple-300 px-2 py-1 rounded text-slate-400 font-bold transition-all whitespace-nowrap"
                                 >
                                     {ordinal(k)} inv
                                 </button>
                             ));
                         })()}
+                        </div>
                     </div>
-                    <div className="flex items-center gap-1 flex-wrap">
-                        <span className="text-[9px] text-slate-500 font-black uppercase w-16 shrink-0">Order</span>
+                    <div className="overflow-x-auto overflow-y-hidden custom-scrollbar">
+                        <div className="flex items-center gap-1 flex-nowrap min-w-max pr-2">
+                            <span className="text-[9px] text-slate-500 font-black uppercase w-16 shrink-0 whitespace-nowrap">Order</span>
                         <button
                             title={`Reverse note order within each chord (e.g. C4+E4+G4 → G4+E4+C4) (${KB.ORDER_REV.display})`}
                             onPointerDown={(e) => e.stopPropagation()}
                             onPointerUp={(e) => { e.stopPropagation(); applyReorder('reverse'); }}
-                            className="text-[9px] bg-white/5 hover:bg-amber-500/20 hover:text-amber-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
+                            className="text-[9px] bg-white/5 hover:bg-amber-500/20 hover:text-amber-300 px-2 py-1 rounded text-slate-400 font-bold transition-all whitespace-nowrap"
                         >
                             Reverse
                         </button>
@@ -3517,7 +3534,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                             title={`Randomise note order within each chord (${KB.ORDER_RAND.display})`}
                             onPointerDown={(e) => e.stopPropagation()}
                             onPointerUp={(e) => { e.stopPropagation(); applyReorder('random'); }}
-                            className="text-[9px] bg-white/5 hover:bg-amber-500/20 hover:text-amber-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
+                            className="text-[9px] bg-white/5 hover:bg-amber-500/20 hover:text-amber-300 px-2 py-1 rounded text-slate-400 font-bold transition-all whitespace-nowrap"
                         >
                             Random
                         </button>
@@ -3525,10 +3542,11 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                             title={`Sort notes by pitch low→high within each chord (${KB.ORDER_SORT.display})`}
                             onPointerDown={(e) => e.stopPropagation()}
                             onPointerUp={(e) => { e.stopPropagation(); applyReorder('sort'); }}
-                            className="text-[9px] bg-white/5 hover:bg-amber-500/20 hover:text-amber-300 px-2 py-1 rounded text-slate-400 font-bold transition-all"
+                            className="text-[9px] bg-white/5 hover:bg-amber-500/20 hover:text-amber-300 px-2 py-1 rounded text-slate-400 font-bold transition-all whitespace-nowrap"
                         >
                             Sort ↑
                         </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -3548,13 +3566,14 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                             }`}
                         >{xFlipped ? '⇄ Flipped' : '⇄ Flip'}</button>
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="overflow-x-auto overflow-y-hidden custom-scrollbar">
+                        <div className="flex flex-nowrap gap-2 min-w-max pr-2">
                         {AVAILABLE_TARGETS.map(t => (
                             <button
                                 key={`x-${t.value}`}
                                 onPointerDown={(e) => e.stopPropagation()}
                                 onPointerUp={(e) => { e.stopPropagation(); toggleTarget('x', t.value); }}
-                                className={`px-2 py-1 rounded text-[10px] font-bold uppercase border transition-all ${
+                                className={`px-2 py-1 rounded text-[10px] font-bold uppercase border transition-all whitespace-nowrap ${
                                     xTargets.includes(t.value)
                                     ? 'bg-indigo-600 border-indigo-500 text-white'
                                     : 'bg-slate-900 border-white/10 text-slate-500 hover:text-slate-300'
@@ -3563,6 +3582,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                                 {t.label}
                             </button>
                         ))}
+                        </div>
                     </div>
                 </div>
 
@@ -3579,13 +3599,14 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                             }`}
                         >{yFlipped ? '⇅ Flipped' : '⇅ Flip'}</button>
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="overflow-x-auto overflow-y-hidden custom-scrollbar">
+                        <div className="flex flex-nowrap gap-2 min-w-max pr-2">
                         {AVAILABLE_TARGETS.map(t => (
                             <button
                                 key={`y-${t.value}`}
                                 onPointerDown={(e) => e.stopPropagation()}
                                 onPointerUp={(e) => { e.stopPropagation(); toggleTarget('y', t.value); }}
-                                className={`px-2 py-1 rounded text-[10px] font-bold uppercase border transition-all ${
+                                className={`px-2 py-1 rounded text-[10px] font-bold uppercase border transition-all whitespace-nowrap ${
                                     yTargets.includes(t.value)
                                     ? 'bg-emerald-600 border-emerald-500 text-white'
                                     : 'bg-slate-900 border-white/10 text-slate-500 hover:text-slate-300'
@@ -3594,6 +3615,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                                 {t.label}
                             </button>
                         ))}
+                        </div>
                     </div>
                 </div>
 
@@ -3609,22 +3631,24 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                         ].filter(Boolean) as { label: string; lo: number; setLo: React.Dispatch<React.SetStateAction<number>>; hi: number; setHi: React.Dispatch<React.SetStateAction<number>>; pxSize: number }[]).map(({ label, lo, setLo, hi, setHi, pxSize }) => (
                             <div key={label} className="flex flex-col gap-1.5 border border-white/5 rounded-lg p-2">
                                 <span className="text-[9px] text-slate-500 font-black uppercase">{label} Axis</span>
-                                <div className="flex items-center gap-1.5 flex-wrap">
+                                <div className="overflow-x-auto overflow-y-hidden custom-scrollbar">
+                                    <div className="flex items-center gap-1.5 flex-nowrap min-w-max pr-2">
                                     <span className="text-[9px] text-slate-600 font-black uppercase shrink-0">− st</span>
                                     <button onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => { e.stopPropagation(); setLo(r => Math.max(1, r - 1)); }} className="text-[9px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 font-bold">−</button>
                                     <input type="number" min={1} max={120} value={lo}
                                         onChange={e => setLo(Math.max(1, Math.min(120, parseInt(e.target.value) || 1)))}
-                                        className="bg-black/40 border border-white/10 rounded px-2 py-1 text-[10px] font-mono text-violet-300 focus:outline-none focus:border-violet-500/50 w-12 text-center" />
+                                        className="bg-black/40 border border-white/10 rounded px-2 py-1 text-[10px] font-mono text-violet-300 focus:outline-none focus:border-violet-500/50 w-12 text-center shrink-0" />
                                     <button onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => { e.stopPropagation(); setLo(r => Math.min(120, r + 1)); }} className="text-[9px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 font-bold">+</button>
                                     <span className="text-[9px] text-slate-600 font-black uppercase shrink-0 ml-2">+ st</span>
                                     <button onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => { e.stopPropagation(); setHi(r => Math.max(1, r - 1)); }} className="text-[9px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 font-bold">−</button>
                                     <input type="number" min={1} max={120} value={hi}
                                         onChange={e => setHi(Math.max(1, Math.min(120, parseInt(e.target.value) || 1)))}
-                                        className="bg-black/40 border border-white/10 rounded px-2 py-1 text-[10px] font-mono text-violet-300 focus:outline-none focus:border-violet-500/50 w-12 text-center" />
+                                        className="bg-black/40 border border-white/10 rounded px-2 py-1 text-[10px] font-mono text-violet-300 focus:outline-none focus:border-violet-500/50 w-12 text-center shrink-0" />
                                     <button onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => { e.stopPropagation(); setHi(r => Math.min(120, r + 1)); }} className="text-[9px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 font-bold">+</button>
-                                    <span className="text-[9px] text-slate-600 tabular-nums">
+                                    <span className="text-[9px] text-slate-600 tabular-nums whitespace-nowrap">
                                         {pxSize > 0 ? `~${Math.round(pxSize / (lo + hi + 1))}px/st` : ''}
                                     </span>
+                                    </div>
                                 </div>
                             </div>
                         ))}
@@ -3655,24 +3679,27 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                                 <div key={axisLabel} className="flex flex-col gap-1.5 border border-white/5 rounded-lg p-2">
                                     <span className="text-[9px] text-slate-500 font-black uppercase">{axisLabel} Axis</span>
                                     {/* Presets — apply semitoneRange symmetrically to both lo and hi */}
-                                    <div className="flex flex-wrap gap-1.5">
+                                    <div className="overflow-x-auto overflow-y-hidden custom-scrollbar">
+                                        <div className="flex flex-nowrap gap-1.5 min-w-max pr-2">
                                         {DETUNE_PATTERN_PRESETS.map(p => (
                                             <button
                                                 key={p.label}
                                                 title={`Intervals: [${p.pattern.join(', ')}] st · ±${p.semitoneRange} st range`}
                                                 onPointerDown={(e) => e.stopPropagation()}
                                                 onPointerUp={(e) => { e.stopPropagation(); setPattern(p.pattern); setSemitoneRangeLo(p.semitoneRange); setSemitoneRangeHi(p.semitoneRange); setPatternInput(p.pattern.join(', ')); }}
-                                                className={`px-2 py-1 rounded text-[9px] font-bold uppercase border transition-all ${
+                                                className={`px-2 py-1 rounded text-[9px] font-bold uppercase border transition-all whitespace-nowrap ${
                                                     JSON.stringify(pattern) === JSON.stringify(p.pattern) && semitoneRangeLo === p.semitoneRange && semitoneRangeHi === p.semitoneRange
                                                         ? 'bg-violet-600 border-violet-500 text-white'
                                                         : 'bg-slate-900 border-white/10 text-slate-500 hover:text-violet-300 hover:border-violet-500/30'
                                                 }`}
                                             >{p.label}</button>
                                         ))}
+                                        </div>
                                     </div>
                                     {/* Manual pattern input */}
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="text-[9px] text-slate-600 font-black uppercase shrink-0">Intervals (st)</span>
+                                    <div className="overflow-x-auto overflow-y-hidden custom-scrollbar">
+                                        <div className="flex items-center gap-2 flex-nowrap min-w-max pr-2">
+                                        <span className="text-[9px] text-slate-600 font-black uppercase shrink-0 whitespace-nowrap">Intervals (st)</span>
                                         <input
                                             type="text" value={patternInput}
                                             onChange={(e) => {
@@ -3680,28 +3707,31 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
                                                 const parsed = e.target.value.split(',').map(n => parseInt(n.trim(), 10)).filter(n => n >= 1);
                                                 if (parsed.length > 0) setPattern(parsed);
                                             }}
-                                            className="bg-black/40 border border-white/10 rounded px-2 py-1 text-[10px] font-mono text-violet-300 focus:outline-none focus:border-violet-500/50 w-44"
+                                            className="bg-black/40 border border-white/10 rounded px-2 py-1 text-[10px] font-mono text-violet-300 focus:outline-none focus:border-violet-500/50 w-44 shrink-0"
                                             placeholder="e.g. 2, 2, 1, 2, 2, 2, 1"
                                             autoCorrect="off" autoCapitalize="off" spellCheck={false}
                                         />
+                                        </div>
                                     </div>
                                     {/* Lo / hi range + density hint */}
-                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                    <div className="overflow-x-auto overflow-y-hidden custom-scrollbar">
+                                        <div className="flex items-center gap-1.5 flex-nowrap min-w-max pr-2">
                                         <span className="text-[9px] text-slate-600 font-black uppercase shrink-0">− st</span>
                                         <button onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => { e.stopPropagation(); setSemitoneRangeLo(r => Math.max(1, r - 1)); }} className="text-[9px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 font-bold">−</button>
                                         <input type="number" min={1} max={120} value={semitoneRangeLo}
                                             onChange={e => setSemitoneRangeLo(Math.max(1, Math.min(120, parseInt(e.target.value) || 1)))}
-                                            className="bg-black/40 border border-white/10 rounded px-2 py-1 text-[10px] font-mono text-violet-300 focus:outline-none focus:border-violet-500/50 w-12 text-center" />
+                                            className="bg-black/40 border border-white/10 rounded px-2 py-1 text-[10px] font-mono text-violet-300 focus:outline-none focus:border-violet-500/50 w-12 text-center shrink-0" />
                                         <button onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => { e.stopPropagation(); setSemitoneRangeLo(r => Math.min(120, r + 1)); }} className="text-[9px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 font-bold">+</button>
                                         <span className="text-[9px] text-slate-600 font-black uppercase shrink-0 ml-2">+ st</span>
                                         <button onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => { e.stopPropagation(); setSemitoneRangeHi(r => Math.max(1, r - 1)); }} className="text-[9px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 font-bold">−</button>
                                         <input type="number" min={1} max={120} value={semitoneRangeHi}
                                             onChange={e => setSemitoneRangeHi(Math.max(1, Math.min(120, parseInt(e.target.value) || 1)))}
-                                            className="bg-black/40 border border-white/10 rounded px-2 py-1 text-[10px] font-mono text-violet-300 focus:outline-none focus:border-violet-500/50 w-12 text-center" />
+                                            className="bg-black/40 border border-white/10 rounded px-2 py-1 text-[10px] font-mono text-violet-300 focus:outline-none focus:border-violet-500/50 w-12 text-center shrink-0" />
                                         <button onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => { e.stopPropagation(); setSemitoneRangeHi(r => Math.min(120, r + 1)); }} className="text-[9px] bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 font-bold">+</button>
-                                        <span className="text-[9px] text-slate-600 tabular-nums">
+                                        <span className="text-[9px] text-slate-600 tabular-nums whitespace-nowrap">
                                             {stepsLo + stepsHi + 1} bands{pxSize > 0 ? ` · ~${Math.round(pxSize / (stepsLo + stepsHi + 1))}px/band` : ''}
                                         </span>
+                                        </div>
                                     </div>
                                 </div>
                             );
