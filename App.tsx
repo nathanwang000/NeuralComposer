@@ -543,6 +543,8 @@ interface VoiceBlock {
 
 type StartHerePath = 'hear-demo' | 'play-record' | 'compose-ai' | 'write-notes';
 
+const HELP_MODAL_SEEN_KEY = 'nc-help-modal-seen-v1';
+
 interface HearDemoGuideProgress {
   hasPlayed: boolean;
   hasPaused: boolean;
@@ -957,6 +959,11 @@ const App: React.FC = () => {
     setMainTab('sequencer');
   }, [resetHearDemoGuide]);
 
+  const openHearDemoGuide = useCallback(() => {
+    setShowShortcuts(false);
+    startHearDemoGuide();
+  }, [startHearDemoGuide]);
+
   const exitStartHereGuide = useCallback(() => {
     setStartHerePath(null);
     resetHearDemoGuide();
@@ -1006,6 +1013,13 @@ const App: React.FC = () => {
     updateLayout();
     window.addEventListener('resize', updateLayout);
     return () => window.removeEventListener('resize', updateLayout);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (localStorage.getItem(HELP_MODAL_SEEN_KEY)) return;
+    setShowShortcuts(true);
+    localStorage.setItem(HELP_MODAL_SEEN_KEY, '1');
   }, []);
 
   useEffect(() => {
@@ -1662,7 +1676,7 @@ const App: React.FC = () => {
       step: 6,
       total: 6,
       title: 'Demo complete',
-      body: 'You loaded a phrase, placed it on the timeline, and used the transport controls. If you click Clear, the Start Here choices will appear again in the right panel.',
+      body: 'You loaded a phrase, placed it on the timeline, and used the transport controls. If you click Clear, you can reopen this tutorial anytime from the ? button.',
     },
   };
   const hearDemoStepInfo = hearDemoStepMeta[hearDemoStep];
@@ -1673,7 +1687,7 @@ const App: React.FC = () => {
     : hearDemoStep === 'add-to-timeline'
       ? 'note-input'
       : 'timeline';
-  const tourSectionClass = (section: 'start-here' | 'samples' | 'note-input' | 'timeline' | 'transport') => {
+  const tourSectionClass = (section: 'samples' | 'note-input' | 'timeline' | 'transport') => {
     if (!isHearDemoGuideActive) return '';
     if (hearDemoStep === 'done') return '';
     const active = section === hearDemoFocus || (hearDemoFocus === 'timeline' && section === 'transport');
@@ -1982,7 +1996,7 @@ const App: React.FC = () => {
           )}
           <div className="w-px h-6 bg-white/10" />
           <button
-            title="Keyboard shortcuts"
+            title="Help, shortcuts, and tutorial"
             onClick={() => setShowShortcuts(true)}
             className="p-2 rounded-xl hover:bg-white/5 text-slate-500 hover:text-slate-300 transition-colors"
           >
@@ -2421,94 +2435,6 @@ const App: React.FC = () => {
             <div ref={sessionPanelScrollRef} className="flex-1 overflow-y-auto custom-scrollbar pr-2">
             {rightPanelTab === 'session' ? (
                 <div className="space-y-6">
-                  {events.length === 0 && !isAIStreamActive && (
-                    <div className={`p-5 rounded-2xl border space-y-3 transition-all duration-300 ${tourSectionClass('start-here')}`} style={{ backgroundColor: t.card, borderColor: t.b1 }}>
-                      <div className="text-xs font-bold uppercase" style={{ color: t.t4 }}>Start Here</div>
-                      {isHearDemoGuideActive ? (
-                        <>
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between gap-3">
-                              <div>
-                                <div className="text-[10px] font-black uppercase tracking-[0.24em]" style={{ color: t.t4 }}>
-                                  Hear a Demo
-                                </div>
-                                <div className="text-xs font-bold" style={{ color: t.t3 }}>
-                                  Step {hearDemoStepInfo.step} of {hearDemoStepInfo.total}
-                                </div>
-                              </div>
-                              <button
-                                onClick={exitStartHereGuide}
-                                className="text-[10px] font-black uppercase tracking-widest"
-                                style={{ color: t.t3 }}
-                              >
-                                Exit Guide
-                              </button>
-                            </div>
-                            <div className="rounded-xl border px-4 py-3" style={{ backgroundColor: t.tint, borderColor: hearDemoStep === 'done' ? `color-mix(in srgb, ${t.emerald} 40%, ${t.b1})` : `color-mix(in srgb, ${t.indigo} 30%, ${t.b1})` }}>
-                              <div className="text-sm font-black" style={{ color: t.t1 }}>{hearDemoStepInfo.title}</div>
-                              <p className="mt-1 text-sm leading-relaxed" style={{ color: t.t2 }}>{hearDemoStepInfo.body}</p>
-                            </div>
-                          </div>
-                          <div className="text-[11px] leading-relaxed" style={{ color: t.t3 }}>
-                            {hearDemoFocus === 'samples'
-                              ? 'The tour is focusing the Samples section now.'
-                              : hearDemoFocus === 'note-input'
-                                ? 'The tour is focusing Note Input now.'
-                                : hearDemoStep === 'done'
-                                  ? 'The mini tour is complete.'
-                                  : 'The tour is focusing the timeline and transport controls now.'}
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] font-bold uppercase tracking-widest" style={{ color: t.t4 }}>
-                            <div className={`rounded-lg border px-3 py-2 ${hearDemoStep === 'select-sample' || !userInput.trim() ? 'ring-1 ring-indigo-400/60' : ''}`} style={{ borderColor: t.b1, backgroundColor: t.cardDeep }}>
-                              1. Load a sample
-                            </div>
-                            <div className={`rounded-lg border px-3 py-2 ${hearDemoStep === 'add-to-timeline' ? 'ring-1 ring-indigo-400/60' : ''}`} style={{ borderColor: t.b1, backgroundColor: t.cardDeep }}>
-                              2. Add to timeline
-                            </div>
-                            <div className={`rounded-lg border px-3 py-2 ${hearDemoStep === 'play' || hearDemoStep === 'pause' ? 'ring-1 ring-indigo-400/60' : ''}`} style={{ borderColor: t.b1, backgroundColor: t.cardDeep }}>
-                              3. Play and pause
-                            </div>
-                            <div className={`rounded-lg border px-3 py-2 ${hearDemoStep === 'rewind' || hearDemoStep === 'play-again' || hearDemoStep === 'done' ? 'ring-1 ring-indigo-400/60' : ''}`} style={{ borderColor: t.b1, backgroundColor: t.cardDeep }}>
-                              4. Rewind and replay
-                            </div>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <p className="text-sm leading-relaxed" style={{ color: t.t2 }}>
-                            Choose what you want to do first. Hear a Demo is ready now. The other guided paths are placeholders for the next pass.
-                          </p>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <button
-                              onClick={startHearDemoGuide}
-                              className="w-full py-2 px-3 rounded-lg border text-xs font-bold uppercase transition-colors text-left"
-                              style={{ backgroundColor: `color-mix(in srgb, ${t.indigo} 12%, ${t.card})`, borderColor: `color-mix(in srgb, ${t.indigo} 30%, ${t.b1})`, color: t.indigo }}
-                            >
-                              Hear a Demo
-                            </button>
-                            <button
-                              className="w-full py-2 px-3 rounded-lg border text-xs font-bold uppercase transition-colors text-left opacity-60 cursor-default"
-                              style={{ backgroundColor: t.tint, borderColor: t.b1, color: t.t2 }}
-                            >
-                              Play and Record
-                            </button>
-                            <button
-                              className="w-full py-2 px-3 rounded-lg border text-xs font-bold uppercase transition-colors text-left opacity-60 cursor-default"
-                              style={{ backgroundColor: t.tint, borderColor: t.b1, color: t.t2 }}
-                            >
-                              Compose with AI
-                            </button>
-                            <button
-                              className="w-full py-2 px-3 rounded-lg border text-xs font-bold uppercase transition-colors text-left opacity-60 cursor-default"
-                              style={{ backgroundColor: t.tint, borderColor: t.b1, color: t.t2 }}
-                            >
-                              Write Notes by Hand
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  )}
                   <div className="p-5 rounded-2xl border" style={{ backgroundColor: t.card, borderColor: t.b1 }}>
                      <div className="text-xs font-bold uppercase mb-2" style={{ color: t.t4 }}>Playhead</div>
                      <div className="text-4xl font-black text-white tabular-nums tracking-tighter mb-2">{Math.floor(playbackBeat / 4)}.<span className="text-indigo-500">{(Math.floor(playbackBeat % 4) + 1)}</span></div>
@@ -2937,7 +2863,7 @@ const App: React.FC = () => {
 
           {/* Panel */}
           <div
-            className="relative z-10 w-full max-w-md mx-4 rounded-2xl border shadow-2xl overflow-hidden"
+            className="relative z-10 w-full max-w-3xl mx-4 rounded-2xl border shadow-2xl overflow-hidden"
             onPointerDown={e => e.stopPropagation()}
             style={{ backgroundColor: t.cardDeep, borderColor: t.b1 }}
           >
@@ -2945,7 +2871,7 @@ const App: React.FC = () => {
             <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: t.b1 }}>
               <div className="flex items-center gap-2">
                 <HelpCircle size={16} style={{ color: t.indigo }} />
-                <span className="text-sm font-black uppercase tracking-widest" style={{ color: t.t1 }}>Keyboard Shortcuts</span>
+                <span className="text-sm font-black uppercase tracking-widest" style={{ color: t.t1 }}>Help & Tutorial</span>
               </div>
               <button
                 onClick={() => setShowShortcuts(false)}
@@ -2956,29 +2882,125 @@ const App: React.FC = () => {
               </button>
             </div>
 
-            <div className="p-5 grid grid-cols-2 gap-x-6 gap-y-5 max-h-[70vh] overflow-y-auto">
-              {SEQ_TUTORIAL_SECTIONS.map(section => (
-                <div key={section.title}>
-                  <div className="text-[9px] font-black uppercase tracking-widest mb-2" style={{ color: t.t3 }}>
-                    {section.title}
+            <div className="p-5 max-h-[70vh] overflow-y-auto custom-scrollbar space-y-6">
+              <section className="rounded-2xl border p-4 space-y-4" style={{ backgroundColor: t.card, borderColor: t.b1 }}>
+                <div className="space-y-1">
+                  <div className="text-[10px] font-black uppercase tracking-[0.24em]" style={{ color: t.indigo }}>
+                    Tutorial
                   </div>
-                  <div className="flex flex-col gap-1.5">
-                    {section.rows.map(row => (
-                      <div key={row.display} className="flex items-center justify-between gap-3">
-                        <span
-                          className="text-[10px] font-black px-1.5 py-0.5 rounded shrink-0 tabular-nums border"
-                          style={{ backgroundColor: t.tint, borderColor: t.b1, color: t.t2 }}
-                        >
-                          {row.display}
-                        </span>
-                        <span className="text-[10px] text-right leading-tight" style={{ color: t.t3 }}>
-                          {row.hint}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                  <p className="text-sm leading-relaxed" style={{ color: t.t2 }}>
+                    New here? Start with a guided walkthrough below. You can reopen this anytime from the <span className="font-black">?</span> button in the top bar.
+                  </p>
                 </div>
-              ))}
+
+                {isHearDemoGuideActive ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-xs font-black uppercase tracking-widest" style={{ color: t.t1 }}>Hear a Demo</div>
+                        <div className="text-xs font-bold" style={{ color: t.t3 }}>Step {hearDemoStepInfo.step} of {hearDemoStepInfo.total}</div>
+                      </div>
+                      <button
+                        onClick={exitStartHereGuide}
+                        className="text-[10px] font-black uppercase tracking-widest"
+                        style={{ color: t.t3 }}
+                      >
+                        Exit Guide
+                      </button>
+                    </div>
+                    <div className="rounded-xl border px-4 py-3" style={{ backgroundColor: t.tint, borderColor: hearDemoStep === 'done' ? `color-mix(in srgb, ${t.emerald} 40%, ${t.b1})` : `color-mix(in srgb, ${t.indigo} 30%, ${t.b1})` }}>
+                      <div className="text-sm font-black" style={{ color: t.t1 }}>{hearDemoStepInfo.title}</div>
+                      <p className="mt-1 text-sm leading-relaxed" style={{ color: t.t2 }}>{hearDemoStepInfo.body}</p>
+                    </div>
+                    <div className="text-[11px] leading-relaxed" style={{ color: t.t3 }}>
+                      {hearDemoFocus === 'samples'
+                        ? 'The guide is focused on Samples right now.'
+                        : hearDemoFocus === 'note-input'
+                          ? 'The guide is focused on Note Input right now.'
+                          : hearDemoStep === 'done'
+                            ? 'The guide is complete. You can reopen this help panel later from the ? button.'
+                            : 'The guide is focused on the timeline and transport controls right now.'}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] font-bold uppercase tracking-widest" style={{ color: t.t4 }}>
+                      <div className={`rounded-lg border px-3 py-2 ${hearDemoStep === 'select-sample' || !userInput.trim() ? 'ring-1 ring-indigo-400/60' : ''}`} style={{ borderColor: t.b1, backgroundColor: t.cardDeep }}>
+                        1. Load a sample
+                      </div>
+                      <div className={`rounded-lg border px-3 py-2 ${hearDemoStep === 'add-to-timeline' ? 'ring-1 ring-indigo-400/60' : ''}`} style={{ borderColor: t.b1, backgroundColor: t.cardDeep }}>
+                        2. Add to timeline
+                      </div>
+                      <div className={`rounded-lg border px-3 py-2 ${hearDemoStep === 'play' || hearDemoStep === 'pause' ? 'ring-1 ring-indigo-400/60' : ''}`} style={{ borderColor: t.b1, backgroundColor: t.cardDeep }}>
+                        3. Play and pause
+                      </div>
+                      <div className={`rounded-lg border px-3 py-2 ${hearDemoStep === 'rewind' || hearDemoStep === 'play-again' || hearDemoStep === 'done' ? 'ring-1 ring-indigo-400/60' : ''}`} style={{ borderColor: t.b1, backgroundColor: t.cardDeep }}>
+                        4. Rewind and replay
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-sm leading-relaxed" style={{ color: t.t2 }}>
+                      Pick a simple path to get oriented. Each tutorial will walk you through the interface step by step.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <button
+                        onClick={openHearDemoGuide}
+                        className="w-full py-2 px-3 rounded-lg border text-xs font-bold uppercase transition-colors text-left"
+                        style={{ backgroundColor: `color-mix(in srgb, ${t.indigo} 12%, ${t.card})`, borderColor: `color-mix(in srgb, ${t.indigo} 30%, ${t.b1})`, color: t.indigo }}
+                      >
+                        Hear a Demo
+                      </button>
+                      <button
+                        className="w-full py-2 px-3 rounded-lg border text-xs font-bold uppercase transition-colors text-left opacity-60 cursor-default"
+                        style={{ backgroundColor: t.tint, borderColor: t.b1, color: t.t2 }}
+                      >
+                        Play and Record
+                      </button>
+                      <button
+                        className="w-full py-2 px-3 rounded-lg border text-xs font-bold uppercase transition-colors text-left opacity-60 cursor-default"
+                        style={{ backgroundColor: t.tint, borderColor: t.b1, color: t.t2 }}
+                      >
+                        Compose with AI
+                      </button>
+                      <button
+                        className="w-full py-2 px-3 rounded-lg border text-xs font-bold uppercase transition-colors text-left opacity-60 cursor-default"
+                        style={{ backgroundColor: t.tint, borderColor: t.b1, color: t.t2 }}
+                      >
+                        Write Notes by Hand
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </section>
+
+              <section>
+                <div className="text-[10px] font-black uppercase tracking-[0.24em] mb-3" style={{ color: t.t3 }}>
+                  Keyboard Shortcuts
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
+                  {SEQ_TUTORIAL_SECTIONS.map(section => (
+                    <div key={section.title}>
+                      <div className="text-[9px] font-black uppercase tracking-widest mb-2" style={{ color: t.t3 }}>
+                        {section.title}
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        {section.rows.map(row => (
+                          <div key={row.display} className="flex items-center justify-between gap-3">
+                            <span
+                              className="text-[10px] font-black px-1.5 py-0.5 rounded shrink-0 tabular-nums border"
+                              style={{ backgroundColor: t.tint, borderColor: t.b1, color: t.t2 }}
+                            >
+                              {row.display}
+                            </span>
+                            <span className="text-[10px] text-right leading-tight" style={{ color: t.t3 }}>
+                              {row.hint}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
             </div>
 
             <div className="px-5 py-3 border-t text-[9px] leading-relaxed" style={{ borderColor: t.b1, color: t.t3 }}>
