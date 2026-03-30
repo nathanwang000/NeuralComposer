@@ -2503,15 +2503,16 @@ const App: React.FC = () => {
         >
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
           <div
-            className="relative z-10 w-full max-w-xs mx-4 rounded-2xl border border-white/10 bg-[#111318] shadow-2xl overflow-hidden"
+            className="relative z-10 w-full max-w-xs mx-4 rounded-2xl border shadow-2xl overflow-hidden"
             onPointerDown={e => e.stopPropagation()}
+            style={{ backgroundColor: t.cardDeep, borderColor: t.b1 }}
           >
-            <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+            <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: t.b1 }}>
               <div className="flex items-center gap-2">
-                <Palette size={16} className="text-indigo-400" />
-                <span className="text-sm font-black uppercase tracking-widest text-white">Appearance</span>
+                <Palette size={16} style={{ color: t.indigo }} />
+                <span className="text-sm font-black uppercase tracking-widest" style={{ color: t.t1 }}>Appearance</span>
               </div>
-              <button onClick={() => setShowSettings(false)} className="text-slate-500 hover:text-white transition-colors">
+              <button onClick={() => setShowSettings(false)} className="transition-colors" style={{ color: t.t3 }}>
                 <X size={16} />
               </button>
             </div>
@@ -2522,9 +2523,18 @@ const App: React.FC = () => {
                   onClick={() => setColorScheme(theme.id)}
                   className={`flex items-center gap-4 w-full px-4 py-3 rounded-xl border transition-all ${
                     colorScheme === theme.id
-                      ? 'border-indigo-500/50 bg-indigo-500/10'
-                      : 'border-white/8 hover:border-white/20 hover:bg-white/5'
+                      ? ''
+                      : ''
                   }`}
+                  style={colorScheme === theme.id
+                    ? {
+                        borderColor: `color-mix(in srgb, ${t.indigo} 40%, ${t.b2})`,
+                        backgroundColor: `color-mix(in srgb, ${t.indigo} 12%, ${t.card})`,
+                      }
+                    : {
+                        borderColor: t.b0,
+                        backgroundColor: 'transparent',
+                      }}
                 >
                   {/* Swatch: mini preview of the actual UI in that theme */}
                   <span
@@ -2536,16 +2546,16 @@ const App: React.FC = () => {
                     <span className="absolute left-0 top-[35%] bottom-0 w-[28%]" style={{ background: theme.tokens.card }} />
                   </span>
                   <span className="flex flex-col items-start gap-1">
-                    <span className="text-sm font-black text-white">{theme.label}</span>
-                    <span className="text-[11px] text-slate-400">{theme.desc}</span>
+                    <span className="text-sm font-black" style={{ color: t.t1 }}>{theme.label}</span>
+                    <span className="text-[11px]" style={{ color: t.t3 }}>{theme.desc}</span>
                   </span>
                   <span className={`ml-auto w-2 h-2 rounded-full flex-none transition-opacity ${
-                    colorScheme === theme.id ? 'bg-indigo-400 opacity-100' : 'opacity-0'
-                  }`} />
+                    colorScheme === theme.id ? 'opacity-100' : 'opacity-0'
+                  }`} style={{ backgroundColor: t.indigo }} />
                 </button>
               ))}
             </div>
-            <div className="px-5 py-3 border-t border-white/10 text-[9px] text-slate-600 uppercase tracking-widest">
+            <div className="px-5 py-3 border-t text-[9px] uppercase tracking-widest" style={{ borderColor: t.b1, color: t.t4 }}>
               Click anywhere outside to close
             </div>
           </div>
@@ -2563,18 +2573,20 @@ const App: React.FC = () => {
 
           {/* Panel */}
           <div
-            className="relative z-10 w-full max-w-md mx-4 rounded-2xl border border-white/10 bg-slate-900/95 shadow-2xl overflow-hidden"
+            className="relative z-10 w-full max-w-md mx-4 rounded-2xl border shadow-2xl overflow-hidden"
             onPointerDown={e => e.stopPropagation()}
+            style={{ backgroundColor: t.cardDeep, borderColor: t.b1 }}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+            <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: t.b1 }}>
               <div className="flex items-center gap-2">
-                <HelpCircle size={16} className="text-indigo-400" />
-                <span className="text-sm font-black uppercase tracking-widest text-white">Keyboard Shortcuts</span>
+                <HelpCircle size={16} style={{ color: t.indigo }} />
+                <span className="text-sm font-black uppercase tracking-widest" style={{ color: t.t1 }}>Keyboard Shortcuts</span>
               </div>
               <button
                 onClick={() => setShowShortcuts(false)}
-                className="text-slate-500 hover:text-white transition-colors"
+                className="transition-colors"
+                style={{ color: t.t3 }}
               >
                 <X size={16} />
               </button>
@@ -2583,16 +2595,19 @@ const App: React.FC = () => {
             <div className="p-5 grid grid-cols-2 gap-x-6 gap-y-5 max-h-[70vh] overflow-y-auto">
               {SEQ_TUTORIAL_SECTIONS.map(section => (
                 <div key={section.title}>
-                  <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
+                  <div className="text-[9px] font-black uppercase tracking-widest mb-2" style={{ color: t.t3 }}>
                     {section.title}
                   </div>
                   <div className="flex flex-col gap-1.5">
                     {section.rows.map(row => (
                       <div key={row.display} className="flex items-center justify-between gap-3">
-                        <span className="text-[10px] font-black bg-white/8 border border-white/10 text-slate-300 px-1.5 py-0.5 rounded shrink-0 tabular-nums">
+                        <span
+                          className="text-[10px] font-black px-1.5 py-0.5 rounded shrink-0 tabular-nums border"
+                          style={{ backgroundColor: t.tint, borderColor: t.b1, color: t.t2 }}
+                        >
                           {row.display}
                         </span>
-                        <span className="text-[10px] text-slate-400 text-right leading-tight">
+                        <span className="text-[10px] text-right leading-tight" style={{ color: t.t3 }}>
                           {row.hint}
                         </span>
                       </div>
@@ -2602,7 +2617,7 @@ const App: React.FC = () => {
               ))}
             </div>
 
-            <div className="px-5 py-3 border-t border-white/10 text-[9px] text-slate-500 leading-relaxed">
+            <div className="px-5 py-3 border-t text-[9px] leading-relaxed" style={{ borderColor: t.b1, color: t.t3 }}>
               <span className="uppercase tracking-widest">Transport &amp; track shortcuts</span> (0, ←, →, 1–9, M) fire only when mouse is <span className="italic">outside</span> the pad — the pad has its own shortcuts.
             </div>
           </div>
