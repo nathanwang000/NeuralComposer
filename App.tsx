@@ -79,7 +79,7 @@ const KB_SEQ = {
   REWIND:       { key: ['0', 'a'] as const, display: '0 / ^A',       hint: 'Rewind to beginning' },
   PREV_BAR:     { key: 'ArrowLeft',  display: '←',            hint: 'Back 1 measure' },
   NEXT_BAR:     { key: 'ArrowRight', display: '→',            hint: 'Forward 1 measure' },
-  TOGGLE_TAB:   { key: 't',          display: 'T',            hint: 'Toggle Sequencer / Perform tab' },
+  TOGGLE_TAB:   { key: 't',          display: 'T',            hint: 'Toggle Timeline / Perform tab' },
   // ── Tracks ────────────────────────────────────────────────────────────────
   SELECT_TRACK: { key: '1-9' /* regex */, display: '1 – 9', hint: 'Select track by number' },
   MUTE_TRACK:   { key: 'm',          display: 'M',            hint: 'Mute / unmute active track' },
@@ -1739,7 +1739,7 @@ const App: React.FC = () => {
             <div className="flex items-center gap-2">
                <span className={`w-2 h-2 rounded-full ${isAIStreamActive ? 'bg-emerald-500 animate-ping' : 'bg-slate-800'}`} />
                <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">
-                 {isAIStreamActive ? 'AI Stream Active' : state.isPlaying ? 'Playback Mode' : 'Ready'}
+                 {isAIStreamActive ? 'AI Writing' : state.isPlaying ? 'Playing' : 'Ready To Sketch'}
                </p>
             </div>
           </div>
@@ -1751,7 +1751,7 @@ const App: React.FC = () => {
                onClick={() => setMainTab('sequencer')}
                className={`px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${mainTab === 'sequencer' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}
              >
-               Sequencer
+               Timeline
              </button>
              <button
                onClick={() => setMainTab('performance')}
@@ -1787,17 +1787,17 @@ const App: React.FC = () => {
           </div>
 
           <button onClick={() => navigate('/converter')} className="flex items-center gap-1 sm:gap-2 bg-black text-xs font-bold text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/10 hover:border-cyan-500/50 rounded-xl px-3 sm:px-4 py-2.5 transition-all shadow-lg shadow-cyan-500/10">
-            <Mic size={14} /> <span className="sm:hidden">MIC</span><span className="hidden sm:inline">VOICE</span>
+            <Mic size={14} /> <span className="sm:hidden">MIC</span><span className="hidden sm:inline">VOICE TO NOTES</span>
           </button>
 
           {!isAIStreamActive && events.length === 0 ? (
-            <button onClick={handleInitializeAI} className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-bold text-sm text-white shadow-xl">INITIALIZE</button>
+            <button onClick={handleInitializeAI} className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-bold text-sm text-white shadow-xl">START AI</button>
           ) : (
             <div className="flex gap-2">
               <button onClick={() => { setIsAIStreamActive(!isAIStreamActive); }} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs border ${isAIStreamActive ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'}`}>
-                {isAIStreamActive ? <><Disc size={14} className="animate-spin" /> FREEZE AI</> : <><RefreshCw size={14} /> UNFREEZE AI</>}
+                {isAIStreamActive ? <><Disc size={14} className="animate-spin" /> PAUSE AI</> : <><RefreshCw size={14} /> RESUME AI</>}
               </button>
-              <button onClick={handleHardStop} className="px-4 py-2.5 bg-red-500/10 text-red-500 border border-red-500/20 rounded-xl font-bold text-xs">RESET</button>
+              <button onClick={handleHardStop} className="px-4 py-2.5 bg-red-500/10 text-red-500 border border-red-500/20 rounded-xl font-bold text-xs">CLEAR</button>
             </div>
           )}
           <div className="w-px h-6 bg-white/10" />
@@ -2100,12 +2100,12 @@ const App: React.FC = () => {
 
           <div className="grid grid-cols-[1fr_3fr] gap-4 h-[12rem] flex-none">
             <div className="rounded-2xl border p-4 font-mono text-xs flex flex-col overflow-hidden" style={{ backgroundColor: t.cardDeep, borderColor: t.b1 }}>
-               <div className="flex items-center gap-2 text-slate-500 uppercase font-black text-xs mb-2 border-b border-white/5 pb-1"><Terminal size={12} /> Neural Stream</div>
-              <div className="flex-1 text-slate-500 break-all overflow-y-auto custom-scrollbar italic leading-relaxed">{rawStream || "Standby..."}</div>
+               <div className="flex items-center gap-2 text-slate-500 uppercase font-black text-xs mb-2 border-b border-white/5 pb-1"><Terminal size={12} /> AI Output</div>
+              <div className="flex-1 text-slate-500 break-all overflow-y-auto custom-scrollbar italic leading-relaxed">{rawStream || "Waiting for notes..."}</div>
             </div>
             <div className="rounded-2xl border p-4 flex flex-col overflow-hidden group transition-all" style={{ backgroundColor: t.cardDeep, borderColor: t.b1 }}>
                <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2 text-slate-500 uppercase font-black text-xs"><Cpu size={12} /> Manual Patch Bay</div>
+                <div className="flex items-center gap-2 text-slate-500 uppercase font-black text-xs"><Cpu size={12} /> Note Input</div>
                   <button
                     onClick={handleInjectUserNotes}
                     disabled={validation.validEvents.length === 0 || validation.errors.length > 0}
@@ -2118,7 +2118,7 @@ const App: React.FC = () => {
                       ? { backgroundColor: t.inset, color: t.t4, borderColor: t.b1 }
                       : undefined}
                   >
-                    <PlusCircle size={10} /> Inject
+                    <PlusCircle size={10} /> Add to Timeline
                   </button>
                </div>
 
@@ -2188,20 +2188,56 @@ const App: React.FC = () => {
         <div className="lg:col-span-3 flex flex-col h-full min-h-0">
           <div className="p-4 rounded-3xl border flex-1 flex flex-col overflow-hidden" style={{ backgroundColor: t.panel, borderColor: t.b1 }}>
             <div className="flex gap-2 mb-6 border-b border-white/5 pb-2 flex-none">
-                <button onClick={() => setRightPanelTab('session')} className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${rightPanelTab === 'session' ? 'bg-indigo-500/20 text-indigo-400' : 'text-slate-600 hover:text-slate-400'}`}>Session</button>
-                <button onClick={() => setRightPanelTab('synth')} className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${rightPanelTab === 'synth' ? 'bg-indigo-500/20 text-indigo-400' : 'text-slate-600 hover:text-slate-400'}`}>Voice</button>
+                <button onClick={() => setRightPanelTab('session')} className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${rightPanelTab === 'session' ? 'bg-indigo-500/20 text-indigo-400' : 'text-slate-600 hover:text-slate-400'}`}>Compose</button>
+                <button onClick={() => setRightPanelTab('synth')} className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${rightPanelTab === 'synth' ? 'bg-indigo-500/20 text-indigo-400' : 'text-slate-600 hover:text-slate-400'}`}>Sound</button>
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
             {rightPanelTab === 'session' ? (
                 <div className="space-y-6">
+                  {events.length === 0 && !isAIStreamActive && (
+                    <div className="p-5 rounded-2xl border space-y-3" style={{ backgroundColor: t.card, borderColor: t.b1 }}>
+                      <div className="text-xs font-bold uppercase" style={{ color: t.t4 }}>Start Here</div>
+                      <p className="text-sm leading-relaxed" style={{ color: t.t2 }}>
+                        Choose how you want to begin: load a demo into the timeline, play the pads live, or let AI start the first phrase.
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        {SAMPLE_FILES[0] && (
+                          <button
+                            onClick={() => {
+                              setMainTab('sequencer');
+                              loadSample(SAMPLE_FILES[0]);
+                            }}
+                            className="w-full py-2 px-3 rounded-lg border text-xs font-bold uppercase transition-colors"
+                            style={{ backgroundColor: t.tint, borderColor: t.b1, color: t.t2 }}
+                          >
+                            Load Demo Timeline
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setMainTab('performance')}
+                          className="w-full py-2 px-3 rounded-lg border text-xs font-bold uppercase transition-colors"
+                          style={{ backgroundColor: t.tint, borderColor: t.b1, color: t.t2 }}
+                        >
+                          Play Pads
+                        </button>
+                        <button
+                          onClick={handleInitializeAI}
+                          className="w-full py-2 px-3 rounded-lg border text-xs font-bold uppercase transition-colors"
+                          style={{ backgroundColor: `color-mix(in srgb, ${t.indigo} 12%, ${t.card})`, borderColor: `color-mix(in srgb, ${t.indigo} 30%, ${t.b1})`, color: t.indigo }}
+                        >
+                          Start AI
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   <div className="p-5 rounded-2xl border" style={{ backgroundColor: t.card, borderColor: t.b1 }}>
                      <div className="text-xs font-bold uppercase mb-2" style={{ color: t.t4 }}>Playhead</div>
                      <div className="text-4xl font-black text-white tabular-nums tracking-tighter mb-2">{Math.floor(playbackBeat / 4)}.<span className="text-indigo-500">{(Math.floor(playbackBeat % 4) + 1)}</span></div>
                      <TimeNavigator currentBeat={playbackBeat} totalBeats={totalViewRange} onSeek={handleSeek} />
                   </div>
                   <div className="p-5 rounded-2xl border" style={{ backgroundColor: t.card, borderColor: t.b1 }}>
-                     <div className="text-xs font-bold uppercase mb-2" style={{ color: t.t4 }}>Composition History</div>
+                     <div className="text-xs font-bold uppercase mb-2" style={{ color: t.t4 }}>Session</div>
                      <div className="flex items-baseline gap-1 mb-1">
                         <div className="text-3xl font-black tabular-nums tracking-tighter text-indigo-400">{events.filter(e => e.isUser).length}</div>
                         <span className="text-xs text-slate-700 font-black uppercase">M</span>
@@ -2219,7 +2255,7 @@ const App: React.FC = () => {
                   </div>
 
                   <div className="p-5 rounded-2xl border" style={{ backgroundColor: t.card, borderColor: t.b1 }}>
-                     <div className="text-xs font-bold uppercase mb-2" style={{ color: t.t4 }}>Sample Compositions</div>
+                    <div className="text-xs font-bold uppercase mb-2" style={{ color: t.t4 }}>Samples</div>
                      <div className="space-y-2">
                         {SAMPLE_FILES.map((file) => (
                            <button
@@ -2235,7 +2271,7 @@ const App: React.FC = () => {
                   </div>
 
                   <div className="mt-auto p-5 rounded-2xl border space-y-3" style={{ backgroundColor: t.card, borderColor: t.b1 }}>
-                     <div className="text-xs font-bold uppercase flex items-center gap-2" style={{ color: t.t4 }}><Sparkles size={12} /> AI Settings</div>
+                    <div className="text-xs font-bold uppercase flex items-center gap-2" style={{ color: t.t4 }}><Sparkles size={12} /> AI Compose</div>
                      <div className="space-y-2">
                        <label className="text-[10px] font-bold uppercase tracking-widest" style={{ color: t.t4 }}>API Key</label>
                        <input
