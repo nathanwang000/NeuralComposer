@@ -240,6 +240,11 @@ interface TooltipCopy {
   tryText?: string;
 }
 
+type AppNotice = {
+  kind: 'info' | 'success' | 'error';
+  message: string;
+};
+
 const InfoTooltip: React.FC<{ copy: TooltipCopy; tokens: NcTokens }> = ({ copy, tokens }) => {
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const [open, setOpen] = useState(false);
@@ -779,12 +784,18 @@ const App: React.FC = () => {
   const [isAIStreamActive, setIsAIStreamActive] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [notice, setNotice] = useState<AppNotice | null>(null);
   const [colorScheme, setColorScheme] = useState<NcThemeId>(
     () => (typeof localStorage !== 'undefined' ? localStorage.getItem('nc-theme') as NcThemeId : null) || 'void'
   );
   useEffect(() => { localStorage.setItem('nc-theme', colorScheme); }, [colorScheme]);
   const currentTheme = NC_THEMES.find(th => th.id === colorScheme) ?? NC_THEMES[0];
   const t = currentTheme.tokens;
+  const noticeAccent = notice?.kind === 'error'
+    ? t.red
+    : notice?.kind === 'success'
+      ? t.emerald
+      : t.indigo;
   const [beatWidth, setBeatWidth] = useState(100);
   // trackHeight is a percentage of the scroll-container viewport (100% = fills it).
   // trackHeights stores per-track overrides as the same unit.
@@ -799,6 +810,10 @@ const App: React.FC = () => {
   // Detect touch/coarse-pointer device to show the Select Mode button
   const isTouchDevice = useMemo(() => typeof window !== 'undefined' && (navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches), []);
   const clampBeatWidth = (v: number) => Math.max(20, Math.min(600, v));
+
+  const showNotice = useCallback((kind: AppNotice['kind'], message: string) => {
+    setNotice({ kind, message });
+  }, []);
 
   // Keep containerHeightRef in sync with the scroll container's rendered size
   // so the drag-resize math always converts pixels → % correctly.
@@ -867,7 +882,7 @@ const App: React.FC = () => {
       setUserInput(content as string);
     } else {
       console.error('Sample not found:', filename);
-      alert('Failed to load sample');
+      showNotice('error', 'Could not load that sample. Try another file.');
     }
   };
 
@@ -1007,7 +1022,7 @@ const App: React.FC = () => {
     if (!isAIStreamActive || isGeneratingRef.current) return;
     if (!apiKey) {
       setIsAIStreamActive(false);
-      alert('Please enter your Gemini API Key in the Session panel (left sidebar) to continue.');
+      showNotice('info', 'Enter a Gemini API key in Session before starting AI generation.');
       return;
     }
     pushHistory(events);
@@ -1028,7 +1043,7 @@ const App: React.FC = () => {
       beatsGeneratedRef.current -= 8;
       // Stop AI immediately
       setIsAIStreamActive(false);
-      alert(`Generation failed: ${e instanceof Error ? e.message : 'Unknown error'}. Please check your API Key.`);
+      showNotice('error', `AI generation stopped: ${e instanceof Error ? e.message : 'Unknown error'}. Check your API key and try again.`);
       // Note: We leave isGeneratingRef.current = true to prevent re-entry
       // by the animation loop until the component state updates fully.
     } finally {
@@ -1106,6 +1121,11 @@ const App: React.FC = () => {
   };
 
   const handleInitializeAI = async () => {
+    if (!apiKey.trim()) {
+      showNotice('info', 'Enter a Gemini API key in Session before starting AI generation.');
+      return;
+    }
+
     audioEngine.init();
     audioEngine.setTempo(state.tempo);
     audioEngine.updateConfig(activeTrack.synthConfig);
@@ -1209,7 +1229,7 @@ const App: React.FC = () => {
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error('WAV export failed', e);
-      alert(`Export failed: ${e instanceof Error ? e.message : 'Unknown error'}`);
+      showNotice('error', `WAV export failed: ${e instanceof Error ? e.message : 'Unknown error'}`);
     } finally {
       setIsExporting(false);
     }
@@ -1280,8 +1300,11 @@ const App: React.FC = () => {
       });
       clipboardText += '\n';
     });
-    navigator.clipboard?.writeText(clipboardText.trim()).catch(err => console.error(err));
-  }, [selectedEventIds, events]);
+    navigator.clipboard?.writeText(clipboardText.trim()).catch(err => {
+      console.error(err);
+      showNotice('error', 'Could not copy the selection to the clipboard.');
+    });
+  }, [selectedEventIds, events, showNotice]);
 
   const handleCut = useCallback(() => {
     if (selectedEventIds.length === 0) return;
@@ -1771,6 +1794,46 @@ const App: React.FC = () => {
         </div>
       </header>
 
+      {notice && createPortal(
+        <div
+          className="fixed inset-0 z-[9998] flex items-center justify-center px-4 py-6"
+          onPointerDown={() => setNotice(null)}
+        >
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <div
+            className="relative z-10 mx-auto flex w-full max-w-xl items-start justify-between gap-3 rounded-3xl border px-5 py-4 text-sm shadow-2xl"
+            onPointerDown={e => e.stopPropagation()}
+            style={{
+              backgroundColor: `color-mix(in srgb, ${noticeAccent} 10%, ${t.cardDeep})`,
+              borderColor: `color-mix(in srgb, ${noticeAccent} 28%, ${t.b2})`,
+              color: t.t1,
+            }}
+          >
+            <div className="min-w-0">
+              <div
+                className="mb-1 text-[10px] font-black uppercase tracking-[0.24em]"
+                style={{ color: `color-mix(in srgb, ${noticeAccent} 85%, ${t.t2})` }}
+              >
+                {notice.kind === 'error' ? 'Notice' : notice.kind === 'success' ? 'Saved' : 'Heads Up'}
+              </div>
+              <div className="leading-relaxed" style={{ color: t.t1 }}>{notice.message}</div>
+              <div className="mt-3 text-[11px]" style={{ color: t.t3 }}>
+                Click anywhere to dismiss.
+              </div>
+            </div>
+            <button
+              onClick={() => setNotice(null)}
+              className="rounded-lg p-1 transition-opacity hover:opacity-100"
+              style={{ color: t.t3, opacity: 0.8 }}
+              aria-label="Dismiss notice"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
+
       <main className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-6 p-4 lg:p-6 pt-0 lg:pt-0" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
         <div className="lg:col-span-9 flex flex-col gap-4 min-h-0 overflow-y-auto custom-scrollbar pr-3" style={{ scrollbarGutter: 'stable' }}>
           {/* Both panels stay mounted at all times so their internal state is preserved across tab switches.
@@ -2253,7 +2316,9 @@ const App: React.FC = () => {
                         onClick={() => {
                           const idx = tracks.findIndex(t => t.id === activeTrackId);
                           const header = `[voice:${idx + 1} name:"${activeTrack.name}" ${serializeSynthConfig(activeTrack.synthConfig)}]`;
-                          navigator.clipboard.writeText(header).catch(() => {});
+                          navigator.clipboard.writeText(header).catch(() => {
+                            showNotice('error', 'Could not copy the voice header to the clipboard.');
+                          });
                         }}
                         className="w-full flex items-center justify-center gap-1.5 py-2 bg-slate-900/50 hover:bg-indigo-500/10 border border-white/5 hover:border-indigo-500/30 text-slate-500 hover:text-indigo-400 rounded-xl text-xs font-black uppercase transition-all mb-1"
                       >
