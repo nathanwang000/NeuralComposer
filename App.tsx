@@ -552,6 +552,13 @@ interface HearDemoGuideProgress {
   hasPlayedAgain: boolean;
 }
 
+interface PlayRecordGuideProgress {
+  hasPlayedPad: boolean;
+  hasStartedRecording: boolean;
+  hasRecordedClip: boolean;
+  hasPlayedBack: boolean;
+}
+
 /** Parse key:value pairs (including quoted strings) from a voice header body. */
 const parseSynthParams = (paramStr: string): Partial<SynthConfig> | null => {
   const result: Record<string, any> = {};
@@ -803,6 +810,12 @@ const App: React.FC = () => {
     hasRewound: false,
     hasPlayedAgain: false,
   });
+  const [playRecordGuide, setPlayRecordGuide] = useState<PlayRecordGuideProgress>({
+    hasPlayedPad: false,
+    hasStartedRecording: false,
+    hasRecordedClip: false,
+    hasPlayedBack: false,
+  });
   const [colorScheme, setColorScheme] = useState<NcThemeId>(
     () => (typeof localStorage !== 'undefined' ? localStorage.getItem('nc-theme') as NcThemeId : null) || 'void'
   );
@@ -861,6 +874,7 @@ const App: React.FC = () => {
   const sessionPanelScrollRef = useRef<HTMLDivElement>(null);
   const samplesCardRef = useRef<HTMLDivElement>(null);
   const noteInputCardRef = useRef<HTMLDivElement>(null);
+  const performancePanelRef = useRef<HTMLDivElement>(null);
   const timelineCardRef = useRef<HTMLDivElement>(null);
   const transportControlsRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -953,6 +967,15 @@ const App: React.FC = () => {
     });
   }, []);
 
+  const resetPlayRecordGuide = useCallback(() => {
+    setPlayRecordGuide({
+      hasPlayedPad: false,
+      hasStartedRecording: false,
+      hasRecordedClip: false,
+      hasPlayedBack: false,
+    });
+  }, []);
+
   const startHearDemoGuide = useCallback(() => {
     setStartHerePath('hear-demo');
     resetHearDemoGuide();
@@ -964,10 +987,22 @@ const App: React.FC = () => {
     startHearDemoGuide();
   }, [startHearDemoGuide]);
 
+  const startPlayRecordGuide = useCallback(() => {
+    setStartHerePath('play-record');
+    resetPlayRecordGuide();
+    setMainTab('performance');
+  }, [resetPlayRecordGuide]);
+
+  const openPlayRecordGuide = useCallback(() => {
+    setShowShortcuts(false);
+    startPlayRecordGuide();
+  }, [startPlayRecordGuide]);
+
   const exitStartHereGuide = useCallback(() => {
     setStartHerePath(null);
     resetHearDemoGuide();
-  }, [resetHearDemoGuide]);
+    resetPlayRecordGuide();
+  }, [resetHearDemoGuide, resetPlayRecordGuide]);
 
   const loadSample = (filename: string) => {
     // Reconstruct the path key to find the content
@@ -1007,6 +1042,12 @@ const App: React.FC = () => {
   }, [startHerePath]);
 
   useEffect(() => {
+    if (startHerePath === 'play-record' && !playRecordGuide.hasRecordedClip) {
+      setMainTab('performance');
+    }
+  }, [startHerePath, playRecordGuide.hasRecordedClip]);
+
+  useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const updateLayout = () => setIsCompactLayout(window.innerWidth < 1024);
@@ -1041,6 +1082,25 @@ const App: React.FC = () => {
 
     focus.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
   }, [startHerePath, userInput, events.length, hearDemoGuide.hasPlayed, hearDemoGuide.hasPaused, hearDemoGuide.hasRewound, hearDemoGuide.hasPlayedAgain, isCompactLayout]);
+
+  useEffect(() => {
+    if (startHerePath !== 'play-record' || !playRecordGuide.hasRecordedClip) return;
+    if (state.isPlaying && !isPaused) {
+      setPlayRecordGuide(prev => prev.hasPlayedBack ? prev : { ...prev, hasPlayedBack: true });
+    }
+  }, [startHerePath, playRecordGuide.hasRecordedClip, playRecordGuide.hasPlayedBack, state.isPlaying, isPaused]);
+
+  useEffect(() => {
+    if (startHerePath !== 'play-record') return;
+
+    const isPlaybackPhase = playRecordGuide.hasRecordedClip;
+    const focus = isPlaybackPhase
+      ? ((isCompactLayout && !playRecordGuide.hasPlayedBack) ? transportControlsRef.current : timelineCardRef.current)
+      : performancePanelRef.current;
+
+    if (!focus) return;
+    focus.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+  }, [startHerePath, playRecordGuide.hasRecordedClip, playRecordGuide.hasPlayedBack, isCompactLayout]);
 
   const validation = useMemo(() => {
     const errors: ValidationError[] = [];
@@ -1172,7 +1232,18 @@ const App: React.FC = () => {
     });
     setSelectedEventIds(newIds);
     setMainTab('sequencer');
-  }, [pushHistory, recordingTrackId]);
+
+    if (startHerePath === 'play-record' && recordedEvents.length > 0) {
+      setPlayRecordGuide(prev => ({ ...prev, hasRecordedClip: true }));
+      audioEngine.stopAll();
+      playbackBeatRef.current = baseOffset;
+      setPlaybackBeat(baseOffset);
+      scheduledNoteIds.current.clear();
+      isPausedRef.current = true;
+      setIsPaused(true);
+      setState(s => ({ ...s, isPlaying: false }));
+    }
+  }, [pushHistory, recordingTrackId, startHerePath]);
 
   const generateNextStream = async () => {
     if (!isAIStreamActive || isGeneratingRef.current) return;
@@ -1596,6 +1667,7 @@ const App: React.FC = () => {
     isGeneratingRef.current = false;
     setStartHerePath(null);
     resetHearDemoGuide();
+    resetPlayRecordGuide();
     audioEngine.stopAll();
     beatsGeneratedRef.current = 0;
     playbackBeatRef.current = 0;
@@ -1622,6 +1694,7 @@ const App: React.FC = () => {
   const bufferRemaining = Math.max(0, beatsGeneratedRef.current - playbackBeat);
   const totalViewRange = Math.max(beatsGeneratedRef.current, playbackBeat + 32, 128);
   const isHearDemoGuideActive = startHerePath === 'hear-demo';
+  const isPlayRecordGuideActive = startHerePath === 'play-record';
   const hearDemoStep = events.length > 0
     ? !hearDemoGuide.hasPlayed
       ? 'play'
@@ -1687,10 +1760,63 @@ const App: React.FC = () => {
     : hearDemoStep === 'add-to-timeline'
       ? 'note-input'
       : 'timeline';
-  const tourSectionClass = (section: 'samples' | 'note-input' | 'timeline' | 'transport') => {
-    if (!isHearDemoGuideActive) return '';
-    if (hearDemoStep === 'done') return '';
-    const active = section === hearDemoFocus || (hearDemoFocus === 'timeline' && section === 'transport');
+  const playRecordStep = mainTab !== 'performance' && !playRecordGuide.hasRecordedClip
+    ? 'open-perform'
+    : !playRecordGuide.hasPlayedPad
+      ? 'tap-pad'
+      : !playRecordGuide.hasStartedRecording
+        ? 'start-recording'
+        : !playRecordGuide.hasRecordedClip
+          ? 'record-phrase'
+          : !playRecordGuide.hasPlayedBack
+            ? 'playback'
+            : 'done';
+  const playRecordStepMeta: Record<typeof playRecordStep, { step: number; total: number; title: string; body: string }> = {
+    'open-perform': {
+      step: 1,
+      total: 5,
+      title: 'Open Perform mode',
+      body: 'Switch to Perform first. This is the live input surface where you can play notes before they become part of the timeline.',
+    },
+    'tap-pad': {
+      step: 2,
+      total: 5,
+      title: 'Play one sound',
+      body: 'Tap anywhere on the pad, or use one of the note triggers in this panel. The goal is just to hear an immediate response.',
+    },
+    'start-recording': {
+      step: 3,
+      total: 5,
+      title: 'Start recording',
+      body: 'Press Rec in the performance pad. After the count-in, anything you play will be captured into the session.',
+    },
+    'record-phrase': {
+      step: 4,
+      total: 5,
+      title: 'Play a short phrase',
+      body: 'After the count-in, play a few notes or a short rhythm, then press Stop. The guide will bring you to the recorded result automatically.',
+    },
+    'playback': {
+      step: 5,
+      total: 5,
+      title: 'Play back your recording',
+      body: 'Your recording is now on the timeline. Use the transport controls above it and press Play to hear back what you just captured.',
+    },
+    'done': {
+      step: 5,
+      total: 5,
+      title: 'Recording complete',
+      body: 'You played the pad, recorded a short take, and played it back from the timeline. You can reopen this tutorial anytime from the ? button.',
+    },
+  };
+  const playRecordStepInfo = playRecordStepMeta[playRecordStep];
+  const playRecordFocus = playRecordGuide.hasRecordedClip ? 'timeline' : 'performance';
+  const tourSectionClass = (section: 'samples' | 'note-input' | 'performance' | 'timeline' | 'transport') => {
+    if (!isHearDemoGuideActive && !isPlayRecordGuideActive) return '';
+    const activeFocus = isHearDemoGuideActive ? hearDemoFocus : playRecordFocus;
+    const isDone = isHearDemoGuideActive ? hearDemoStep === 'done' : playRecordStep === 'done';
+    if (isDone) return '';
+    const active = section === activeFocus || (activeFocus === 'timeline' && section === 'transport');
     return active ? 'opacity-100 blur-0 scale-100' : 'opacity-45 blur-[1.5px] scale-[0.985]';
   };
 
@@ -1952,13 +2078,13 @@ const App: React.FC = () => {
           <div ref={transportControlsRef} className={`flex items-center gap-1 border-r border-white/10 pr-2 mr-1 transition-all duration-300 ${tourSectionClass('transport')}`}>
             <button
               onClick={() => handleSeek(0)}
-              className={`p-2 rounded-lg text-slate-400 ${isHearDemoGuideActive && hearDemoStep === 'rewind' ? 'ring-2 ring-indigo-400/70 bg-indigo-500/10' : 'hover:bg-white/10'}`}
+              className={`p-2 rounded-lg text-slate-400 ${isHearDemoGuideActive && hearDemoStep === 'rewind' ? 'ring-2 ring-indigo-400/70 bg-indigo-500/10' : isPlayRecordGuideActive && playRecordStep === 'playback' ? 'ring-2 ring-emerald-400/70 bg-emerald-500/10' : 'hover:bg-white/10'}`}
             >
               <RotateCcw size={18} />
             </button>
             <button
               onClick={togglePlayback}
-              className={`p-2 rounded-lg ${isPaused ? 'bg-emerald-500/20 text-emerald-500' : 'bg-amber-500/20 text-amber-500'} ${isHearDemoGuideActive && (hearDemoStep === 'play' || hearDemoStep === 'pause' || hearDemoStep === 'play-again') ? 'ring-2 ring-indigo-400/70' : ''}`}
+              className={`p-2 rounded-lg ${isPaused ? 'bg-emerald-500/20 text-emerald-500' : 'bg-amber-500/20 text-amber-500'} ${isHearDemoGuideActive && (hearDemoStep === 'play' || hearDemoStep === 'pause' || hearDemoStep === 'play-again') ? 'ring-2 ring-indigo-400/70' : isPlayRecordGuideActive && playRecordStep === 'playback' ? 'ring-2 ring-emerald-400/70' : ''}`}
             >
               {isPaused ? <Play size={18} fill="currentColor" /> : <Pause size={18} fill="currentColor" />}
             </button>
@@ -2056,7 +2182,21 @@ const App: React.FC = () => {
         <div className="lg:col-span-9 flex flex-col gap-4 min-h-0 overflow-y-auto custom-scrollbar pr-3" style={{ scrollbarGutter: 'stable' }}>
           {/* Both panels stay mounted at all times so their internal state is preserved across tab switches.
               Visibility is toggled purely with CSS (hidden / contents). */}
-          <div className={mainTab === 'performance' ? 'flex-1 flex flex-col min-h-0 gap-2' : 'hidden'}>
+          <div ref={performancePanelRef} className={`${mainTab === 'performance' ? 'flex-1 flex flex-col min-h-0 gap-2' : 'hidden'} transition-all duration-300 ${tourSectionClass('performance')} ${isPlayRecordGuideActive && playRecordFocus === 'performance' ? 'ring-2 ring-emerald-400/60 rounded-3xl p-2 -m-2' : ''}`}>
+            {isPlayRecordGuideActive && playRecordFocus === 'performance' && (
+              <div className="rounded-2xl border px-4 py-3" style={{ backgroundColor: `color-mix(in srgb, ${t.emerald} 10%, ${t.card})`, borderColor: `color-mix(in srgb, ${t.emerald} 30%, ${t.b1})` }}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-[10px] font-black uppercase tracking-[0.24em]" style={{ color: t.emerald }}>Play and Record</div>
+                    <div className="mt-1 text-sm font-black" style={{ color: t.t1 }}>{playRecordStepInfo.title}</div>
+                    <p className="mt-1 text-sm leading-relaxed" style={{ color: t.t2 }}>{playRecordStepInfo.body}</p>
+                  </div>
+                  <button onClick={exitStartHereGuide} className="text-[10px] font-black uppercase tracking-widest" style={{ color: t.t3 }}>
+                    Exit
+                  </button>
+                </div>
+              </div>
+            )}
             {/* Recording target track selector */}
             <div className="flex-none flex items-center gap-2 px-1 py-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
@@ -2078,7 +2218,17 @@ const App: React.FC = () => {
             <PerformancePad
               bpm={state.tempo}
               onCommitRecording={handleCommitRecording}
-              onRecordingStart={() => { recordingStartBeatRef.current = playbackBeatRef.current; }}
+              onRecordingStart={() => {
+                recordingStartBeatRef.current = playbackBeatRef.current;
+                if (startHerePath === 'play-record') {
+                  setPlayRecordGuide(prev => ({ ...prev, hasStartedRecording: true }));
+                }
+              }}
+              onPerformanceInput={() => {
+                if (startHerePath === 'play-record') {
+                  setPlayRecordGuide(prev => prev.hasPlayedPad ? prev : { ...prev, hasPlayedPad: true });
+                }
+              }}
               isMouseInPadRef={isMouseInPadRef}
               theme={{
                 cardDeep: t.cardDeep,
@@ -2101,7 +2251,7 @@ const App: React.FC = () => {
           {/* ── Multi-track stacked piano roll ── */}
           {/* Each track is a fixed 320px lane; the container scrolls vertically
               so adding many tracks never squashes the canvas area. */}
-          <div ref={timelineCardRef} className={`relative flex flex-col border border-white/5 rounded-3xl overflow-hidden bg-black shadow-inner transition-all duration-300 ${isHearDemoGuideActive && (hearDemoStep === 'play' || hearDemoStep === 'pause' || hearDemoStep === 'rewind' || hearDemoStep === 'play-again' || hearDemoStep === 'done') ? 'ring-2 ring-indigo-400/70' : ''} ${tourSectionClass('timeline')}`} style={{ minHeight: '350px', flex: 1 }}>
+          <div ref={timelineCardRef} className={`relative flex flex-col border border-white/5 rounded-3xl overflow-hidden bg-black shadow-inner transition-all duration-300 ${(isHearDemoGuideActive && (hearDemoStep === 'play' || hearDemoStep === 'pause' || hearDemoStep === 'rewind' || hearDemoStep === 'play-again' || hearDemoStep === 'done')) ? 'ring-2 ring-indigo-400/70' : ''} ${(isPlayRecordGuideActive && (playRecordStep === 'playback' || playRecordStep === 'done')) ? 'ring-2 ring-emerald-400/70' : ''} ${tourSectionClass('timeline')}`} style={{ minHeight: '350px', flex: 1 }}>
             {isHearDemoGuideActive && (hearDemoStep === 'play' || hearDemoStep === 'pause' || hearDemoStep === 'rewind' || hearDemoStep === 'play-again' || hearDemoStep === 'done') && (
               <div className="absolute left-4 top-4 z-20 max-w-sm rounded-2xl border px-4 py-3 shadow-2xl backdrop-blur-md" style={{ backgroundColor: `color-mix(in srgb, ${t.cardDeep} 88%, black)`, borderColor: `color-mix(in srgb, ${hearDemoStep === 'done' ? t.emerald : t.indigo} 35%, ${t.b1})` }}>
                 <div className="flex items-start justify-between gap-3">
@@ -2123,6 +2273,31 @@ const App: React.FC = () => {
                 {hearDemoStep !== 'done' && (
                   <div className="mt-2 text-[11px]" style={{ color: t.t3 }}>
                     The transport controls are the Play, Pause, and Rewind buttons above this timeline.
+                  </div>
+                )}
+              </div>
+            )}
+            {isPlayRecordGuideActive && (playRecordStep === 'playback' || playRecordStep === 'done') && (
+              <div className="absolute left-4 top-4 z-20 max-w-sm rounded-2xl border px-4 py-3 shadow-2xl backdrop-blur-md" style={{ backgroundColor: `color-mix(in srgb, ${t.cardDeep} 88%, black)`, borderColor: `color-mix(in srgb, ${playRecordStep === 'done' ? t.emerald : t.emerald} 35%, ${t.b1})` }}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-[10px] font-black uppercase tracking-[0.24em]" style={{ color: t.emerald }}>
+                      {playRecordStep === 'done' ? 'Recording Complete' : 'Play and Record'}
+                    </div>
+                    <div className="mt-1 text-sm font-black" style={{ color: t.t1 }}>{playRecordStepInfo.title}</div>
+                  </div>
+                  <button
+                    onClick={exitStartHereGuide}
+                    className="text-[10px] font-black uppercase tracking-widest"
+                    style={{ color: t.t3 }}
+                  >
+                    {playRecordStep === 'done' ? 'Close' : 'Exit'}
+                  </button>
+                </div>
+                <p className="mt-1 text-sm leading-relaxed" style={{ color: t.t2 }}>{playRecordStepInfo.body}</p>
+                {playRecordStep !== 'done' && (
+                  <div className="mt-2 text-[11px]" style={{ color: t.t3 }}>
+                    The transport controls are the Play and Rewind buttons above this timeline.
                   </div>
                 )}
               </div>
@@ -2936,6 +3111,44 @@ const App: React.FC = () => {
                       </div>
                     </div>
                   </div>
+                ) : isPlayRecordGuideActive ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-xs font-black uppercase tracking-widest" style={{ color: t.t1 }}>Play and Record</div>
+                        <div className="text-xs font-bold" style={{ color: t.t3 }}>Step {playRecordStepInfo.step} of {playRecordStepInfo.total}</div>
+                      </div>
+                      <button
+                        onClick={exitStartHereGuide}
+                        className="text-[10px] font-black uppercase tracking-widest"
+                        style={{ color: t.t3 }}
+                      >
+                        Exit Guide
+                      </button>
+                    </div>
+                    <div className="rounded-xl border px-4 py-3" style={{ backgroundColor: t.tint, borderColor: playRecordStep === 'done' ? `color-mix(in srgb, ${t.emerald} 40%, ${t.b1})` : `color-mix(in srgb, ${t.emerald} 30%, ${t.b1})` }}>
+                      <div className="text-sm font-black" style={{ color: t.t1 }}>{playRecordStepInfo.title}</div>
+                      <p className="mt-1 text-sm leading-relaxed" style={{ color: t.t2 }}>{playRecordStepInfo.body}</p>
+                    </div>
+                    <div className="text-[11px] leading-relaxed" style={{ color: t.t3 }}>
+                      {playRecordFocus === 'performance'
+                        ? 'The guide is focused on the performance pad right now.'
+                        : playRecordStep === 'done'
+                          ? 'The guide is complete. You can reopen this help panel later from the ? button.'
+                          : 'The guide is focused on the timeline and transport controls right now.'}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] font-bold uppercase tracking-widest" style={{ color: t.t4 }}>
+                      <div className={`rounded-lg border px-3 py-2 ${playRecordStep === 'open-perform' || playRecordStep === 'tap-pad' ? 'ring-1 ring-emerald-400/60' : ''}`} style={{ borderColor: t.b1, backgroundColor: t.cardDeep }}>
+                        1. Open and play
+                      </div>
+                      <div className={`rounded-lg border px-3 py-2 ${playRecordStep === 'start-recording' || playRecordStep === 'record-phrase' ? 'ring-1 ring-emerald-400/60' : ''}`} style={{ borderColor: t.b1, backgroundColor: t.cardDeep }}>
+                        2. Record a take
+                      </div>
+                      <div className={`rounded-lg border px-3 py-2 ${playRecordStep === 'playback' || playRecordStep === 'done' ? 'ring-1 ring-emerald-400/60' : ''}`} style={{ borderColor: t.b1, backgroundColor: t.cardDeep }}>
+                        3. Play it back
+                      </div>
+                    </div>
+                  </div>
                 ) : (
                   <div className="space-y-3">
                     <p className="text-sm leading-relaxed" style={{ color: t.t2 }}>
@@ -2950,8 +3163,9 @@ const App: React.FC = () => {
                         Hear a Demo
                       </button>
                       <button
-                        className="w-full py-2 px-3 rounded-lg border text-xs font-bold uppercase transition-colors text-left opacity-60 cursor-default"
-                        style={{ backgroundColor: t.tint, borderColor: t.b1, color: t.t2 }}
+                        onClick={openPlayRecordGuide}
+                        className="w-full py-2 px-3 rounded-lg border text-xs font-bold uppercase transition-colors text-left"
+                        style={{ backgroundColor: `color-mix(in srgb, ${t.emerald} 12%, ${t.card})`, borderColor: `color-mix(in srgb, ${t.emerald} 30%, ${t.b1})`, color: t.emerald }}
                       >
                         Play and Record
                       </button>

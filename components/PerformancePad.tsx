@@ -1534,11 +1534,12 @@ type PadTheme = {
     accent: string;
 };
 
-const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: MidiEvent[]) => void; onRecordingStart?: () => void; onStartPlayback?: () => void; isMouseInPadRef?: React.MutableRefObject<boolean>; theme?: PadTheme }> = ({
+const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: MidiEvent[]) => void; onRecordingStart?: () => void; onStartPlayback?: () => void; onPerformanceInput?: () => void; isMouseInPadRef?: React.MutableRefObject<boolean>; theme?: PadTheme }> = ({
     bpm = 120,
     onCommitRecording,
     onRecordingStart,
     onStartPlayback,
+    onPerformanceInput,
     isMouseInPadRef: externalMouseInPadRef,
     theme,
 }) => {
@@ -2067,13 +2068,14 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
         audioEngine.updateActiveVoiceParams(params);
         await audioEngine.startContinuousNotes(step.notes, Math.round(chordVolumeRef.current * 100), Math.round(step.strumBeats * (60000 / bpmRef.current)));
         recordNoteOn('chord', step.notes, detuneOffsetSemitones(params), step.strumBeats);
+        onPerformanceInput?.();
 
         if (advance) {
             const advancedIndex = (nextIndex + 1) % sequence.length;
             currentNoteIndexRef.current = advancedIndex;
             setCurrentNoteIndex(advancedIndex);
         }
-    }, [calculateParams, chordSequence, recordNoteOn]);
+    }, [calculateParams, chordSequence, onPerformanceInput, recordNoteOn]);
 
     const stopTriggerIfIdle = useCallback(() => {
         if (activePointerIdsRef.current.size > 0) return;
@@ -2123,7 +2125,8 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
         if (isRecordingRef.current && recordKey !== undefined) {
             recordNoteOn(`key:${recordKey}`, [resolvedMidi], detuneOffsetSemitones(calculateParams(x, y)), 0);
         }
-    }, [chordSequence, isPlaying, calculateParams, recordNoteOn]);
+        onPerformanceInput?.();
+    }, [chordSequence, isPlaying, calculateParams, onPerformanceInput, recordNoteOn]);
 
     /**
      * Play a note from the current step mapped linearly by keyIndex (0 = min pitch, 3 = max pitch).
@@ -2150,7 +2153,8 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
             audioEngine.updateActiveVoiceParams(calculateParams(x, y));
         }
         audioEngine.addContinuousNote(Math.max(0, Math.min(127, midi + octaveShift)), 100);
-    }, [chordSequence, isPlaying, calculateParams]);
+        onPerformanceInput?.();
+    }, [chordSequence, isPlaying, calculateParams, onPerformanceInput]);
 
     /**
      * Play a note using the active solo key layout.
@@ -2185,8 +2189,9 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
         if (isRecordingRef.current) {
             recordNoteOn(`key:${physicalKey}`, [resolvedMidi], detuneOffsetSemitones(calculateParams(x, y)), 0);
         }
+        onPerformanceInput?.();
         return true;
-    }, [chordSequence, isPlaying, calculateParams, recordNoteOn]);
+    }, [chordSequence, isPlaying, calculateParams, onPerformanceInput, recordNoteOn]);
 
     const jumpToSection = useCallback((sectionIndex: number) => {
         if (sectionIndex < 0 || sectionIndex >= sections.length) return;
