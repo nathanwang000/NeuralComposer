@@ -754,6 +754,7 @@ const parseVoiceBlocks = (input: string): VoiceBlock[] => {
 const App: React.FC = () => {
   const navigate = useNavigate();
   const [apiKey, setApiKey] = useState(localStorage.getItem('gemini_api_key') || '');
+  const HELP_MODAL_STARTUP_KEY = 'nc-help-modal-open-on-startup-v1';
   useEffect(() => {
     localStorage.setItem('gemini_api_key', apiKey);
   }, [apiKey]);
@@ -802,6 +803,9 @@ const App: React.FC = () => {
   const [isAIStreamActive, setIsAIStreamActive] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [openTutorialOnStartup, setOpenTutorialOnStartup] = useState(
+    () => (typeof localStorage === 'undefined' ? true : localStorage.getItem(HELP_MODAL_STARTUP_KEY) !== '0')
+  );
   const [notice, setNotice] = useState<AppNotice | null>(null);
   const [startHerePath, setStartHerePath] = useState<StartHerePath | null>(null);
   const [hearDemoGuide, setHearDemoGuide] = useState<HearDemoGuideProgress>({
@@ -1058,10 +1062,14 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (localStorage.getItem(HELP_MODAL_SEEN_KEY)) return;
+    if (!openTutorialOnStartup) return;
     setShowShortcuts(true);
-    localStorage.setItem(HELP_MODAL_SEEN_KEY, '1');
-  }, []);
+  }, [openTutorialOnStartup]);
+
+  useEffect(() => {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem(HELP_MODAL_STARTUP_KEY, openTutorialOnStartup ? '1' : '0');
+  }, [openTutorialOnStartup, HELP_MODAL_STARTUP_KEY]);
 
   useEffect(() => {
     if (startHerePath !== 'hear-demo') return;
@@ -3184,6 +3192,38 @@ const App: React.FC = () => {
                     </div>
                   </div>
                 )}
+
+                <div className="flex items-center justify-between gap-3 border-t pt-3" style={{ borderColor: t.b1 }}>
+                  <div className="text-[11px] leading-relaxed" style={{ color: t.t3 }}>
+                    Tired of seeing this on startup? Turn it off here.
+                  </div>
+                  <label className="flex items-center gap-2 shrink-0 cursor-pointer">
+                    <span className="text-[10px] font-black uppercase tracking-[0.18em]" style={{ color: openTutorialOnStartup ? t.indigo : t.t4 }}>
+                      {openTutorialOnStartup ? 'On' : 'Off'}
+                    </span>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={openTutorialOnStartup}
+                      aria-label="Show tutorial on startup"
+                      onClick={() => setOpenTutorialOnStartup(prev => !prev)}
+                      className="relative inline-flex h-6 w-11 items-center rounded-full border transition-colors"
+                      style={{
+                        backgroundColor: openTutorialOnStartup
+                          ? `color-mix(in srgb, ${t.indigo} 24%, ${t.card})`
+                          : t.inset,
+                        borderColor: openTutorialOnStartup
+                          ? `color-mix(in srgb, ${t.indigo} 40%, ${t.b1})`
+                          : t.b1,
+                      }}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 rounded-full transition-transform ${openTutorialOnStartup ? 'translate-x-5' : 'translate-x-1'}`}
+                        style={{ backgroundColor: openTutorialOnStartup ? t.indigo : t.t4 }}
+                      />
+                    </button>
+                  </label>
+                </div>
               </section>
 
               <section>
