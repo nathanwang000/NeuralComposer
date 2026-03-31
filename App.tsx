@@ -980,11 +980,35 @@ const App: React.FC = () => {
     });
   }, []);
 
+  const resetSessionState = useCallback(() => {
+    setIsAIStreamActive(false);
+    isGeneratingRef.current = false;
+    setStartHerePath(null);
+    resetHearDemoGuide();
+    resetPlayRecordGuide();
+    audioEngine.stopAll();
+    beatsGeneratedRef.current = 0;
+    playbackBeatRef.current = 0;
+    scheduledNoteIds.current.clear();
+    isPausedRef.current = true;
+    setIsPaused(true);
+    setPlaybackBeat(0);
+    setEvents([]);
+    setSelectedEventIds([]);
+    setRawStream("");
+    setState(s => ({ ...s, isPlaying: false, isGenerating: false }));
+    const defaultTrack = createDefaultTrack('track-1', 'Track 1', TRACK_COLORS[0]);
+    setTracks([defaultTrack]);
+    setActiveTrackId('track-1');
+    setRecordingTrackId('track-1');
+  }, [resetHearDemoGuide, resetPlayRecordGuide]);
+
   const startHearDemoGuide = useCallback(() => {
+    resetSessionState();
     setStartHerePath('hear-demo');
     resetHearDemoGuide();
     setMainTab('sequencer');
-  }, [resetHearDemoGuide]);
+  }, [resetHearDemoGuide, resetSessionState]);
 
   const openHearDemoGuide = useCallback(() => {
     setShowShortcuts(false);
@@ -992,10 +1016,11 @@ const App: React.FC = () => {
   }, [startHearDemoGuide]);
 
   const startPlayRecordGuide = useCallback(() => {
+    resetSessionState();
     setStartHerePath('play-record');
     resetPlayRecordGuide();
     setMainTab('performance');
-  }, [resetPlayRecordGuide]);
+  }, [resetPlayRecordGuide, resetSessionState]);
 
   const openPlayRecordGuide = useCallback(() => {
     setShowShortcuts(false);
@@ -1671,26 +1696,7 @@ const App: React.FC = () => {
   }, [state.isPlaying]);
 
   const handleHardStop = () => {
-    setIsAIStreamActive(false);
-    isGeneratingRef.current = false;
-    setStartHerePath(null);
-    resetHearDemoGuide();
-    resetPlayRecordGuide();
-    audioEngine.stopAll();
-    beatsGeneratedRef.current = 0;
-    playbackBeatRef.current = 0;
-    scheduledNoteIds.current.clear();
-    isPausedRef.current = true;
-    setIsPaused(true);
-    setPlaybackBeat(0);
-    setEvents([]);
-    setSelectedEventIds([]);
-    setRawStream("");
-    setState(s => ({ ...s, isPlaying: false, isGenerating: false }));
-    const defaultTrack = createDefaultTrack('track-1', 'Track 1', TRACK_COLORS[0]);
-    setTracks([defaultTrack]);
-    setActiveTrackId('track-1');
-    setRecordingTrackId('track-1');
+    resetSessionState();
   };
 
   const handleTestNote = () => {
