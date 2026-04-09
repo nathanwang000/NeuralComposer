@@ -12,6 +12,8 @@ It is built around two ideas:
 
 It is not trying to replace a full DAW like Ableton. The goal is intentional simplicity: good enough for lightweight composition, education, and fast idea capture, while staying low-friction and easy to understand.
 
+Give it a try at my [website](https://neuralcomposer.onrender.com/)
+
 ## Philosophy
 
 NeuralComposer started from a simple frustration: too many music tools are expensive, heavy, opaque, or full of workflow friction. This project exists to keep music-making lightweight enough that it is easy to return to, easy to understand, and enjoyable to keep improving.
