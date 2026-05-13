@@ -22,6 +22,8 @@ interface PianoRollProps {
   noteBrightness?: { lightness: number; altLightness: number; altAlpha: number };
   /** When true, touch interactions select/deselect notes instead of seeking. */
   selectMode?: boolean;
+  /** When set, draws a loop boundary line at this beat position. */
+  loopEndBeat?: number;
   onSeek?: (beat: number) => void;
   onSelectionMarqueeChange?: (bounds: SelectionBounds | null) => void;
   onSelectNotes?: (ids: string[]) => void;
@@ -39,6 +41,7 @@ const PianoRoll: React.FC<PianoRollProps> = ({
   gridColors = { bar: '#1e293b', beat: '#162232', eighth: '#0f172a', sixteenth: '#0c141e', octave: '#1e293b', pitch: '#0a0f1a' },
   noteBrightness = { lightness: 60, altLightness: 40, altAlpha: 0.6 },
   selectMode = false,
+  loopEndBeat,
   onSeek,
   onSelectionMarqueeChange,
   onSelectNotes,
@@ -339,6 +342,28 @@ const PianoRoll: React.FC<PianoRollProps> = ({
         ctx.fillRect(selX, selYStart, selW, selH);
       }
 
+      // Loop boundary line
+      if (loopEndBeat !== undefined && loopEndBeat > 0) {
+        const lx = startX + loopEndBeat * beatWidth;
+        if (lx >= 0 && lx <= w) {
+          ctx.save();
+          ctx.strokeStyle = 'rgba(52,211,153,0.8)';
+          ctx.lineWidth = 6;
+          ctx.setLineDash([10, 6]);
+          ctx.beginPath();
+          ctx.moveTo(lx, 0);
+          ctx.lineTo(lx, h);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          // Label
+          ctx.fillStyle = 'rgba(52,211,153,0.9)';
+          ctx.font = 'bold 16px monospace';
+          ctx.textAlign = 'right';
+          ctx.fillText('LOOP', lx - 8, 22);
+          ctx.restore();
+        }
+      }
+
       // Playhead
       ctx.strokeStyle = '#6366f1';
       ctx.lineWidth = 2;
@@ -352,7 +377,7 @@ const PianoRoll: React.FC<PianoRollProps> = ({
 
     draw();
     return () => cancelAnimationFrame(animationFrame);
-  }, [events, currentBeat, dragStart, dragEnd, selectedNoteIds, selectionMarquee, selectionBounds, isMoving, beatWidth, gridColors, noteBrightness]);
+  }, [events, currentBeat, dragStart, dragEnd, selectedNoteIds, selectionMarquee, selectionBounds, isMoving, beatWidth, gridColors, noteBrightness, loopEndBeat]);
 
   // ── Touch handlers (select mode only) ─────────────────────────────────────
   // Converts a touch clientX/Y into scaled canvas coordinates + music coords.

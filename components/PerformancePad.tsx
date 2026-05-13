@@ -1534,7 +1534,7 @@ type PadTheme = {
     accent: string;
 };
 
-const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: MidiEvent[]) => void; onRecordingStart?: () => void; onStartPlayback?: () => void; onPerformanceInput?: () => void; isMouseInPadRef?: React.MutableRefObject<boolean>; theme?: PadTheme }> = ({
+const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: MidiEvent[]) => void; onRecordingStart?: () => void; onStartPlayback?: () => void; onPerformanceInput?: () => void; isMouseInPadRef?: React.MutableRefObject<boolean>; theme?: PadTheme; loopActive?: boolean; loopLengthBeats?: number }> = ({
     bpm = 120,
     onCommitRecording,
     onRecordingStart,
@@ -1542,6 +1542,8 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
     onPerformanceInput,
     isMouseInPadRef: externalMouseInPadRef,
     theme,
+    loopActive = false,
+    loopLengthBeats = 0,
 }) => {
     // Keep a ref to the latest bpm so audio callbacks always see the current value
     // without needing to be re-created whenever bpm changes.
@@ -1610,6 +1612,14 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
     const autoPlayOnRecordRef = useRef(true);
     useEffect(() => { autoPlayOnRecordRef.current = autoPlayOnRecord; }, [autoPlayOnRecord]);
 
+    // Loop mode — kept in refs so timer callbacks always see the latest values
+    const loopActiveRef = useRef(loopActive);
+    const loopLengthBeatsRef = useRef(loopLengthBeats);
+    useEffect(() => { loopActiveRef.current = loopActive; }, [loopActive]);
+    useEffect(() => { loopLengthBeatsRef.current = loopLengthBeats; }, [loopLengthBeats]);
+    // Timer that fires at each loop boundary to auto-commit and overdub
+    const loopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     // Countdown + metronome
     const [countdownBeat, setCountdownBeat] = useState<number | null>(null); // null = not counting down
     const countdownActiveRef = useRef(false);
@@ -1620,6 +1630,7 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
     // Clean up metronome on unmount
     useEffect(() => () => {
         if (metronomeIntervalRef.current !== null) clearInterval(metronomeIntervalRef.current);
+        if (loopTimerRef.current !== null) clearTimeout(loopTimerRef.current);
     }, []);
 
     // Solo key layout
@@ -1930,6 +1941,42 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
       recordedEventsRef.current = [];
   }, [onCommitRecording]);
 
+  /** Schedule or reschedule the loop overdub timer. */
+  const scheduleLoopTimer = useCallback(() => {
+      if (loopTimerRef.current !== null) clearTimeout(loopTimerRef.current);
+      const msPerBeat = 60000 / bpmRef.current;
+      const loopMs = loopLengthBeatsRef.current * msPerBeat;
+      loopTimerRef.current = setTimeout(() => {
+          loopTimerRef.current = null;
+          if (!isRecordingRef.current || !loopActiveRef.current) return;
+          // Flush pending held notes (with natural duration = loop boundary)
+          const offMs = performance.now();
+          const startMs = recordingStartMsRef.current;
+          const msPerBeatNow = 60000 / bpmRef.current;
+          pendingNoteOnRef.current.forEach(entries => {
+              for (const { pitch, onMs } of entries) {
+                  recordedEventsRef.current.push({
+                      p: pitch,
+                      v: 100,
+                      t: Math.max(0, (onMs - startMs) / msPerBeatNow),
+                      d: Math.max(1 / 64, (offMs - Math.max(onMs, startMs)) / msPerBeatNow),
+                  });
+              }
+          });
+          pendingNoteOnRef.current.clear();
+          // Fire the commit (overdub pass) then reset for the next loop
+          if (recordedEventsRef.current.length > 0) {
+              const sorted = recordedEventsRef.current.slice().sort((a, b) => a.t - b.t);
+              onCommitRecording?.(sorted);
+          }
+          recordedEventsRef.current = [];
+          // Restart: update the start reference to now so next pass timing is correct
+          recordingStartMsRef.current = performance.now();
+          // Schedule the next loop pass
+          scheduleLoopTimer();
+      }, loopMs);
+  }, [onCommitRecording]);
+
   const toggleRecording = useCallback(() => {
       // If a countdown or recording is active → stop everything
       if (isRecordingRef.current || countdownActiveRef.current) {
@@ -1942,6 +1989,10 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
           if (isRecordingRef.current) {
               isRecordingRef.current = false;
               setIsRecording(false);
+              if (loopTimerRef.current !== null) {
+                  clearTimeout(loopTimerRef.current);
+                  loopTimerRef.current = null;
+              }
               commitRecording();
           }
           return;
@@ -1978,6 +2029,11 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
               onRecordingStart?.();
               if (autoPlayOnRecordRef.current) onStartPlayback?.();
               if (metronomeEnabledRef.current) audioEngine.playMetronomeClick(true); // beat 1 accent
+
+              // In loop mode, start the auto-commit timer
+              if (loopActiveRef.current && loopLengthBeatsRef.current > 0) {
+                  scheduleLoopTimer();
+              }
 
               // Continue metronome ticks throughout recording
               let beatInMeasure = 1; // just played beat 1

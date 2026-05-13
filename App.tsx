@@ -783,6 +783,11 @@ const App: React.FC = () => {
   const [playbackBeat, setPlaybackBeat] = useState(0);
   const [isPaused, setIsPaused] = useState(true);
   const [events, setEvents] = useState<AppEvent[]>([]);
+
+  // Live looping
+  const [loopMode, setLoopMode] = useState(false);
+  const [loopLengthBars, setLoopLengthBars] = useState(4);
+  const loopLengthBeats = loopLengthBars * 4;
   const [rawStream, setRawStream] = useState("");
   const [isWarmingUp, setIsWarmingUp] = useState(false);
   const [userInput, setUserInput] = useState("");
@@ -1249,7 +1254,7 @@ const App: React.FC = () => {
   const handleCommitRecording = useCallback((recordedEvents: MidiEvent[]) => {
     const stamp = Date.now();
     const newIds = recordedEvents.map((_, i) => `recorded-${stamp}-${i}`);
-    const baseOffset = recordingStartBeatRef.current;
+    const baseOffset = loopMode ? 0 : recordingStartBeatRef.current;
     setEvents(prev => {
       pushHistory(prev);
       return [
@@ -1264,6 +1269,18 @@ const App: React.FC = () => {
       ];
     });
     setSelectedEventIds(newIds);
+
+    if (loopMode) {
+      // In loop mode: keep playing, stay on performance tab, auto-start playback if not already going
+      if (!state.isPlaying) {
+        audioEngine.init();
+        isPausedRef.current = false;
+        setIsPaused(false);
+        setState(s => ({ ...s, isPlaying: true }));
+      }
+      return;
+    }
+
     setMainTab('sequencer');
 
     if (startHerePath === 'play-record' && recordedEvents.length > 0) {
@@ -1276,7 +1293,7 @@ const App: React.FC = () => {
       setIsPaused(true);
       setState(s => ({ ...s, isPlaying: false }));
     }
-  }, [pushHistory, recordingTrackId, startHerePath]);
+  }, [loopMode, pushHistory, recordingTrackId, startHerePath, state.isPlaying]);
 
   const generateNextStream = async () => {
     if (!isAIStreamActive || isGeneratingRef.current) return;
@@ -1330,6 +1347,13 @@ const App: React.FC = () => {
       if (state.isPlaying && !isPausedRef.current) {
         const bps = state.tempo / 60;
         playbackBeatRef.current += delta * bps;
+
+        // Loop transport: wrap playhead at loop boundary and reschedule notes
+        if (loopMode && loopLengthBeats > 0 && playbackBeatRef.current >= loopLengthBeats) {
+          playbackBeatRef.current = playbackBeatRef.current % loopLengthBeats;
+          scheduledNoteIds.current.clear();
+        }
+
         setPlaybackBeat(playbackBeatRef.current);
         const currentBeat = playbackBeatRef.current;
 
@@ -1360,7 +1384,7 @@ const App: React.FC = () => {
     };
     animationId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animationId);
-  }, [state.isPlaying, events, tracks, state.tempo, state.legatoMode, isAIStreamActive]);
+  }, [state.isPlaying, events, tracks, state.tempo, state.legatoMode, isAIStreamActive, loopMode, loopLengthBeats]);
 
   const parseAndStore = (textChunk: string, baseBeatOffset: number) => {
     streamBufferRef.current += textChunk;
@@ -2120,6 +2144,53 @@ const App: React.FC = () => {
              </button>
           </div>
 
+          {/* ── Loop Mode controls ── */}
+          <div className="flex items-center gap-1 rounded-xl p-1" style={{ backgroundColor: t.cardDeep }}>
+            <button
+              title={loopMode ? 'Disable loop mode' : 'Enable live loop mode'}
+              onClick={() => {
+                setLoopMode(v => !v);
+                // When turning off loop: reset playhead to 0
+                if (loopMode) {
+                  playbackBeatRef.current = 0;
+                  setPlaybackBeat(0);
+                  scheduledNoteIds.current.clear();
+                }
+              }}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${loopMode ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' : 'bg-transparent text-slate-500 border-transparent hover:bg-white/5'}`}
+            >
+              <RefreshCw size={14} className={loopMode ? 'animate-spin' : ''} style={{ animationDuration: '3s' }} />
+              Loop
+            </button>
+            {loopMode && (
+              <>
+                <div className="w-px h-5 bg-white/10" />
+                {([1, 2, 4, 8] as const).map(bars => (
+                  <button
+                    key={bars}
+                    onClick={() => setLoopLengthBars(bars)}
+                    className={`px-2 py-1.5 rounded-lg text-xs font-black transition-colors ${loopLengthBars === bars ? 'bg-emerald-500/20 text-emerald-400' : 'text-slate-600 hover:text-slate-300'}`}
+                  >
+                    {bars}
+                  </button>
+                ))}
+                <span className="text-[10px] font-black text-slate-600 pr-1">bars</span>
+                {history.past.length > 0 && (
+                  <>
+                    <div className="w-px h-5 bg-white/10" />
+                    <button
+                      title="Undo last overdub pass"
+                      onClick={undo}
+                      className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-black text-slate-500 hover:text-emerald-400 transition-colors"
+                    >
+                      <Undo size={13} /> Undo
+                    </button>
+                  </>
+                )}
+              </>
+            )}
+          </div>
+
           <button onClick={() => navigate('/converter')} className="flex items-center gap-1 sm:gap-2 bg-black text-xs font-bold text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/10 hover:border-cyan-500/50 rounded-xl px-3 sm:px-4 py-2.5 transition-all shadow-lg shadow-cyan-500/10">
             <Mic size={14} /> <span className="sm:hidden">MIC</span><span className="hidden sm:inline">VOICE TO NOTES</span>
           </button>
@@ -2233,7 +2304,7 @@ const App: React.FC = () => {
               bpm={state.tempo}
               onCommitRecording={handleCommitRecording}
               onRecordingStart={() => {
-                recordingStartBeatRef.current = playbackBeatRef.current;
+                recordingStartBeatRef.current = loopMode ? 0 : playbackBeatRef.current;
                 if (startHerePath === 'play-record') {
                   setPlayRecordGuide(prev => ({ ...prev, hasStartedRecording: true }));
                 }
@@ -2259,6 +2330,8 @@ const App: React.FC = () => {
                 setIsPaused(false);
                 setState(s => ({ ...s, isPlaying: true }));
               }}
+              loopActive={loopMode}
+              loopLengthBeats={loopLengthBeats}
             />
           </div>
           <div className={mainTab === 'sequencer' ? 'contents' : 'hidden'}>
@@ -2421,6 +2494,7 @@ const App: React.FC = () => {
                       onMoveSelection={handleMoveSelection}
                       onZoomChange={v => setBeatWidth(clampBeatWidth(v))}
                       selectMode={selectMode}
+                      loopEndBeat={loopMode ? loopLengthBeats : undefined}
                     />
                   </div>
                   {/* Drag handle — resize this track vertically */}
@@ -2455,6 +2529,7 @@ const App: React.FC = () => {
             <div className="absolute bottom-0 left-0 w-full h-1 bg-white/5 overflow-hidden">
                <div className="h-full bg-indigo-500 transition-all shadow-[0_0_10px_#6366f1]" style={{ width: `${Math.min(100, (bufferRemaining / queueThreshold) * 100)}%` }} />
             </div>
+
           </div>
 
           {/* ── Sequencer edit toolbar ── */}
