@@ -1022,7 +1022,9 @@ function physicalKeyOf(key: string): string {
 //
 // NoteAddress — two addressing modes:
 //   interval:  play bass + N semitones (root-relative, independent of chord content)
-//   chordTone: play the Nth note of the chord sorted ascending
+//   chordTone: play the Nth note of the chord sorted ascending, optionally
+//              nudged by `semitones` (chromatic offset applied AFTER selecting
+//              the chord tone — e.g. index 0 + semitones 1 on [C,E,G] → C#).
 //              negative index counts from the top (-1 = highest note)
 //
 // KeyLayout — maps a physical key string to a NoteAddress.
@@ -1032,7 +1034,7 @@ function physicalKeyOf(key: string): string {
 // ---------------------------------------------------------------------------
 type NoteAddress =
     | { mode: 'interval';  semitones: number }
-    | { mode: 'chordTone'; index: number };
+    | { mode: 'chordTone'; index: number; semitones?: number };
 
 type KeyLayout = Record<string, NoteAddress>;
 
@@ -1068,10 +1070,12 @@ function resolveNoteAddress(
         return base + address.semitones + octaveShift;
     }
 
-    // chordTone mode: negative index counts from the top
+    // chordTone mode: negative index counts from the top; an optional `semitones`
+    // field applies a chromatic offset AFTER the chord tone is selected
+    // (e.g. index 0 + semitones 1 on [C,E,G] → C#).
     const rawIdx = address.index < 0 ? sorted.length + address.index : address.index;
     const idx = Math.max(0, Math.min(sorted.length - 1, rawIdx));
-    return sorted[idx] + octaveShift;
+    return sorted[idx] + (address.semitones ?? 0) + octaveShift;
 }
 
 // ---------------------------------------------------------------------------
