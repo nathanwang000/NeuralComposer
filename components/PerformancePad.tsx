@@ -1205,19 +1205,21 @@ const SOLO_LAYOUTS: Record<SoloLayoutName, { label: string; description: string;
             'k': { mode: 'chordTone', index: 1  },
             'l': { mode: 'chordTone', index: 2  },
             ';': { mode: 'chordTone', index: 3  },
+            "'": { mode: 'chordTone', index: 3, semitones: 1 },
             // top row — upper chromatic / color tones relative to bass
-            'y': { mode: 'interval', semitones: 1  },  // b9
-            'u': { mode: 'interval', semitones: 3  },  // #9 / b3
-            'i': { mode: 'interval', semitones: 6  },  // b5 / #11
-            'o': { mode: 'interval', semitones: 8  },  // b13 / #5
-            'p': { mode: 'interval', semitones: 10 },  // b7
-            '[': { mode: 'interval', semitones: 11 },  // maj7
+            'y': { mode: 'chordTone', index: -1, semitones: 1  },
+            'u': { mode: 'chordTone', index: 0, semitones: 1  },
+            'i': { mode: 'chordTone', index: 1, semitones: 1  },
+            'o': { mode: 'chordTone', index: 2, semitones: 1  },
+            'p': { mode: 'chordTone', index: 3, semitones: 1 },
+            '[': { mode: 'chordTone', index: 3, semitones: 2 },
+            ']': { mode: 'chordTone', index: 3, semitones: 3 },
             // bottom row — lower chromatic approach notes
-            'n': { mode: 'interval', semitones: -1 },  // leading tone below
-            'm': { mode: 'interval', semitones: -2 },  // b7 below
-            ',': { mode: 'interval', semitones: -4 },  // b6 below
-            '.': { mode: 'interval', semitones: -5 },  // 4th below
-            '/': { mode: 'interval', semitones: -7 },  // 5th below
+            'n': { mode: 'chordTone', index: -1, semitones: -1 },  // leading tone below
+            'm': { mode: 'chordTone', index: 0, semitones: -1 },
+            ',': { mode: 'chordTone', index: 1, semitones: -1 },
+            '.': { mode: 'chordTone', index: 2, semitones: -1 },
+            '/': { mode: 'chordTone', index: 3, semitones: -1 },
         },
     },
     noodle: {
@@ -1638,8 +1640,8 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
     }, []);
 
     // Solo key layout
-    const [currentLayout, setCurrentLayout] = useState<SoloLayoutName>('wickiHayden');
-    const currentLayoutRef = useRef<SoloLayoutName>('wickiHayden');
+    const [currentLayout, setCurrentLayout] = useState<SoloLayoutName>('chordBiased');
+    const currentLayoutRef = useRef<SoloLayoutName>('chordBiased');
     useEffect(() => { currentLayoutRef.current = currentLayout; }, [currentLayout]);
 
     // Detected key for interval-mode solo (updated whenever step or sequence changes)
