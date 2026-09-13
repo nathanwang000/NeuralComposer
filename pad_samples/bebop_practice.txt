@@ -1,5 +1,8 @@
 // treat the following as target notes in bebop and play with fullChordBias solo layout
 // to practice bebop
+// The process is simple: start with a common chord progression
+// e.g. 1625 in jazz; choose a chord tone from the chord
+// then fill in the middle with enclosure (up or down one semitone or diatonic note)
 // 1625
 A#4, G4, C5, F4,
 // 3625
