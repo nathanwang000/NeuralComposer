@@ -1038,7 +1038,7 @@ type NoteAddress =
 
 type KeyLayout = Record<string, NoteAddress>;
 
-type SoloLayoutName = 'noodle' | 'semitoneUp' | 'chordBiased' | 'wickiHayden' | 'wholeToneWH' | 'diatonic' | 'fullKBwickiHayden' | 'mirroredWickiHayden' | 'chromatic' | 'fullKBviolin';
+type SoloLayoutName = 'noodle' | 'fullChordBiased' | 'chordBiased' | 'wickiHayden' | 'wholeToneWH' | 'diatonic' | 'fullKBwickiHayden' | 'mirroredWickiHayden' | 'chromatic' | 'fullKBviolin';
 
 /**
  * Resolve a NoteAddress to a MIDI note number.
@@ -1193,7 +1193,6 @@ const SOLO_LAYOUTS: Record<SoloLayoutName, { label: string; description: string;
     // Home row J K L ;    → chord tones 0–3
     // Home row H          → chordTone -1 (top note, melody ceiling)
     // Top row  Y U   O P  → upper chromatic neighbors of each chord tone
-    // Top row  I          → tritone / b5 above bass
     // Bot row  N M , . /  → lower chromatic approach notes
     chordBiased: {
         label: 'Chord-Biased',
@@ -1305,30 +1304,51 @@ const SOLO_LAYOUTS: Record<SoloLayoutName, { label: string; description: string;
             '/': { mode: 'interval', semitones: -8 },
         },
     },
-    semitoneUp: {
-        label: 'semitone up',
-        description: 'semitone going up',
+    // ── Full Chord-Biased: whole keyboard rooted on chordTone[0] ──────────
+    // Home row (A S D F G H J K L ; ') = bebop dominant scale from the bass:
+    //   1 2 3 4 5 6 b7 7 (8) 9 (10)  →  0 2 4 5 7 9 10 11 12 14 16 semitones.
+    // Top row (Q…]) = each home-row column +1 semitone.
+    // Bottom row (Z…/) = each home-row column −1 semitone.
+    // Columns are QWERTY-stagger aligned: q/a/z share a column, w/s/x, etc.
+    fullChordBiased: {
+        label: 'Full Chord-Biased',
+        description: 'Full keyboard rooted on the bass: home row = bebop dominant scale, top row = +1 semitone, bottom row = −1 semitone',
         layout: {
-            // home row
-            'h': { mode: 'interval', semitones: -1 },
-            'j': { mode: 'interval', semitones: 2 },
-            'k': { mode: 'interval', semitones: 5  },
-            'l': { mode: 'interval', semitones: 8  },
-            ';': { mode: 'interval', semitones: 11 },
-            "'": { mode: 'interval', semitones: 14 },
-            // top row
-            'y': { mode: 'interval', semitones: -2  },
-            'u': { mode: 'interval', semitones: 1  },
-            'i': { mode: 'interval', semitones: 4  },
-            'o': { mode: 'interval', semitones: 7  },
-            'p': { mode: 'interval', semitones: 10 },
-            '[': { mode: 'interval', semitones: 13 },
-            // bottom row
-            'n': { mode: 'interval', semitones: 0 },
-            'm': { mode: 'interval', semitones: 3 },
-            ',': { mode: 'interval', semitones: 6 },
-            '.': { mode: 'interval', semitones: 9 },
-            '/': { mode: 'interval', semitones: 12 },
+            // home row — bebop dominant scale from chordTone[0]
+            'a': { mode: 'chordTone', index: 0, semitones: 0  },
+            's': { mode: 'chordTone', index: 0, semitones: 2  },
+            'd': { mode: 'chordTone', index: 0, semitones: 4  },
+            'f': { mode: 'chordTone', index: 0, semitones: 5  },
+            'g': { mode: 'chordTone', index: 0, semitones: 7  },
+            'h': { mode: 'chordTone', index: 0, semitones: 9  },
+            'j': { mode: 'chordTone', index: 0, semitones: 10 },
+            'k': { mode: 'chordTone', index: 0, semitones: 11 },
+            'l': { mode: 'chordTone', index: 0, semitones: 12 },
+            ';': { mode: 'chordTone', index: 0, semitones: 14 },
+            "'": { mode: 'chordTone', index: 0, semitones: 16 },
+            // top row — home row column +1 semitone
+            'q': { mode: 'chordTone', index: 0, semitones: 1  },
+            'w': { mode: 'chordTone', index: 0, semitones: 3  },
+            'e': { mode: 'chordTone', index: 0, semitones: 5  },
+            'r': { mode: 'chordTone', index: 0, semitones: 6  },
+            't': { mode: 'chordTone', index: 0, semitones: 8  },
+            'y': { mode: 'chordTone', index: 0, semitones: 10 },
+            'u': { mode: 'chordTone', index: 0, semitones: 11 },
+            'i': { mode: 'chordTone', index: 0, semitones: 12 },
+            'o': { mode: 'chordTone', index: 0, semitones: 13 },
+            'p': { mode: 'chordTone', index: 0, semitones: 15 },
+            '[': { mode: 'chordTone', index: 0, semitones: 17 },
+            // bottom row — home row column −1 semitone
+            'z': { mode: 'chordTone', index: 0, semitones: -1 },
+            'x': { mode: 'chordTone', index: 0, semitones: 1  },
+            'c': { mode: 'chordTone', index: 0, semitones: 3  },
+            'v': { mode: 'chordTone', index: 0, semitones: 4  },
+            'b': { mode: 'chordTone', index: 0, semitones: 6  },
+            'n': { mode: 'chordTone', index: 0, semitones: 8  },
+            'm': { mode: 'chordTone', index: 0, semitones: 9  },
+            ',': { mode: 'chordTone', index: 0, semitones: 10 },
+            '.': { mode: 'chordTone', index: 0, semitones: 11 },
+            '/': { mode: 'chordTone', index: 0, semitones: 13 },
         },
     },
     wholeToneWH: {
