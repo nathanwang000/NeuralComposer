@@ -855,19 +855,18 @@ const _padSampleRaw = import.meta.glob('../pad_samples/*.txt', { query: '?raw', 
 function parsePadSampleFile(path: string, content: string): { label: string; description: string; sequence: string } | null {
     const filename = path.split('/').pop()?.replace(/\.txt$/i, '') ?? path;
     const lines = content.split('\n');
-    let description = '';
-    const sequenceLines: string[] = [];
-    for (const line of lines) {
-        const trimmed = line.trim();
-        if (trimmed.startsWith('//')) {
-            if (!description) description = trimmed.replace(/^\/\/+\s*/, '');
-        } else if (trimmed) {
-            sequenceLines.push(line);
-        }
-    }
-    const sequence = sequenceLines.join('\n').trim();
+    // The first //-comment line becomes the tooltip description (shown on the
+    // preset button's `title`). Unlike before, NO lines are stripped — comments
+    // and blank lines are preserved verbatim so the loaded sequence keeps its
+    // annotations in the editor. Falls back to the filename when there is no
+    // //-comment line.
+    const firstComment = lines.find(line => line.trim().startsWith('//'));
+    const description = firstComment
+        ? firstComment.trim().replace(/^\/\/+\s*/, '')
+        : filename;
+    const sequence = content.trim();
     if (!sequence) return null; // skip empty files
-    return { label: filename, description: description || filename, sequence };
+    return { label: filename, description, sequence };
 }
 
 const PAD_SAMPLE_PRESETS: { label: string; description: string; sequence: string }[] = Object.entries(_padSampleRaw)
