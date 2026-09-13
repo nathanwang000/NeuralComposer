@@ -956,7 +956,7 @@ const KB = {
 
     // ── Transpose ─────────────────────────────────────────────────────────
     SEMITONE_DN:    { key: '-',                       display: '−',         hint: 'Semitone −1'        },
-    SEMITONE_UP:    { key: '+', shift: true,          display: '+',         hint: 'Semitone +1'        },
+    SEMITONE_UP:    { key: '=',                       display: '=',         hint: 'Semitone +1'        },
     OCTAVE_UP:      { key: 'ArrowUp',             display: '↑',      hint: 'Octave +1'                 },
     OCTAVE_DN:      { key: 'ArrowDown',           display: '↓',      hint: 'Octave −1'                 },
 
