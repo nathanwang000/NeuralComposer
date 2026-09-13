@@ -1037,7 +1037,7 @@ type NoteAddress =
 
 type KeyLayout = Record<string, NoteAddress>;
 
-type SoloLayoutName = 'noodle' | 'fullChordBiased' | 'chordBiased' | 'wickiHayden' | 'wholeToneWH' | 'diatonic' | 'fullKBwickiHayden' | 'mirroredWickiHayden' | 'chromatic' | 'fullKBviolin';
+type SoloLayoutName = 'chordToneCenter' | 'fullChordBiased' | 'chordBiased' | 'wickiHayden' | 'wholeToneWH' | 'diatonic' | 'fullKBwickiHayden' | 'mirroredWickiHayden' | 'chromatic' | 'fullKBviolin';
 
 /**
  * Resolve a NoteAddress to a MIDI note number.
@@ -1220,30 +1220,34 @@ const SOLO_LAYOUTS: Record<SoloLayoutName, { label: string; description: string;
             '/': { mode: 'chordTone', index: 3, semitones: -1 },
         },
     },
-    noodle: {
-        label: 'Noodle',
-        description: 'Experimental chordtone + interval',
+    chordToneCenter: {
+        label: 'ChordTone Center',
+        description: 'Centered on chordTone[0]: home row spans +3..-3 semitones, top row descends chromatically from ] to T, bottom row descends chromatically from / to B',
         layout: {
-            // home row
-            'h': { mode: 'chordTone', index: -1 },
-            'j': { mode: 'interval', semitones: 0  },
-            'k': { mode: 'interval', semitones: 4  },
-            'l': { mode: 'interval', semitones: 7  },
-            ';': { mode: 'interval', semitones: 9 },
-            "'": { mode: 'interval', semitones: 11 },
-            // top row
-            'y': { mode: 'interval', semitones: 1  },
-            'u': { mode: 'interval', semitones: 3  },
-            'i': { mode: 'interval', semitones: 2  },
-            'o': { mode: 'interval', semitones: 5  },
-            'p': { mode: 'interval', semitones: 8 },
-            '[': { mode: 'interval', semitones: 10 },
-            // bottom row
-            'n': { mode: 'interval', semitones: -1 }, // leading tone below
-            'm': { mode: 'interval', semitones: 3 },
-            ',': { mode: 'interval', semitones: 6 },
-            '.': { mode: 'interval', semitones: 8 },
-            '/': { mode: 'interval', semitones: 10 },
+            // home row — centered on chordTone[0] at K, descending left-to-right
+            'g': { mode: 'chordTone', index: 0, semitones: 3 },
+            'h': { mode: 'chordTone', index: 0, semitones: 2 },
+            'j': { mode: 'chordTone', index: 0, semitones: 1 },
+            'k': { mode: 'chordTone', index: 0, semitones: 0  },
+            'l': { mode: 'chordTone', index: 0, semitones: -1 },
+            ';': { mode: 'chordTone', index: 0, semitones: -2 },
+            "'": { mode: 'chordTone', index: 0, semitones: -3 },
+            // top row — reversed left-to-right; T remains a perfect 4th above G
+            't': { mode: 'chordTone', index: 0, semitones: 8 },
+            'y': { mode: 'chordTone', index: 0, semitones: 7 },
+            'u': { mode: 'chordTone', index: 0, semitones: 6 },
+            'i': { mode: 'chordTone', index: 0, semitones: 5 },
+            'o': { mode: 'chordTone', index: 0, semitones: 4 },
+            'p': { mode: 'chordTone', index: 0, semitones: 3 },
+            '[': { mode: 'chordTone', index: 0, semitones: 2 },
+            ']': { mode: 'chordTone', index: 0, semitones: 1 },
+            // bottom row — reversed left-to-right; B remains a perfect 4th below G
+            'b': { mode: 'chordTone', index: 0, semitones: -2 },
+            'n': { mode: 'chordTone', index: 0, semitones: -3 },
+            'm': { mode: 'chordTone', index: 0, semitones: -4 },
+            ',': { mode: 'chordTone', index: 0, semitones: -5 },
+            '.': { mode: 'chordTone', index: 0, semitones: -6 },
+            '/': { mode: 'chordTone', index: 0, semitones: -7 },
         },
     },
     wickiHayden: {
@@ -1658,9 +1662,9 @@ const PerformancePad: React.FC<{ bpm?: number; onCommitRecording?: (events: Midi
         if (loopTimerRef.current !== null) clearTimeout(loopTimerRef.current);
     }, []);
 
-    // Solo key layout
-    const [currentLayout, setCurrentLayout] = useState<SoloLayoutName>('chordBiased');
-    const currentLayoutRef = useRef<SoloLayoutName>('chordBiased');
+    // Solo key default layout
+    const [currentLayout, setCurrentLayout] = useState<SoloLayoutName>('chordToneCenter');
+    const currentLayoutRef = useRef<SoloLayoutName>('chordToneCenter');
     useEffect(() => { currentLayoutRef.current = currentLayout; }, [currentLayout]);
 
     // Detected key for interval-mode solo (updated whenever step or sequence changes)
