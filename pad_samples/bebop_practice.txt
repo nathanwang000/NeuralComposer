@@ -1,4 +1,4 @@
-// treat the following as target notes in bebop and play with fullChordBias solo layout
+// treat the following as target notes in bebop and play with ChordToneCenter solo layout
 // to practice bebop
 // The process is simple: start with a common chord progression
 // e.g. 1625 in jazz; choose a chord tone from the chord
