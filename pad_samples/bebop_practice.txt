@@ -1,3 +1,5 @@
+// treat the following as target notes in bebop and play with fullChordBias solo layout
+// to practice bebop
 // 1625
 A#4, G4, C5, F4,
 // 3625
