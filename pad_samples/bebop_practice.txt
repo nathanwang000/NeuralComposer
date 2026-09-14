@@ -1,5 +1,6 @@
-// treat the following as target notes in bebop and play with ChordToneCenter solo layout
-// to practice bebop
+// treat the following as target notes in bebop and play with fullChordCenter solo layout
+// to practice bebop: F auto advances to the next phrase, "o" is the same key which can be
+// used to practice different enclosure
 // The process is simple: start with a common chord progression
 // e.g. 1625 in jazz; choose a chord tone from the chord
 // then fill in the middle with enclosure (up or down one semitone or diatonic note)

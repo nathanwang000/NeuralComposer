@@ -1037,7 +1037,7 @@ type NoteAddress =
 
 type KeyLayout = Record<string, NoteAddress>;
 
-type SoloLayoutName = 'chordToneCenter' | 'fullChordBiased' | 'chordBiased' | 'wickiHayden' | 'wholeToneWH' | 'diatonic' | 'fullKBwickiHayden' | 'mirroredWickiHayden' | 'chromatic' | 'fullKBviolin';
+type SoloLayoutName = 'chordToneCenter' | 'fullKBchordToneCenter' | 'fullChordBiased' | 'chordBiased' | 'wickiHayden' | 'wholeToneWH' | 'diatonic' | 'fullKBwickiHayden' | 'mirroredWickiHayden' | 'chromatic' | 'fullKBviolin';
 
 /**
  * Resolve a NoteAddress to a MIDI note number.
@@ -1221,7 +1221,7 @@ const SOLO_LAYOUTS: Record<SoloLayoutName, { label: string; description: string;
         },
     },
     chordToneCenter: {
-        label: 'ChordTone Center',
+        label: 'ChordCenter',
         description: 'Centered on chordTone[0]: home row spans +3..-3 semitones, top row descends chromatically from ] to T, bottom row descends chromatically from / to B',
         layout: {
             // home row — centered on chordTone[0] at K, descending left-to-right
@@ -1248,6 +1248,48 @@ const SOLO_LAYOUTS: Record<SoloLayoutName, { label: string; description: string;
             ',': { mode: 'chordTone', index: 0, semitones: -5 },
             '.': { mode: 'chordTone', index: 0, semitones: -6 },
             '/': { mode: 'chordTone', index: 0, semitones: -7 },
+        },
+    },
+    fullKBchordToneCenter: {
+        label: 'Full ChordCenter',
+        description: 'Full-keyboard ChordCenter centered on chordTone[0] at F: every row descends chromatically left-to-right, top row = perfect 4th above home row, bottom row = perfect 4th below',
+        layout: {
+            // home row — centered on chordTone[0] at F, descending left-to-right
+            'a': { mode: 'chordTone', index: 0, semitones: 3  },
+            's': { mode: 'chordTone', index: 0, semitones: 2  },
+            'd': { mode: 'chordTone', index: 0, semitones: 1  },
+            // 'f': { mode: 'chordTone', index: 0, semitones: 0  }, // comment out so it falls back to full chord advance automatically
+            'g': { mode: 'chordTone', index: 0, semitones: -1 },
+            'h': { mode: 'chordTone', index: 0, semitones: -2 },
+            'j': { mode: 'chordTone', index: 0, semitones: -3 },
+            'k': { mode: 'chordTone', index: 0, semitones: -4 },
+            'l': { mode: 'chordTone', index: 0, semitones: -5 },
+            ';': { mode: 'chordTone', index: 0, semitones: -6 },
+            "'": { mode: 'chordTone', index: 0, semitones: -7 },
+            // top row — perfect 4th above the column's home-row note
+            'q': { mode: 'chordTone', index: 0, semitones: 8  },
+            'w': { mode: 'chordTone', index: 0, semitones: 7  },
+            'e': { mode: 'chordTone', index: 0, semitones: 6  },
+            'r': { mode: 'chordTone', index: 0, semitones: 5  },
+            't': { mode: 'chordTone', index: 0, semitones: 4  },
+            'y': { mode: 'chordTone', index: 0, semitones: 3  },
+            'u': { mode: 'chordTone', index: 0, semitones: 2  },
+            'i': { mode: 'chordTone', index: 0, semitones: 1  },
+            'o': { mode: 'chordTone', index: 0, semitones: 0  },
+            'p': { mode: 'chordTone', index: 0, semitones: -1 },
+            '[': { mode: 'chordTone', index: 0, semitones: -2 },
+            ']': { mode: 'chordTone', index: 0, semitones: -3 },
+            // bottom row — perfect 4th below the column's home-row note
+            'z': { mode: 'chordTone', index: 0, semitones: -2  },
+            'x': { mode: 'chordTone', index: 0, semitones: -3  },
+            'c': { mode: 'chordTone', index: 0, semitones: -4  },
+            'v': { mode: 'chordTone', index: 0, semitones: -5  },
+            'b': { mode: 'chordTone', index: 0, semitones: -6  },
+            'n': { mode: 'chordTone', index: 0, semitones: -7  },
+            'm': { mode: 'chordTone', index: 0, semitones: -8  },
+            ',': { mode: 'chordTone', index: 0, semitones: -9  },
+            '.': { mode: 'chordTone', index: 0, semitones: -10 },
+            '/': { mode: 'chordTone', index: 0, semitones: -11 },
         },
     },
     wickiHayden: {
